@@ -55,9 +55,12 @@ référence de convergence en `dt`.
   invariants géométriques vérifiés sur `radius` = 3.0, 5.5, 8.2, 12.0
   (17 à 915 nœuds) ; configurations de travail standard `radius=5.5`
   (87 nœuds, 136 arêtes) et `radius=8.2` (293 nœuds, 500 arêtes).
-- **Élasticité** : loi harmonique `E = 1/2 k (L-c)²`, `k=1.0`,
-  `c` = longueur de repos commune (`≈1.7321` pour ces réseaux).
-- **Masse nodale** : `m=1.0` (unités réduites `c0=m0=k0=1`, cf. ADR).
+- **Élasticité** : loi harmonique `E = 1/2 k (L-c)²`, avec `k=1.0` et
+  `c=matrix.c≈1.7321` comme longueur de repos commune dans le système
+  de coordonnées actuel.
+- **Masse nodale** : `m=1.0`. Les résultats sont exprimés dans les
+  unités numériques du modèle ; aucune identification de `c` avec une
+  vitesse physique n'est faite.
 - **Intégrateur** : velocity-Verlet, `dt` de 0.005 à 0.04 selon
   l'étude ; ordre de convergence 2 vérifié (étape 4).
 - **Injection de référence** : paire compensée (`ΔP=0` exact), nœud
@@ -114,8 +117,9 @@ identique aux 4 directions (exact, par construction).
 
 **Résultat principal** : le réseau à ressorts centraux entre premiers
 voisins uniquement (coordination 4) est massivement sous-contraint au
-niveau linéarisé. `rang(B) = nombre d'arêtes` exactement (aucune
-redondance de contrainte) sur toutes les tailles testées :
+niveau linéarisé. Le rang numérique de `B`, calculé par SVD, est égal
+au nombre d'arêtes pour les trois tailles testées ; aucune redondance de
+contrainte n'est détectée à la tolérance numérique utilisée :
 
 | `radius` | ddl (`3N`) | arêtes | modes nuls | % ddl |
 |---|---|---|---|---|
@@ -128,7 +132,7 @@ Analyse invariante du sous-espace (projecteur, pas les vecteurs propres
 individuels, dont l'interprétation mode-à-mode n'est pas fiable dans un
 noyau aussi dégénéré) : **69,9 %** du poids du noyau porté par les
 degrés de liberté de bord, contre **59,8 %** de nœuds effectivement de
-bord — enrichi au bord mais pas uniquement surfacique (existence
+bord — enrichi au bord mais pas exclusivement surfacique (existence
 vérifiée d'un vecteur du noyau quasi purement intérieur et d'un autre
 quasi purement de bord).
 
@@ -157,9 +161,10 @@ quasi purement de bord).
   (renormalisée) : ratio pic d'énergie élastique/injectée **≈0,017**
   pour la composante noyau, **≈0,898** pour son complément. Loi
   d'échelle mesurée pour la composante noyau : énergie élastique de
-  pic `∝ vitesse^p`, `p≈3,9-4,0` sur 4 amplitudes (cohérent avec
-  l'absence de terme de rappel au premier ordre : `δl=O(q²) ⟹
-  énergie=O(q⁴)`, non dérivé analytiquement pour ce réseau spécifique).
+  pic `∝ vitesse^p`, `p≈3,9-4,0` sur 4 amplitudes, cohérent avec
+  l'argument géométrique local `Bq=0 ⟹ δl=O(q²) ⟹ énergie=O(q⁴)`,
+  sans démonstration analytique complète de la loi du pic dynamique
+  sur une fenêtre temporelle finie.
 
 ### 8 — Linéarité en amplitude (injection longitudinale)
 
@@ -170,7 +175,7 @@ propagation quasi indépendante de l'amplitude sur les 3 plus petites
 vitesses (écart relatif **2,0 %**), croissant une fois les grandes
 amplitudes incluses (**6,5 %**). Profils radiaux normalisés
 superposables à petite amplitude, déviation RMS croissant
-monotonement avec l'amplitude : **0 ; 0,0008 ; 0,0026 ; 0,0072 ;
+monotoniquement avec l'amplitude : **0 ; 0,0008 ; 0,0026 ; 0,0072 ;
 0,0168**.
 
 ### 9 — Conditions aux limites
@@ -182,8 +187,9 @@ monotonement avec l'amplitude : **0 ; 0,0008 ; 0,0026 ; 0,0072 ;
   fraction moyenne d'énergie en coquille externe (`r≥0,7R`) inférieure
   pour la frontière fixe que pour la frontière libre, aux deux
   définitions de masque — mais pas à chaque instant individuel pour le
-  masque radial (interférence multi-réflexion réelle observée à un
-  instant, non gommée par l'assertion agrégée).
+  masque radial ; une inversion ponctuelle, compatible avec des
+  interférences liées aux réflexions multiples, a été conservée plutôt
+  que masquée par une assertion point par point.
 - **9B (absorbante)** : bilan mécanique + absorbée fermé à `<10⁻³`
   (mesuré `~10⁻⁵`, non dégradé par le splitting de Strang). Étude de
   sensibilité (3 `γmax`, 2 exposants, 2 largeurs de couronne) :
@@ -212,9 +218,10 @@ gravité émergente, ou d'une correspondance avec un vide physique.
    selon la taille testée), très au-delà des 6 mouvements rigides — au
    sens linéarisé, infinitésimal, sur les domaines finis testés, avec
    interactions centrales de premiers voisins uniquement.
-3. Ce noyau n'est pas purement un artefact de surface — il contient des
-   mécanismes étendus dans le volume — mais il est statistiquement
-   enrichi au bord par rapport à la population de nœuds.
+3. Ce noyau n'est pas uniquement un artefact de surface : il contient
+   des directions de déplacement presque entièrement portées par les
+   nœuds intérieurs, tout en étant globalement enrichi sur les degrés
+   de liberté de bord.
 4. Certaines déformations globales particulières (le cisaillement
    affine testé) et certaines composantes d'excitation (le complément
    du noyau) conservent une rigidité élastique réelle et mesurable, y
@@ -228,11 +235,13 @@ gravité émergente, ou d'une correspondance avec un vide physique.
    superposition des profils, pente quasi indépendante de
    l'amplitude) ; des non-linéarités mesurables et croissantes
    apparaissent aux amplitudes plus élevées testées.
-7. Les trois conditions de bord implémentées (libre, fixe, absorbante)
-   sont chacune comptabilisées correctement sur le plan énergétique et
-   de quantité de mouvement, et se distinguent quantitativement par la
-   quantité d'énergie mécanique qu'elles laissent circuler tardivement
-   en périphérie du domaine.
+7. Les trois conditions de bord disposent d'une comptabilité
+   énergétique adaptée. La quantité de mouvement est conservée pour la
+   frontière libre et son échange avec la contrainte est explicitement
+   comptabilisé pour la frontière fixe. La couche absorbante ferme
+   correctement le bilan mécanique plus énergie dissipée. Elles se
+   distinguent quantitativement par la quantité d'énergie mécanique
+   qu'elles laissent circuler tardivement en périphérie du domaine.
 
 ## Limites explicites
 
