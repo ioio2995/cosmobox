@@ -96,6 +96,11 @@ def test_center_of_mass_does_not_drift(injected_history) -> None:
 
 
 def test_energy_error_stays_bounded_and_is_not_secular(injected_history) -> None:
+    # A coarse regression guard, not a rigorous absence-of-drift proof: a
+    # slowly-growing error could still satisfy the 10x ratio below. The
+    # rigorous version — checking the observed order of convergence in
+    # dt — is tests/test_dt_convergence.py (step 4); no physical
+    # conclusion should be drawn from this test alone.
     report = analyze_conservation(injected_history)
     assert report.energy_relative_error is not None
 
