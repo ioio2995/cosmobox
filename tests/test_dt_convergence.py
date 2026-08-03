@@ -49,8 +49,24 @@ def initial_state(matrix: DiamondMatrix) -> LatticeState:
 
 
 @pytest.fixture(scope="module")
+def initial_state_snapshot(initial_state: LatticeState) -> LatticeState:
+    # Captured synchronously, before any other module-scoped fixture
+    # (e.g. convergence_rows) gets a chance to consume `initial_state` —
+    # a true pre-study snapshot, not just a same-value re-read after the
+    # fact, so an accidental in-place mutation inside the study would
+    # actually be caught here.
+    return LatticeState(
+        positions=initial_state.positions.copy(),
+        velocities=initial_state.velocities.copy(),
+    )
+
+
+@pytest.fixture(scope="module")
 def convergence_rows(
-    matrix: DiamondMatrix, elasticity: ElasticityConfig, initial_state: LatticeState
+    matrix: DiamondMatrix,
+    elasticity: ElasticityConfig,
+    initial_state: LatticeState,
+    initial_state_snapshot: LatticeState,
 ) -> list[ConvergenceRow]:
     return run_dt_convergence_study(
         matrix.edges, elasticity, node_mass=1.0, initial_state=initial_state,
@@ -64,13 +80,15 @@ def test_every_run_covers_the_same_physical_duration(convergence_rows: list[Conv
 
 
 def test_initial_state_is_untouched_by_the_study(
-    matrix: DiamondMatrix, initial_state: LatticeState
+    initial_state: LatticeState,
+    initial_state_snapshot: LatticeState,
+    convergence_rows: list[ConvergenceRow],  # ensure the study has actually run first
 ) -> None:
     # run_dt_convergence_study must not mutate the initial_state it was
     # handed — every dt run has to start from the exact same bit-for-bit
     # condition, not a state left over from a previous run.
-    assert np.array_equal(initial_state.positions, matrix.reference_positions)
-    assert initial_state.velocities.shape == matrix.reference_positions.shape
+    assert np.array_equal(initial_state.positions, initial_state_snapshot.positions)
+    assert np.array_equal(initial_state.velocities, initial_state_snapshot.velocities)
 
 
 def test_momentum_is_conserved_at_every_resolution(convergence_rows: list[ConvergenceRow]) -> None:
