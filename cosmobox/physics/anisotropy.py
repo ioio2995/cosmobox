@@ -49,10 +49,14 @@ def energy_tensor(reference_positions: np.ndarray, center: np.ndarray, energy_de
     """The energy-weighted second-moment (quadrupole-like) tensor
     `M_ab = (1/E) * sum_i E_i * offset_i_a * offset_i_b`, `offset_i =
     reference_positions[i] - center`. Symmetric and positive
-    semi-definite by construction (a weighted covariance matrix), so
-    its eigenvalues quantify the packet's spatial extent along its
-    principal axes without depending on an arbitrary shell or cone
-    partition.
+    semi-definite by construction, so its eigenvalues quantify the
+    packet's spatial extent along its principal axes without depending
+    on an arbitrary shell or cone partition.
+
+    This is a second moment about the fixed injection `center`, not a
+    covariance matrix about the energy-weighted barycenter (that mean
+    is not subtracted here) — do not call it a covariance matrix
+    without recentering first.
     """
     total = float(energy_density.sum())
     if total <= 0:
@@ -75,6 +79,14 @@ def directional_energy(
     excluded from all of them — otherwise a cone_half_angle_deg=180
     ("all directions") would not recover the full total energy
     whenever the injection center itself carries energy.
+
+    Cones for different directions can overlap, and the center node is
+    always included in all of them: calling this for several
+    directions does *not* produce an additive partition of the total
+    energy (the sum over several cones' results can exceed
+    `total_energy`). For a true angular partition, assign each node to
+    exactly one sector and handle the center node's contribution
+    explicitly instead of calling this function per sector.
     """
     offsets = reference_positions - center
     norms = np.linalg.norm(offsets, axis=1)
@@ -184,36 +196,51 @@ def write_directional_table_csv(runs: list[DirectionalRun], path: Path) -> None:
         writer.writerows(table)
 
 
+@dataclass(slots=True)
+class SymmetryTrajectoryError:
+    max_position_error: float
+    max_velocity_error: float
+
+
 def symmetry_trajectory_max_error(
     source_history: list[tuple[LatticeState, StepDiagnostics]],
     target_history: list[tuple[LatticeState, StepDiagnostics]],
     transform: np.ndarray,
     permutation: np.ndarray,
-) -> float:
-    """Maximum, over every step, of the per-node position discrepancy
-    between `target_history` and the geometric image of
-    `source_history` under the lattice symmetry (`transform`,
-    `permutation`) from cosmobox.core.symmetry.
+) -> SymmetryTrajectoryError:
+    """Maximum, over every step, of the per-node discrepancy between
+    `target_history` and the geometric image of `source_history` under
+    the lattice symmetry (`transform`, `permutation`) from
+    cosmobox.core.symmetry — for *both* positions and velocities, since
+    covariance of the full state requires both:
 
-    If node `i` in the source run corresponds to node `permutation[i]`
-    in the target run (because the target injection is the source
-    injection's direction rotated by `transform`), covariance requires
     `target_positions[permutation[i]] == transform @ source_positions[i]`
-    at every step — not merely `target_positions[permutation[i]] ==
+    `target_velocities[permutation[i]] == transform @ source_velocities[i]`
+
+    at every step (not merely `target_positions[permutation[i]] ==
     source_positions[permutation[i]]`, which would silently pass for
-    any permutation without checking the rotation was actually applied.
-    ~0 (floating-point noise) if the engine is exactly covariant under
-    this symmetry; a real, non-noise-level value would indicate a bug
-    in the engine or geometry, not a physical effect.
+    any permutation without checking the rotation was actually
+    applied). Both components ~0 (floating-point noise) if the engine
+    is exactly covariant under this symmetry; a real, non-noise-level
+    value would indicate a bug in the engine or geometry, not a
+    physical effect.
     """
     if len(source_history) != len(target_history):
         raise ValueError("source and target histories must have the same length")
 
-    max_error = 0.0
+    max_position_error = 0.0
+    max_velocity_error = 0.0
     for (source_state, _), (target_state, _) in zip(source_history, target_history):
-        rotated = source_state.positions @ transform.T
-        predicted = np.empty_like(rotated)
-        predicted[permutation] = rotated
-        error = float(np.max(np.abs(predicted - target_state.positions)))
-        max_error = max(max_error, error)
-    return max_error
+        rotated_positions = source_state.positions @ transform.T
+        predicted_positions = np.empty_like(rotated_positions)
+        predicted_positions[permutation] = rotated_positions
+        position_error = float(np.max(np.abs(predicted_positions - target_state.positions)))
+        max_position_error = max(max_position_error, position_error)
+
+        rotated_velocities = source_state.velocities @ transform.T
+        predicted_velocities = np.empty_like(rotated_velocities)
+        predicted_velocities[permutation] = rotated_velocities
+        velocity_error = float(np.max(np.abs(predicted_velocities - target_state.velocities)))
+        max_velocity_error = max(max_velocity_error, velocity_error)
+
+    return SymmetryTrajectoryError(max_position_error=max_position_error, max_velocity_error=max_velocity_error)

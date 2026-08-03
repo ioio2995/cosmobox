@@ -128,7 +128,8 @@ def test_engine_is_exactly_covariant_under_lattice_symmetry(
     )
 
     error = symmetry_trajectory_max_error(source_history, target_history, transform, permutation)
-    assert error < 1e-9
+    assert error.max_position_error < 1e-9
+    assert error.max_velocity_error < 1e-9
 
 
 # --- energy tensor and directional energy ---

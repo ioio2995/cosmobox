@@ -50,3 +50,26 @@ def test_permutation_preserves_edges_detects_a_broken_permutation(matrix: Diamon
     broken = identity.copy()
     broken[0], broken[-1] = broken[-1], broken[0]
     assert not permutation_preserves_edges(matrix.edges, broken)
+
+
+def test_rejects_wrong_shaped_transform(matrix: DiamondMatrix) -> None:
+    with pytest.raises(ValueError, match="3x3"):
+        lattice_symmetry_permutation(matrix.reference_positions, np.eye(2))
+
+
+def test_rejects_non_orthogonal_transform(matrix: DiamondMatrix) -> None:
+    non_orthogonal = np.diag([2.0, 1.0, 1.0])  # a scaling, not an isometry
+    with pytest.raises(ValueError, match="orthogonal"):
+        lattice_symmetry_permutation(matrix.reference_positions, non_orthogonal)
+
+
+def test_rejects_a_transform_that_is_not_bijective_on_this_point_set() -> None:
+    # A hand-built point set containing a duplicate site: both points
+    # round to the same target under the identity transform, so the
+    # induced mapping is not injective. Exercises the bijectivity check
+    # directly rather than relying on finding a real degenerate case in
+    # the full diamond lattice.
+    duplicated_points = np.array([[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    identity = np.eye(3)
+    with pytest.raises(ValueError, match="bijection"):
+        lattice_symmetry_permutation(duplicated_points, identity)
