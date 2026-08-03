@@ -2,8 +2,7 @@
 
 ## Statut
 
-Proposée — corrections de revue scientifique intégrées, en attente de
-validation finale.
+Acceptée.
 
 ## Problème traité
 
@@ -57,8 +56,13 @@ géométrique automatisée** (voir section dédiée ci-dessous) :
 - `cosmobox/physics/elasticity.py` — énergie et force d'une liaison
   purement harmonique, `E_ij = 1/2 k (L_ij - c)^2`, sans facteur de
   déformation ni flux.
-- `cosmobox/simulation/engine.py` — intégrateur vitesse-Verlet (leapfrog),
-  aucun amortissement par défaut, aucune correction de centre de masse
+- `cosmobox/simulation/engine.py` — intégrateur velocity-Verlet (positions
+  et vitesses synchronisées au même instant `t`, à distinguer du leapfrog
+  qui stocke les vitesses à des demi-pas — les deux schémas sont proches
+  mais pas interchangeables sans conversion explicite ; on retient
+  velocity-Verlet pour simplifier l'écriture des diagnostics
+  `positions(t)`/`vitesses(t)`/`énergie(t)`), aucun amortissement par
+  défaut, aucune correction de centre de masse
   implicite (translation globale mesurée, jamais soustraite sauf variante
   explicitement identifiée), conditions aux limites paramétrables
   (libre / fixe / couche absorbante) au sens d'EXP-0001 §4.3 et
@@ -86,7 +90,7 @@ de la lumière — une éventuelle vitesse limite émergente recevra un nom
 distinct si et seulement si elle est observée.
 
 **Intégrateur — pas de promesse de conservation exacte.** Le schéma
-vitesse-Verlet est symplectique pour un système hamiltonien à forces
+velocity-Verlet est symplectique pour un système hamiltonien à forces
 dépendant uniquement des positions ; il produit une erreur d'énergie
 **bornée et oscillante**, pas une énergie strictement constante. Les
 critères de validation (repris dans `physics/diagnostics.py` et dans les
@@ -138,9 +142,12 @@ distinctement plutôt que de calculer une seule grandeur « énergie totale » :
   initiale.
 - **Frontière fixe** — les nœuds immobilisés constituent une contrainte
   externe ; la quantité de mouvement du domaine mobile n'est pas
-  nécessairement conservée. Il faut mesurer les forces de réaction aux
-  nœuds fixes, l'impulsion transmise à la frontière, et le cas échéant le
-  travail de la contrainte.
+  nécessairement conservée. Il faut mesurer les forces de réaction et
+  l'impulsion transmise à la frontière. Le travail de la contrainte doit
+  rester nul pour des nœuds strictement immobiles (déplacement nul) ; toute
+  valeur non nulle doit être expliquée par la méthode numérique ou par une
+  frontière imposée mobile, et non attribuée artificiellement en énergie
+  aux nœuds fixes.
 - **Couche absorbante** — l'énergie mécanique du réseau n'est
   volontairement pas conservée. Une grandeur distincte `E_absorbée(t)` doit
   être enregistrée, avec vérification `E_réseau(t) + E_absorbée(t) ≈
@@ -165,6 +172,27 @@ qui ne répondent pas à la même question :
 Chaque exécution doit enregistrer explicitement le type d'injection utilisé
 dans `metadata.json`, pour éviter de comparer des résultats répondant à des
 questions différentes.
+
+## Ordre d'implémentation
+
+Le périmètre complet décrit ci-dessus (quatre injections, trois frontières,
+convergence temporelle et spatiale, anisotropie, modes mous, linéarité en
+amplitude) reste le périmètre final d'EXP-0001, mais n'est pas livré en une
+fois. Implémentation dans cet ordre, chaque étape devant être validée avant
+de passer à la suivante :
+
+1. validation géométrique de `DiamondMatrix` (invariants listés en
+   *Conséquences*) ;
+2. contrôle zéro (réseau au repos, sans injection) avec frontière libre ;
+3. impulsion compensée avec frontière libre ;
+4. conservation de l'énergie et de la quantité de mouvement sur ce cas ;
+5. convergence en `dt` ;
+6. seulement ensuite : les autres types d'injection, les autres frontières
+   (fixe, absorbante), l'anisotropie, la caractérisation des modes mous et
+   la linéarité en amplitude.
+
+La couche absorbante et les diagnostics avancés (anisotropie, modes mous)
+ne doivent pas retarder la validation du cœur mécanique (étapes 1 à 5).
 
 ## Alternatives étudiées
 
