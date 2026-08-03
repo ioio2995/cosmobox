@@ -11,8 +11,13 @@ import pytest
 from cosmobox.core.config import MatrixConfig
 from cosmobox.core.matrix import DiamondMatrix
 from cosmobox.physics.elasticity import ElasticityConfig
-from cosmobox.physics.rigidity import analyze_modes, kernel_projector
-from cosmobox.physics.shear import affine_shear_displacement, project_out_kernel, shear_energy_curve
+from cosmobox.physics.rigidity import analyze_modes, kernel_projector, rigidity_matrix, stiffness_matrix
+from cosmobox.physics.shear import (
+    affine_shear_displacement,
+    exact_quadratic_coefficient,
+    project_out_kernel,
+    shear_energy_curve,
+)
 
 _GAMMAS = np.array([-1e-3, -5e-4, -2e-4, -1e-4, 1e-4, 2e-4, 5e-4, 1e-3])
 
@@ -25,6 +30,12 @@ def matrix() -> DiamondMatrix:
 @pytest.fixture(scope="module")
 def elasticity(matrix: DiamondMatrix) -> ElasticityConfig:
     return ElasticityConfig(rest_length=matrix.c, stiffness=1.0)
+
+
+@pytest.fixture(scope="module")
+def K(matrix: DiamondMatrix) -> np.ndarray:
+    B = rigidity_matrix(matrix.reference_positions, matrix.edges)
+    return stiffness_matrix(B, 1.0)
 
 
 @pytest.fixture(scope="module")
@@ -120,3 +131,15 @@ def test_energy_is_symmetric_for_this_shear_pattern(
     gammas_sorted = curve.gammas[order]
     energies_sorted = curve.energies[order]
     assert np.allclose(energies_sorted, energies_sorted[::-1], rtol=1e-6)
+
+
+def test_fitted_quadratic_coefficient_matches_the_exact_linearized_value(
+    matrix: DiamondMatrix, elasticity: ElasticityConfig, raw_shear_direction: np.ndarray,
+    projected_shear_direction: np.ndarray, K: np.ndarray,
+) -> None:
+    # Confirms the finite-gamma fit isn't biased by the cubic/quartic
+    # terms over the chosen gamma range, for both directions.
+    for direction in (raw_shear_direction, projected_shear_direction):
+        curve = shear_energy_curve(matrix.reference_positions, matrix.edges, elasticity, direction, _GAMMAS)
+        exact = exact_quadratic_coefficient(K, direction)
+        assert curve.quadratic_coefficient == pytest.approx(exact, rel=1e-6)

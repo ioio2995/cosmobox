@@ -46,6 +46,18 @@ def affine_shear_displacement(reference_positions: np.ndarray, from_axis: int, t
     return displacement.ravel()
 
 
+def exact_quadratic_coefficient(K: np.ndarray, direction: np.ndarray) -> float:
+    """The exact linearized quadratic-energy coefficient
+    `0.5 * direction @ K @ direction` (K from
+    cosmobox.physics.rigidity.stiffness_matrix) — not an approximation,
+    a direct evaluation of the same quadratic form the nonlinear
+    `bond_energy` reduces to as `gamma -> 0`. Used to check that a
+    `ShearEnergyCurve.quadratic_coefficient` fit over a finite gamma
+    range is not biased by the cubic/quartic terms.
+    """
+    return float(0.5 * direction @ K @ direction)
+
+
 def project_out_kernel(direction: np.ndarray, projector: np.ndarray) -> np.ndarray:
     """`direction` with its component inside the linearized kernel
     (`projector` from cosmobox.physics.rigidity.kernel_projector)
