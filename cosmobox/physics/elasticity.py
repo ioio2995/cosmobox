@@ -12,11 +12,19 @@ from dataclasses import dataclass
 
 import numpy as np
 
+_MIN_BOND_LENGTH = 1e-12
+
 
 @dataclass(slots=True)
 class ElasticityConfig:
     rest_length: float
     stiffness: float
+
+    def __post_init__(self) -> None:
+        if self.rest_length <= 0:
+            raise ValueError(f"rest_length must be strictly positive, got {self.rest_length}")
+        if self.stiffness <= 0:
+            raise ValueError(f"stiffness must be strictly positive, got {self.stiffness}")
 
 
 def bond_vectors(positions: np.ndarray, edges: np.ndarray) -> np.ndarray:
@@ -36,8 +44,13 @@ def bond_forces(positions: np.ndarray, edges: np.ndarray, config: ElasticityConf
     """Per-node force array (N, 3), the negative gradient of `bond_energy`."""
     vectors = bond_vectors(positions, edges)
     lengths = np.linalg.norm(vectors, axis=1)
-    safe_lengths = np.maximum(lengths, 1e-12)
-    directions = vectors / safe_lengths[:, None]
+    degenerate = np.flatnonzero(lengths < _MIN_BOND_LENGTH)
+    if degenerate.size:
+        raise ValueError(
+            "zero-length bond: force direction is undefined for edge(s) "
+            f"{edges[degenerate].tolist()}"
+        )
+    directions = vectors / lengths[:, None]
     extension = lengths - config.rest_length
     edge_forces = config.stiffness * extension[:, None] * directions
 

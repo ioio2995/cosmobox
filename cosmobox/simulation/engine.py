@@ -13,7 +13,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from cosmobox.physics.diagnostics import kinetic_energy, total_momentum
+from cosmobox.physics.diagnostics import (
+    center_of_mass_position,
+    center_of_mass_velocity,
+    kinetic_energy,
+    total_momentum,
+)
 from cosmobox.physics.elasticity import ElasticityConfig, bond_energy, bond_forces
 
 
@@ -28,6 +33,12 @@ class EngineConfig:
     node_mass: float
     dt: float
 
+    def __post_init__(self) -> None:
+        if self.node_mass <= 0:
+            raise ValueError(f"node_mass must be strictly positive, got {self.node_mass}")
+        if self.dt <= 0:
+            raise ValueError(f"dt must be strictly positive, got {self.dt}")
+
 
 @dataclass(slots=True)
 class StepDiagnostics:
@@ -36,6 +47,8 @@ class StepDiagnostics:
     elastic_energy: float
     total_energy: float
     momentum: np.ndarray
+    center_of_mass_position: np.ndarray
+    center_of_mass_velocity: np.ndarray
 
     @property
     def momentum_norm(self) -> float:
@@ -61,6 +74,8 @@ class ConservativeLatticeEngine:
             elastic_energy=elastic,
             total_energy=kinetic + elastic,
             momentum=momentum,
+            center_of_mass_position=center_of_mass_position(state.positions),
+            center_of_mass_velocity=center_of_mass_velocity(state.velocities),
         )
 
     def step(self, state: LatticeState) -> LatticeState:

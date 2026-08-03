@@ -49,6 +49,26 @@ def test_compressed_bond_pushes_nodes_apart() -> None:
     assert forces[1] == pytest.approx([2.5, 0.0, 0.0])
 
 
+def test_zero_length_bond_raises_instead_of_silently_returning_zero_force() -> None:
+    config = ElasticityConfig(rest_length=1.0, stiffness=5.0)
+    positions = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])  # coincident nodes
+
+    with pytest.raises(ValueError, match="zero-length bond"):
+        bond_forces(positions, _TWO_NODE_EDGES, config)
+
+
+@pytest.mark.parametrize("rest_length,stiffness", [(0.0, 5.0), (-1.0, 5.0), (1.0, 0.0), (1.0, -5.0)])
+def test_elasticity_config_rejects_non_positive_values(rest_length: float, stiffness: float) -> None:
+    with pytest.raises(ValueError):
+        ElasticityConfig(rest_length=rest_length, stiffness=stiffness)
+
+
+@pytest.mark.parametrize("node_mass,dt", [(0.0, 0.01), (-1.0, 0.01), (1.0, 0.0), (1.0, -0.01)])
+def test_engine_config_rejects_non_positive_values(node_mass: float, dt: float) -> None:
+    with pytest.raises(ValueError):
+        EngineConfig(node_mass=node_mass, dt=dt)
+
+
 # --- simulation/engine.py: free-boundary velocity-Verlet on the diamond lattice ---
 
 
@@ -115,3 +135,7 @@ def test_diagnostics_are_reported_for_every_step(
         assert np.isfinite(diag.total_energy)
         assert diag.momentum.shape == (3,)
         assert np.isfinite(diag.momentum_norm)
+        assert diag.center_of_mass_position.shape == (3,)
+        assert diag.center_of_mass_velocity.shape == (3,)
+        assert np.all(np.isfinite(diag.center_of_mass_position))
+        assert np.all(np.isfinite(diag.center_of_mass_velocity))
