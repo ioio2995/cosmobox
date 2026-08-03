@@ -3,9 +3,10 @@
 Characterizes what the existing compensated-pair injection
 (cosmobox.simulation.injection) does on a free-boundary lattice: where
 the energy is, how far and how fast it has spread by an energy-weighted
-and a threshold-based measure, and when boundary reflections likely
-start contaminating the measurement. Produces raw, serializable
-numbers only.
+and a threshold-based measure, and from when the perturbation may start
+interacting with the boundary. Produces raw, serializable numbers only.
+`earliest_boundary_influence_time` is a conservative caution bound, not
+an actual reflection detector — see its docstring.
 
 No conclusion about a propagation speed limit, the network's isotropy,
 or particle-like structure should be drawn from this module alone: the
@@ -59,7 +60,17 @@ def radial_energy_profile(
     at this amplitude/duration — see the dt-convergence RMS position
     errors, ~1e-5 against a lattice spacing of ~1.7). This is the
     "répartition spatiale de l'énergie" measurement.
+
+    `bin_edges[-1]` must strictly exceed the farthest node's distance,
+    or that node (and any other past the last edge) would be silently
+    dropped from the profile by `np.digitize`.
     """
+    if bin_edges[-1] <= distances.max():
+        raise ValueError(
+            f"bin_edges upper bound {bin_edges[-1]} must exceed the maximum node "
+            f"distance {distances.max()}, otherwise the farthest node(s) would be "
+            "silently excluded from the profile"
+        )
     shell_indices = np.digitize(distances, bin_edges) - 1
     profile = np.zeros(len(bin_edges) - 1)
     for shell in range(len(profile)):
@@ -180,17 +191,26 @@ def estimate_apparent_velocity(
     }
 
 
-def first_boundary_contamination_time(
-    samples: list[PropagationSample], domain_radius: float, contamination_fraction: float
+def earliest_boundary_influence_time(
+    samples: list[PropagationSample], domain_radius: float, caution_fraction: float
 ) -> float | None:
-    """First time the threshold front radius reaches `contamination_fraction`
-    of the domain radius — a simple proxy for "boundary reflections may
-    now be contaminating the measurement" (EXP-0001 §12: "temps estimé
-    de première contamination"). None if the run never reaches it.
+    """First time the threshold front radius reaches `caution_fraction`
+    of the domain radius.
+
+    This is a conservative safety bound, not a reflection detector: it
+    marks when the perturbation first approaches/touches the boundary,
+    not when a wave reflected off the boundary has actually traveled
+    back and disturbed the measured region — that would need a
+    separate signal this function does not compute (e.g. a reversal of
+    the radial energy flux, a secondary rise in the inner shells'
+    energy, or a comparison between two different domain radii).
+    Samples after this time should be read as "boundary influence
+    cannot yet be ruled out", not as "contaminated". None if the run
+    never reaches the caution zone.
     """
-    threshold_radius = contamination_fraction * domain_radius
+    caution_radius = caution_fraction * domain_radius
     for sample in samples:
-        if sample.threshold_front_radius >= threshold_radius:
+        if sample.threshold_front_radius >= caution_radius:
             return sample.time
     return None
 
