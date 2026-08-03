@@ -2,7 +2,9 @@
 
 Step 1 of the EXP-0001 implementation order (docs/05_decisions/
 0001-moteur-conservatif-minimal.md): DiamondMatrix reuse is conditioned
-on these invariants holding, not assumed.
+on these invariants holding, not assumed. Run against several domain
+sizes, not just the default MatrixConfig, so a check that only happens
+to hold for one lattice size is not mistaken for a general invariant.
 """
 from __future__ import annotations
 
@@ -13,6 +15,14 @@ import pytest
 
 from cosmobox.core.config import MatrixConfig
 from cosmobox.core.matrix import DiamondMatrix
+
+# Independent of cosmobox.core.matrix.TETRA_DIRS: these are the four
+# tetrahedral bond directions of a diamond lattice by construction, not a
+# value read out of the implementation under test.
+_TETRA_DIRECTIONS = np.array(
+    [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]],
+    dtype=int,
+)
 
 
 def _sublattice_of(point: np.ndarray) -> int:
@@ -30,6 +40,21 @@ def _sublattice_of(point: np.ndarray) -> int:
     if residue == 3:
         return 1
     raise AssertionError(f"unexpected coordinate-sum residue {residue} for point {point}")
+
+
+def _is_geometrically_interior(point: np.ndarray, sublattice: int, radius: float) -> bool:
+    """Whether all four ideal tetrahedral neighbors of `point` lie inside
+    the spherical domain, independently of whether DiamondMatrix actually
+    materialized them as edges.
+
+    This is the geometric definition of "interior" against which the
+    matrix's reported degree is checked, so that a bug dropping an edge at
+    a truly interior node would show up as a contradiction rather than
+    silently being relabeled as a boundary node.
+    """
+    directions = _TETRA_DIRECTIONS if sublattice == 0 else -_TETRA_DIRECTIONS
+    neighbors = point + directions
+    return bool(np.all(np.linalg.norm(neighbors, axis=1) <= radius))
 
 
 def _connected_components(num_nodes: int, edges: np.ndarray) -> list[set[int]]:
@@ -57,9 +82,18 @@ def _connected_components(num_nodes: int, edges: np.ndarray) -> list[set[int]]:
     return components
 
 
-@pytest.fixture(scope="module")
-def matrix() -> DiamondMatrix:
-    return DiamondMatrix(MatrixConfig())
+@pytest.fixture(
+    scope="module",
+    params=[
+        MatrixConfig(radius=3.0, cell_range=3),
+        MatrixConfig(radius=5.5, cell_range=5),
+        MatrixConfig(),
+        MatrixConfig(radius=12.0, cell_range=10),
+    ],
+    ids=["tiny", "small", "default", "large"],
+)
+def matrix(request: pytest.FixtureRequest) -> DiamondMatrix:
+    return DiamondMatrix(request.param)
 
 
 def test_all_edges_share_the_same_rest_length(matrix: DiamondMatrix) -> None:
@@ -85,11 +119,31 @@ def test_no_node_exceeds_the_tetrahedral_coordination_number(matrix: DiamondMatr
 
 
 def test_interior_and_boundary_nodes_are_both_present(matrix: DiamondMatrix) -> None:
-    # Interior nodes (degree 4, all four ideal neighbors present) and
-    # boundary nodes (degree < 4, cut off by the spherical domain) must
-    # both exist and be distinguishable for a finite sphere cutoff.
     assert np.any(matrix.degrees == 4)
     assert np.any(matrix.degrees < 4)
+
+
+def test_geometrically_interior_nodes_have_degree_four(matrix: DiamondMatrix) -> None:
+    # Degree alone cannot prove "interior" is defined correctly: a bug
+    # that silently drops one edge at a truly interior node would just
+    # relabel it as degree 3 without failing a degree-only check. Here
+    # "interior" is derived purely from geometry (do all four ideal
+    # neighbor positions fall inside the sphere?), independently of the
+    # matrix's own edge list, and then compared against the reported
+    # degree in both directions.
+    for index, (point, degree) in enumerate(zip(matrix.reference_positions, matrix.degrees)):
+        sublattice = _sublattice_of(point)
+        geometrically_interior = _is_geometrically_interior(point, sublattice, matrix.config.radius)
+        if geometrically_interior:
+            assert degree == 4, (
+                f"node {index} at {point} has all four ideal neighbors inside "
+                f"the domain (radius={matrix.config.radius}) but degree {degree}"
+            )
+        else:
+            assert degree < 4, (
+                f"node {index} at {point} is missing at least one ideal neighbor "
+                f"from the domain but was reported with the full degree 4"
+            )
 
 
 def test_lattice_is_bipartite_between_the_two_fcc_sublattices(matrix: DiamondMatrix) -> None:
@@ -108,9 +162,14 @@ def test_lattice_is_bipartite_between_the_two_fcc_sublattices(matrix: DiamondMat
     )
 
 
-def test_geometric_center_of_the_domain_is_the_coordinate_origin(matrix: DiamondMatrix) -> None:
-    # The sphere cutoff (config.radius) is applied around the coordinate
-    # origin, so the point cloud's centroid must coincide with it.
+def test_point_cloud_is_symmetric_about_the_coordinate_origin(matrix: DiamondMatrix) -> None:
+    # NOTE: the spherical cutoff in DiamondMatrix._build_lattice is applied
+    # as `norm(point) <= radius`, i.e. centered on the origin by
+    # construction — this test does not re-derive that independently. It
+    # only checks that the resulting point cloud is in fact mass-symmetric
+    # about the origin, which is a necessary (not sufficient) consequence
+    # and would catch, e.g., an off-center basis or an asymmetric range
+    # bug in the tiling loop.
     centroid = matrix.reference_positions.mean(axis=0)
     assert np.linalg.norm(centroid) < 1e-9
 
