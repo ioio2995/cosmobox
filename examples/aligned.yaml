@@ -1,0 +1,11 @@
+steps: 300
+output_dir: output/aligned
+matrix:
+  radius: 8.2
+  cell_range: 7
+particles:
+  count: 44
+  energy: 1.0
+  chirality_mode: aligned
+render:
+  enabled: false
