@@ -90,6 +90,7 @@ class RelaxationResult:
     gradient_norm: float  # ||interior forces|| at the returned positions
     iterations: int
     converged: bool
+    status: str  # "converged", "line_search_failed", or "max_iterations_reached"
     min_bond_length: float  # degeneracy check: a near-zero value means a collapsed configuration
     non_affine_displacement: np.ndarray  # (N, 3): relaxed - initial_positions, interior rows only meaningful
 
@@ -118,8 +119,9 @@ def relax_interior_positions(
 
     step = initial_step
     gradient_norm = float("inf")
-    converged = False
+    status = "max_iterations_reached"
     iterations_used = 0
+    _MIN_LINE_SEARCH_STEP = 1e-18
 
     for iteration in range(1, max_iterations + 1):
         iterations_used = iteration
@@ -127,7 +129,7 @@ def relax_interior_positions(
         interior_forces = forces[interior_mask]
         gradient_norm = float(np.linalg.norm(interior_forces))
         if gradient_norm < gradient_tolerance:
-            converged = True
+            status = "converged"
             break
 
         direction = np.zeros_like(positions)
@@ -137,9 +139,19 @@ def relax_interior_positions(
         while True:
             trial_positions = positions + trial_step * direction
             trial_energy = bond_energy(trial_positions, edges, elasticity)
-            if trial_energy <= energy - 1e-4 * trial_step * gradient_norm**2 or trial_step < 1e-18:
+            if trial_energy <= energy - 1e-4 * trial_step * gradient_norm**2:
+                break
+            if trial_step < _MIN_LINE_SEARCH_STEP:
+                # Line search collapsed without satisfying the Armijo
+                # condition: report this explicitly rather than
+                # silently accepting a non-decreasing step as if it
+                # were a normal iteration.
+                status = "line_search_failed"
                 break
             trial_step *= 0.5
+
+        if status == "line_search_failed":
+            break
 
         positions = trial_positions
         energy = trial_energy
@@ -150,7 +162,8 @@ def relax_interior_positions(
         energy=float(energy),
         gradient_norm=gradient_norm,
         iterations=iterations_used,
-        converged=converged,
+        converged=status == "converged",
+        status=status,
         min_bond_length=float(bond_lengths(positions, edges).min()),
         non_affine_displacement=positions - initial_positions,
     )
@@ -163,6 +176,7 @@ class ShearRelaxationRow:
     relaxed_energy: float
     ratio: float  # relaxed_energy / affine_energy
     converged: bool
+    status: str  # "converged", "line_search_failed", or "max_iterations_reached"
     iterations: int
     gradient_norm: float
     min_bond_length: float
@@ -216,6 +230,7 @@ def run_shear_relaxation_study(
                 relaxed_energy=result.energy,
                 ratio=float(ratio),
                 converged=result.converged,
+                status=result.status,
                 iterations=result.iterations,
                 gradient_norm=result.gradient_norm,
                 min_bond_length=result.min_bond_length,
@@ -233,6 +248,7 @@ def shear_relaxation_rows_to_table(rows: list[ShearRelaxationRow]) -> list[dict[
             "relaxed_energy": row.relaxed_energy,
             "ratio": row.ratio,
             "converged": row.converged,
+            "status": row.status,
             "iterations": row.iterations,
             "gradient_norm": row.gradient_norm,
             "min_bond_length": row.min_bond_length,

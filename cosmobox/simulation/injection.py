@@ -72,12 +72,24 @@ def pair_injection(matrix: DiamondMatrix, node_a: int, node_b: int, speed: float
     for any pair of nodes — momentum compensation does not depend on
     which pair is chosen, only reproducible node *selection* does.
     """
+    direction = matrix.reference_positions[node_b] - matrix.reference_positions[node_a]
+    return pair_injection_along(matrix, node_a, node_b, direction, speed)
+
+
+def pair_injection_along(
+    matrix: DiamondMatrix, node_a: int, node_b: int, direction: np.ndarray, speed: float
+) -> CompensatedInjection:
+    """A momentum-neutral perturbation along an arbitrary `direction`
+    (not necessarily the bond direction between `node_a` and `node_b`):
+    `node_a` and `node_b` receive opposite velocity impulses of equal
+    magnitude `speed` along `direction`. Used directly by
+    `pair_injection` (bond-aligned) and, for a transverse (non-bond)
+    direction, by the step 7B-3 polarization study.
+    """
     if speed <= 0:
         raise ValueError(f"speed must be strictly positive, got {speed}")
 
-    direction = matrix.reference_positions[node_b] - matrix.reference_positions[node_a]
     unit_direction = direction / np.linalg.norm(direction)
-
     return CompensatedInjection(
         node_a=node_a, node_b=node_b, direction=unit_direction, velocity=speed * unit_direction
     )

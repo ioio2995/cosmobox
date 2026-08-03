@@ -124,6 +124,7 @@ def test_nonlinear_relaxation_matches_linear_reference_at_small_gamma(
     )
     nonlinear_row = rows[0]
     assert nonlinear_row.converged
+    assert nonlinear_row.status == "converged"
     assert nonlinear_row.ratio == pytest.approx(linear_ratio, rel=1e-3)
 
 
@@ -137,6 +138,7 @@ def test_relaxation_runs_converge_with_small_gradient_and_no_bond_collapse(
     for row in rows:
         assert isinstance(row, ShearRelaxationRow)
         assert row.converged
+        assert row.status == "converged"
         assert row.gradient_norm < 1e-8
         assert 0 < row.iterations < 2000
         assert 0.0 < row.ratio < 1.0
