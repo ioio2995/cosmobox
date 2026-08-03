@@ -109,6 +109,22 @@ def verify_rigid_motions_are_null(
 
 @dataclass(slots=True)
 class Mode:
+    """One vector of a possibly highly degenerate null (or near-null)
+    space, as returned by `eigh`.
+
+    CAUTION — basis-dependent: when `null_space_dimension` is large (as
+    it is here), any orthogonal recombination of the null eigenvectors
+    is an equally valid basis for the same subspace and the same
+    physics. `participation_ratio`, `boundary_energy_fraction` and the
+    two overlaps below are therefore properties of *this particular*
+    vector as chosen by LAPACK, not physically meaningful on their own
+    — do not interpret "mode number 17" individually. For
+    basis-independent statements about the whole kernel, use
+    `RigidityAnalysis.kernel_boundary_weight_fraction` and
+    `kernel_boundary_localization_range` instead, which only depend on
+    the subspace itself.
+    """
+
     eigenvalue: float
     relative_eigenvalue: float
     participation_ratio: float
@@ -116,6 +132,62 @@ class Mode:
     rigid_translation_overlap: float
     rigid_rotation_overlap: float
     displacement: np.ndarray  # (N, 3)
+
+
+def kernel_projector(kernel_basis: np.ndarray) -> np.ndarray:
+    """`P0 = V.T @ V` for any orthonormal basis `V` (rows) of the
+    kernel subspace. Basis-independent: for another orthonormal basis
+    `V' = Q @ V` with `Q` orthogonal, `V'.T @ V' = V.T @ Q.T @ Q @ V =
+    V.T @ V` — unlike the individual rows of `V`, the projector itself
+    does not depend on which orthonormal basis was used to compute it.
+    """
+    return kernel_basis.T @ kernel_basis
+
+
+def kernel_boundary_weight_fraction(projector: np.ndarray, boundary_mask: np.ndarray) -> float:
+    """Fraction of the kernel's total dimension (`trace(P0)`) that sits
+    on boundary-node degrees of freedom, summed over the *whole*
+    subspace at once — basis-independent, unlike any individual
+    eigenvector's `boundary_energy_fraction`.
+    """
+    per_node_weight = np.diag(projector).reshape(-1, 3).sum(axis=1)
+    total = float(per_node_weight.sum())  # == kernel dimension, up to float error
+    return float(per_node_weight[boundary_mask].sum() / total)
+
+
+def kernel_boundary_localization_range(kernel_basis: np.ndarray, boundary_mask: np.ndarray) -> tuple[float, float]:
+    """`(min, max)` of the boundary-energy fraction achievable by *any*
+    unit vector inside the kernel subspace, found by diagonalizing the
+    boundary-weight operator restricted to the kernel (a
+    `null_space_dimension x null_space_dimension` matrix, not the full
+    `K`). Both numbers are basis-independent even though the specific
+    vectors that realize them are, again, just one more arbitrary
+    choice of basis for the (possibly degenerate) extremal eigenspaces.
+    """
+    boundary_weight_flat = np.repeat(boundary_mask.astype(float), 3)
+    reduced = (kernel_basis * boundary_weight_flat) @ kernel_basis.T
+    eigenvalues = np.linalg.eigvalsh(reduced)
+    return float(eigenvalues[0]), float(eigenvalues[-1])
+
+
+def kernel_contains_rigid_subspace(
+    projector: np.ndarray, translation_basis: np.ndarray, rotation_basis: np.ndarray
+) -> dict[str, float]:
+    """`||P0 @ v - v||` for each of the 6 rigid-motion generators: ~0
+    means `v` lies exactly inside the kernel subspace `P0` projects
+    onto. A basis-independent restatement of
+    `verify_rigid_motions_are_null` (which checks `K @ v ~ 0` directly)
+    — the two should agree, since a vector with `K @ v = 0` is by
+    definition in `ker K`, but this version depends only on the
+    subspace `P0`, not on `K` or the specific eigenvectors LAPACK chose
+    to span it.
+    """
+    residuals: dict[str, float] = {}
+    for axis, name in zip(range(3), "xyz"):
+        for label, basis in (("translation", translation_basis), ("rotation", rotation_basis)):
+            vector = basis[axis]
+            residuals[f"{label}_{name}"] = float(np.linalg.norm(projector @ vector - vector))
+    return residuals
 
 
 @dataclass(slots=True)
@@ -126,7 +198,10 @@ class RigidityAnalysis:
     null_space_dimension: int  # via eigenvalue tolerance
     null_tolerance: float
     rigid_motion_residuals: dict[str, float]
-    modes: list[Mode]  # the null_space_dimension lowest modes
+    kernel_rigid_subspace_residuals: dict[str, float]
+    kernel_boundary_weight_fraction: float
+    kernel_boundary_localization_range: tuple[float, float]
+    modes: list[Mode]  # the null_space_dimension lowest modes; see Mode's caveat
 
 
 def analyze_modes(
@@ -181,6 +256,12 @@ def analyze_modes(
 
     rank_B = int(np.linalg.matrix_rank(B))
 
+    kernel_basis = np.array([mode.displacement.ravel() for mode in modes])
+    projector = kernel_projector(kernel_basis)
+    kernel_rigid_residuals = kernel_contains_rigid_subspace(projector, translation_basis, rotation_basis)
+    boundary_weight_fraction = kernel_boundary_weight_fraction(projector, boundary_mask)
+    boundary_localization_range = kernel_boundary_localization_range(kernel_basis, boundary_mask)
+
     return RigidityAnalysis(
         n_dof=3 * n_nodes,
         n_edges=len(edges),
@@ -188,6 +269,9 @@ def analyze_modes(
         null_space_dimension=len(modes),
         null_tolerance=null_tolerance,
         rigid_motion_residuals=rigid_motion_residuals,
+        kernel_rigid_subspace_residuals=kernel_rigid_residuals,
+        kernel_boundary_weight_fraction=boundary_weight_fraction,
+        kernel_boundary_localization_range=boundary_localization_range,
         modes=modes,
     )
 

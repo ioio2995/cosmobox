@@ -27,6 +27,16 @@ from cosmobox.physics.rigidity import (
     write_modes_table_csv,
 )
 
+# rank(B) and nullity(B) = 3N - rank(B), locked as reproducible
+# results of this repo's lattice construction (no eigh needed — see
+# the step-7A review, "verrouiller le comptage sur plusieurs tailles
+# ... sans nécessairement diagonaliser le grand K").
+_EXPECTED_RANK_AND_NULLITY = {
+    (3.0, 3): (16, 35),
+    (5.5, 5): (136, 125),
+    (8.2, 7): (500, 379),
+}
+
 _STIFFNESS = 1.0
 _NULL_TOLERANCE = 1e-6
 
@@ -57,6 +67,23 @@ def analysis(matrix: DiamondMatrix) -> RigidityAnalysis:
     return analyze_modes(
         matrix.reference_positions, matrix.edges, matrix.degrees, _STIFFNESS, _NULL_TOLERANCE
     )
+
+
+# --- multi-size rank/nullity, locked as a reproducible result (no eigh) ---
+
+
+@pytest.mark.parametrize("radius,cell_range", sorted(_EXPECTED_RANK_AND_NULLITY))
+def test_rank_and_nullity_across_lattice_sizes(radius: float, cell_range: int) -> None:
+    small_matrix = DiamondMatrix(MatrixConfig(radius=radius, cell_range=cell_range))
+    B = rigidity_matrix(small_matrix.reference_positions, small_matrix.edges)
+    rank_B = int(np.linalg.matrix_rank(B))
+    n_dof = 3 * len(small_matrix.reference_positions)
+
+    expected_rank, expected_nullity = _EXPECTED_RANK_AND_NULLITY[(radius, cell_range)]
+    assert rank_B == expected_rank
+    assert n_dof - rank_B == expected_nullity
+    assert rank_B == len(small_matrix.edges)  # every bond-length constraint independent
+    assert n_dof - rank_B > 6  # more null modes than the six rigid motions alone
 
 
 # --- basis sanity ---
@@ -109,6 +136,39 @@ def test_reports_internal_mechanisms_beyond_the_six_rigid_motions(analysis: Rigi
     # motions can account for — the discriminating observation itself.
     assert analysis.null_space_dimension > 6
     assert analysis.rank_B == analysis.n_edges  # every bond-length constraint is independent here
+
+
+# --- basis-independent (subspace-level) invariants ---
+
+
+def test_kernel_projector_agrees_with_direct_K_check_on_rigid_motions(analysis: RigidityAnalysis) -> None:
+    # kernel_contains_rigid_subspace (||P0 @ v - v||) is a different
+    # computation from verify_rigid_motions_are_null (||K @ v||); both
+    # must independently confirm the rigid subspace lies in the kernel.
+    for name, residual in analysis.kernel_rigid_subspace_residuals.items():
+        assert residual < 1e-8, f"{name}: ||P0 @ v - v|| = {residual}, expected ~0"
+
+
+def test_kernel_boundary_weight_fraction_is_a_valid_fraction(analysis: RigidityAnalysis) -> None:
+    assert 0.0 <= analysis.kernel_boundary_weight_fraction <= 1.0 + 1e-9
+
+
+def test_kernel_boundary_localization_range_is_consistent(analysis: RigidityAnalysis) -> None:
+    minimum, maximum = analysis.kernel_boundary_localization_range
+    assert -1e-9 <= minimum <= maximum <= 1.0 + 1e-9
+    # The mean boundary weight fraction over the whole subspace must lie
+    # within the extremal range achievable by a single vector in it.
+    assert minimum - 1e-9 <= analysis.kernel_boundary_weight_fraction <= maximum + 1e-9
+
+
+def test_kernel_spans_both_boundary_and_interior_localized_vectors(analysis: RigidityAnalysis) -> None:
+    # For this lattice, the kernel is not purely a boundary artifact:
+    # there exists a unit vector inside it supported almost entirely on
+    # interior nodes (min close to 0), and one almost entirely on
+    # boundary nodes (max close to 1).
+    minimum, maximum = analysis.kernel_boundary_localization_range
+    assert minimum < 0.1
+    assert maximum > 0.9
 
 
 # --- per-mode fields ---
