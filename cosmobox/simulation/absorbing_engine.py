@@ -124,7 +124,9 @@ class AbsorbingLatticeEngine:
 
     def run(self, initial_state: LatticeState, steps: int) -> list[tuple[LatticeState, AbsorbingStepDiagnostics]]:
         dt = self.engine.dt
-        state = initial_state
+        state = LatticeState(
+            positions=initial_state.positions.copy(), velocities=initial_state.velocities.copy()
+        )
         cumulative_absorbed = 0.0
         history = [(state, self.diagnostics(state, 0.0, cumulative_absorbed))]
         for step_index in range(1, steps + 1):
