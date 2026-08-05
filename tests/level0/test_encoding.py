@@ -11,7 +11,10 @@ from cosmobox.level0.encoding import (
     flux_bit_offset,
     occupation_bit,
     required_bits,
+    validate_canonical_key,
     validate_capacity,
+    validate_flux_length,
+    validate_occupation_length,
 )
 from cosmobox.level0.lattice import build_lattice
 
@@ -158,3 +161,45 @@ def test_unused_bits_are_zero_in_a_canonical_key() -> None:
     key = encode(lattice, n_flavors, spin, occupations=[1, 0, 1], flux=[1, -1, 0])
     bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges))
     assert int(key) < (1 << bits)
+
+
+def test_validate_occupation_length_accepts_correct_length() -> None:
+    validate_occupation_length(3, 2, [0, 0, 0, 0, 0, 0])  # must not raise
+
+
+def test_validate_occupation_length_rejects_wrong_length() -> None:
+    with pytest.raises(ValueError):
+        validate_occupation_length(3, 2, [0, 0, 0])
+
+
+def test_validate_flux_length_accepts_correct_length() -> None:
+    validate_flux_length(3, [0, 0, 0])  # must not raise
+
+
+def test_validate_flux_length_rejects_wrong_length() -> None:
+    with pytest.raises(ValueError):
+        validate_flux_length(3, [0, 0])
+
+
+def test_validate_canonical_key_accepts_a_valid_key() -> None:
+    lattice = build_lattice("triangle")
+    key = encode(lattice, 1, 1, [1, 0, 1], [1, -1, 0])
+    validate_canonical_key(lattice, 1, 1, key)  # must not raise
+
+
+def test_validate_canonical_key_rejects_non_canonical_high_bits() -> None:
+    lattice = build_lattice("chain3")
+    n_flavors, spin = 1, 1
+    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges))
+    key = np.uint64(1 << bits)
+    with pytest.raises(ValueError):
+        validate_canonical_key(lattice, n_flavors, spin, key)
+
+
+def test_validate_canonical_key_rejects_flux_field_exceeding_two_spin() -> None:
+    lattice = build_lattice("chain3")
+    n_flavors, spin = 1, 1
+    offset = flux_bit_offset(len(lattice.nodes), n_flavors, edge_index=0)
+    key = np.uint64(5 << offset)
+    with pytest.raises(ValueError):
+        validate_canonical_key(lattice, n_flavors, spin, key)

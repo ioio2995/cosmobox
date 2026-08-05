@@ -8,6 +8,7 @@ import pytest
 from cosmobox.level0.basis import build_basis
 from cosmobox.level0.encoding import decode, encode, required_bits
 from cosmobox.level0.gauge import (
+    charge_vector,
     doubled_gauss_vector,
     gauss_vector,
     incidence_matrix,
@@ -177,3 +178,69 @@ def test_gauss_vector_with_integer_and_half_integer_external_charges() -> None:
     residuals = gauss_vector(lattice, n_flavors, occupation, flux, external_charges=(1, Fraction(1, 2), 0))
     # G_i = 0 - Q_i - q_i^ext
     assert residuals == (Fraction(1, 2) - 1, Fraction(1, 2) - Fraction(1, 2), Fraction(1, 2) - 0)
+
+
+# ---------------------------------------------------------------------------
+# Explicit validation of raw occupation/flux inputs (charge_vector, gauss_vector,
+# doubled_gauss_vector) -- length and binary/integer-typed values.
+# ---------------------------------------------------------------------------
+
+
+def test_charge_vector_rejects_wrong_length_occupation() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        charge_vector((0, 0), lattice, n_flavors=1)
+
+
+def test_charge_vector_rejects_non_binary_occupation() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        charge_vector((0, 2, 0), lattice, n_flavors=1)
+
+
+def test_gauss_vector_rejects_wrong_length_occupation() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        gauss_vector(lattice, 1, (0, 0), (0, 0, 0))
+
+
+def test_gauss_vector_rejects_non_binary_occupation() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        gauss_vector(lattice, 1, (0, 0, 2), (0, 0, 0))
+
+
+def test_gauss_vector_rejects_wrong_length_flux() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        gauss_vector(lattice, 1, (0, 0, 0), (0, 0))
+
+
+def test_gauss_vector_rejects_non_integer_flux_value() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        gauss_vector(lattice, 1, (0, 0, 0), (0.5, 0, 0))
+
+
+def test_doubled_gauss_vector_rejects_wrong_length_occupation() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        doubled_gauss_vector(lattice, 1, (0, 0), (0, 0, 0))
+
+
+def test_doubled_gauss_vector_rejects_non_binary_occupation() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        doubled_gauss_vector(lattice, 1, (0, 0, 2), (0, 0, 0))
+
+
+def test_doubled_gauss_vector_rejects_wrong_length_flux() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        doubled_gauss_vector(lattice, 1, (0, 0, 0), (0, 0))
+
+
+def test_doubled_gauss_vector_rejects_non_integer_flux_value() -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        doubled_gauss_vector(lattice, 1, (0, 0, 0), (0.5, 0, 0))

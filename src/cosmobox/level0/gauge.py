@@ -19,8 +19,20 @@ from fractions import Fraction
 import numpy as np
 
 from .charges import doubled_external_charges, normalize_external_charges
-from .encoding import decode
+from .encoding import decode, validate_flux_length, validate_occupation_length
 from .lattice import Lattice
+
+
+def _validate_occupation_values(occupation: Sequence[int]) -> None:
+    for index, value in enumerate(occupation):
+        if value not in (0, 1):
+            raise ValueError(f"occupation at index {index} must be 0 or 1, got {value!r}")
+
+
+def _validate_flux_values(flux: Sequence[int]) -> None:
+    for index, value in enumerate(flux):
+        if isinstance(value, bool) or not isinstance(value, (int, np.integer)):
+            raise ValueError(f"flux value at edge {index} must be an integer, got {value!r}")
 
 
 def node_charge(occupation: Sequence[int], node: int, n_flavors: int) -> Fraction:
@@ -37,6 +49,8 @@ def doubled_node_charge(occupation: Sequence[int], node: int, n_flavors: int) ->
 
 def charge_vector(occupation: Sequence[int], lattice: Lattice, n_flavors: int) -> tuple[Fraction, ...]:
     """Q = (Q_1, ..., Q_N) for a full occupation tuple."""
+    validate_occupation_length(len(lattice.nodes), n_flavors, occupation)
+    _validate_occupation_values(occupation)
     return tuple(node_charge(occupation, node, n_flavors) for node in lattice.nodes)
 
 
@@ -60,6 +74,11 @@ def gauss_vector(
 ) -> tuple[Fraction, ...]:
     """G_i = sum_e eps_ie E_e - Q_i - q_i^ext for every node, exact (Fraction)."""
     n_nodes = len(lattice.nodes)
+    n_edges = len(lattice.edges)
+    validate_occupation_length(n_nodes, n_flavors, occupation)
+    _validate_occupation_values(occupation)
+    validate_flux_length(n_edges, flux)
+    _validate_flux_values(flux)
     ext = normalize_external_charges(n_nodes, external_charges)
     divergence = incidence_matrix(lattice) @ np.asarray(flux, dtype=np.int64)
     return tuple(
@@ -77,6 +96,11 @@ def doubled_gauss_vector(
 ) -> tuple[int, ...]:
     """2*G_i for every node, computed directly in integer arithmetic (no Fraction)."""
     n_nodes = len(lattice.nodes)
+    n_edges = len(lattice.edges)
+    validate_occupation_length(n_nodes, n_flavors, occupation)
+    _validate_occupation_values(occupation)
+    validate_flux_length(n_edges, flux)
+    _validate_flux_values(flux)
     q2_ext = doubled_external_charges(normalize_external_charges(n_nodes, external_charges))
     divergence = incidence_matrix(lattice) @ np.asarray(flux, dtype=np.int64)
     return tuple(

@@ -52,6 +52,44 @@ def validate_spin(spin: int) -> None:
         raise ValueError(f"spin S={spin} is not supported at level 0; expected one of {SUPPORTED_SPINS}")
 
 
+def validate_occupation_length(n_nodes: int, n_flavors: int, occupation: Sequence[int]) -> None:
+    expected = n_nodes * n_flavors
+    if len(occupation) != expected:
+        raise ValueError(f"expected {expected} occupation values, got {len(occupation)}")
+
+
+def validate_flux_length(n_edges: int, flux: Sequence[int]) -> None:
+    if len(flux) != n_edges:
+        raise ValueError(f"expected {n_edges} flux values, got {len(flux)}")
+
+
+def _check_canonical_bits(key_int: int, n_nodes: int, n_flavors: int, n_edges: int, spin: int) -> None:
+    """Shared structural check used by both decode() and validate_canonical_key()."""
+    bits = required_bits(n_nodes, n_flavors, n_edges)
+    canonical_mask = (1 << bits) - 1
+    if key_int & ~canonical_mask:
+        raise ValueError(f"key {key_int:#x} sets bits beyond the canonical range of {bits} bits")
+    for edge_index in range(n_edges):
+        stored_value = (key_int >> flux_bit_offset(n_nodes, n_flavors, edge_index)) & 0b111
+        if not (0 <= stored_value <= 2 * spin):
+            raise ValueError(
+                f"stored flux value v_e={stored_value} at edge {edge_index} is outside [0, {2 * spin}]"
+            )
+
+
+def validate_canonical_key(lattice: Lattice, n_flavors: int, spin: int, key: np.uint64) -> None:
+    """Raise ValueError unless ``key`` is structurally canonical for (lattice, n_flavors, spin).
+
+    Checks exactly the same invariants as decode(): total capacity, no bits
+    set beyond the canonical range, and every flux field within [0, 2*spin].
+    """
+    validate_spin(spin)
+    n_nodes = len(lattice.nodes)
+    n_edges = len(lattice.edges)
+    validate_capacity(n_nodes, n_flavors, n_edges)
+    _check_canonical_bits(int(key), n_nodes, n_flavors, n_edges, spin)
+
+
 def encode(
     lattice: Lattice,
     n_flavors: int,
@@ -64,11 +102,8 @@ def encode(
     n_nodes = len(lattice.nodes)
     n_edges = len(lattice.edges)
     validate_capacity(n_nodes, n_flavors, n_edges)
-
-    if len(occupations) != n_nodes * n_flavors:
-        raise ValueError(f"expected {n_nodes * n_flavors} occupation values, got {len(occupations)}")
-    if len(flux) != n_edges:
-        raise ValueError(f"expected {n_edges} flux values, got {len(flux)}")
+    validate_occupation_length(n_nodes, n_flavors, occupations)
+    validate_flux_length(n_edges, flux)
 
     key = 0
     for bit_index, occupation in enumerate(occupations):
@@ -99,20 +134,12 @@ def decode(
     validate_capacity(n_nodes, n_flavors, n_edges)
 
     key_int = int(key)
-    bits = required_bits(n_nodes, n_flavors, n_edges)
-    canonical_mask = (1 << bits) - 1
-    if key_int & ~canonical_mask:
-        raise ValueError(f"key {key_int:#x} sets bits beyond the canonical range of {bits} bits")
+    _check_canonical_bits(key_int, n_nodes, n_flavors, n_edges, spin)
 
     occupations = tuple((key_int >> bit_index) & 1 for bit_index in range(n_nodes * n_flavors))
+    flux = tuple(
+        ((key_int >> flux_bit_offset(n_nodes, n_flavors, edge_index)) & 0b111) - spin
+        for edge_index in range(n_edges)
+    )
 
-    flux = []
-    for edge_index in range(n_edges):
-        stored_value = (key_int >> flux_bit_offset(n_nodes, n_flavors, edge_index)) & 0b111
-        if not (0 <= stored_value <= 2 * spin):
-            raise ValueError(
-                f"stored flux value v_e={stored_value} at edge {edge_index} is outside [0, {2 * spin}]"
-            )
-        flux.append(stored_value - spin)
-
-    return occupations, tuple(flux)
+    return occupations, flux
