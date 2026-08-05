@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1-correlators-v1.schema.json",
+  "title": "Cosmobox Level 1 correlator result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "repository_commit",
+    "manifest_fingerprint",
+    "campaign_id",
+    "geometry",
+    "spin",
+    "n_flavors",
+    "transporter_convention",
+    "transporter_normalization_nu_S",
+    "spectral_group",
+    "observable",
+    "value"
+  ],
+  "properties": {
+    "schema_version": {"const": "level1-correlators-v1"},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifest_fingerprint": {"type": "string"},
+    "campaign_id": {"type": "string"},
+    "geometry": {"enum": ["triangle", "ring4", "ring5", "disk7"]},
+    "spin": {"type": "integer", "minimum": 1},
+    "n_flavors": {"const": 2},
+    "hamiltonian_parameters": {"type": "object"},
+    "transporter_convention": {"const": "S_plus_over_sqrt_S_Splus1"},
+    "transporter_normalization_nu_S": {"const": 1},
+    "diagonalization_driver": {"type": ["string", "null"]},
+    "eigensolver": {"type": ["string", "null"]},
+    "scientific_seed": {"type": ["integer", "null"]},
+    "solver_seed": {"type": ["integer", "null"]},
+    "validation_rotation_seed": {"type": ["integer", "null"]},
+    "spectral_window": {"type": "integer", "minimum": 1},
+    "spectral_group": {"type": "object"},
+    "observable": {"type": "object"},
+    "value": {
+      "oneOf": [
+        {"type": "number"},
+        {"$ref": "#/$defs/complex"},
+        {"type": "array"},
+        {"type": "null"}
+      ]
+    },
+    "null_reason": {
+      "type": ["string", "null"],
+      "enum": [
+        "normalization_denominator_below_floor",
+        "zero_local_charge_variance",
+        "truncated_spectral_group",
+        "ambiguous_cross_truncation_match",
+        "target_group_not_in_window",
+        "resource_guardrail_exceeded",
+        "structurally_not_applicable",
+        "not_applicable",
+        null
+      ]
+    }
+  },
+  "$defs": {
+    "complex": {
+      "type": "object",
+      "required": ["real", "imag"],
+      "properties": {
+        "real": {"type": "number"},
+        "imag": {"type": "number"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
