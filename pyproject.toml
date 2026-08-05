@@ -5,25 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cosmobox"
 version = "0.1.0"
-description = "Simulateur modulaire d'un réseau diamant/blende déformable"
+description = "Substrat quantique relationnel: modele de jauge fini (niveau 0)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.26",
-  "matplotlib>=3.8",
-  "pillow>=10.0",
-  "PyYAML>=6.0",
+  "scipy>=1.11",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 
-[project.scripts]
-cosmobox = "cosmobox.cli:main"
-
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["cosmobox*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
