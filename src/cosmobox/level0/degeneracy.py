@@ -2,10 +2,12 @@
 
 analyze_spectral_degeneracies takes a sorted-ascending sequence of
 eigenvalues (as already produced by reports.py's direct/dense/sparse
-paths) and groups adjacent eigenvalues that agree within a scale-adjusted
-tolerance into SpectralLevelGroup entries. It does not touch the
-Hamiltonian, the basis, or any operator -- it is a pure post-processing
-step on numbers already computed elsewhere.
+paths) and groups them into SpectralLevelGroup entries, anchored on each
+group's first (lowest) value: every candidate is compared to that anchor,
+not to the previous candidate, so a group cannot drift beyond the
+tolerance through an accumulation of small adjacent steps. It does not
+touch the Hamiltonian, the basis, or any operator -- it is a pure
+post-processing step on numbers already computed elsewhere.
 """
 
 from __future__ import annotations
@@ -151,10 +153,17 @@ def analyze_spectral_degeneracies(
         if values[index] < values[index - 1]:
             raise ValueError(f"eigenvalues must be sorted ascending; violated at index {index}")
 
+    # Anchored on the group's first value, not chained on the previous
+    # value: comparing only adjacent pairs would let a group drift by
+    # accumulating many sub-tolerance steps (e.g. E0, E0+0.9*tol, E0+1.8*tol
+    # would all merge even though E2-E0 > tol). Every candidate is compared
+    # to values[group_start], which only moves when a new group opens.
     boundaries = [0]
+    group_start = 0
     for index in range(1, n):
-        if not _same_group(values[index - 1], values[index], tolerance):
+        if not _same_group(values[group_start], values[index], tolerance):
             boundaries.append(index)
+            group_start = index
     boundaries.append(n)
 
     groups = tuple(

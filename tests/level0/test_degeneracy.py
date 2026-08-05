@@ -52,16 +52,38 @@ def test_values_just_outside_tolerance_are_split() -> None:
     assert report.first_distinct_gap > tolerance * max(1.0, 1.0)
 
 
-def test_grouping_is_chained_not_anchored_to_first_element() -> None:
-    # 0.0 -> 0.0 + tol/2 -> 0.0 + tol: each adjacent pair is within tolerance
-    # of its neighbor, even though the first and last are not directly
-    # within tolerance of each other. Chained grouping still merges them.
-    tolerance = 1e-6
-    step = tolerance / 2
-    values = [0.0, step, 2 * step]
+def test_grouping_is_anchored_not_chained() -> None:
+    # Each adjacent step (0.9*tol) is individually within tolerance, but the
+    # last value is 1.8*tol away from the group's anchor (the first value).
+    # Anchored grouping must split here; chained grouping would wrongly
+    # merge all three by drifting through the middle value.
+    tolerance = 1e-10
+    values = [0.0, 0.9 * tolerance, 1.8 * tolerance]
+    report = analyze_spectral_degeneracies(values, dimension=3, tolerance=tolerance)
+    assert len(report.groups) == 2
+    assert report.groups[0].multiplicity_observed == 2
+    assert report.groups[1].multiplicity_observed == 1
+
+
+def test_grouping_stays_together_when_truly_within_tolerance_of_anchor() -> None:
+    tolerance = 1e-10
+    values = [0.0, 0.4 * tolerance, 0.8 * tolerance]
     report = analyze_spectral_degeneracies(values, dimension=3, tolerance=tolerance)
     assert len(report.groups) == 1
     assert report.groups[0].multiplicity_observed == 3
+
+
+def test_grouping_anchor_uses_relative_scale_at_large_energy() -> None:
+    # Same absolute geometry as the anchored-split case above, but shifted
+    # to a large energy so the *relative* (scale-adjusted) tolerance is what
+    # must separate the third level from the anchor, not the second value.
+    tolerance = 1e-10
+    base = 1e6
+    values = [base, base + 0.9e-4, base + 1.8e-4]
+    report = analyze_spectral_degeneracies(values, dimension=3, tolerance=tolerance)
+    assert len(report.groups) == 2
+    assert report.groups[0].multiplicity_observed == 2
+    assert report.groups[1].multiplicity_observed == 1
 
 
 # ---------------------------------------------------------------------------
