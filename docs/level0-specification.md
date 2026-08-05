@@ -137,3 +137,12 @@ Le premier lot ne contient que :
 - leurs tests.
 
 Le deuxième lot ajoute basis.py avec égalité exacte contre brute force comme critère d’acceptation.
+
+## État d'avancement
+
+- Lot 1 (`lattice.py`, `encoding.py`) : livré.
+- Lot 2 (`basis.py`) : livré, T6 validé.
+- Lot 3A (`gauge.py`) / 3B (`operators.py`) : livrés.
+- Lot 4A/4B/4C (`params.py`, `charges.py`, `hamiltonian.py`) : livrés — H_dot, H_hop, H_E, H_B et `HamiltonianTerms`. Voir `docs/decisions.md` (D011) pour les formules finales et `docs/validation-plan.md` pour la couverture T1-T9.
+
+L'API publique du package est exposée dans `src/cosmobox/level0/__init__.py`.

@@ -96,3 +96,18 @@ Le lot lattice + encoding est accepté lorsque :
 ## Critères du lot 2
 
 basis.py est accepté lorsque T6 passe exactement et que le rapport de secteurs est reproductible.
+
+## Statut d'implémentation — Hamiltonien (lots 4A-4C)
+
+Couverture effective de T1, T2, T3, T7, T8, T9 pour H_dot, H_hop, H_E, H_B et H_total, dans `tests/level0/test_hamiltonian.py` :
+
+- **T1** (hermiticité) : chaque terme séparément et le total, sur triangle/chain3/ring4/ring5 (H_B et le total : triangle/ring4/ring5).
+- **T2** (fermeture) : positif sur la base physique réelle ; négatif sur une base volontairement incomplète (`RuntimeError` explicite).
+- **T3** (invariance de jauge) : `[H_x, G_i]=0` vérifié numériquement dans le petit espace complet non contraint (pas la base physique, où ce serait trivial), pour chaque terme puis pour H_total.
+- **T7** (conservation de charge) : nombre fermionique total conservé (H_dot, H_hop) ; vecteur d'occupation complet conservé exactement (H_B, qui ne touche jamais l'occupation).
+- **T8** (absence de fuite) : chaque transition non nulle vérifiée indépendamment (décodage, `is_physical`, appartenance à `key_index`) ; évolution unitaire courte (`expm_multiply`) sur H_total, conservation de la norme et de l'énergie `⟨H⟩`.
+- **T9** (limites analytiques) : couplages nuls, terme électrique seul, terme J seul, transition de hopping isolée, plaquette isolée — chaque cas comparé à un calcul analytique explicite, pas seulement à une formule supposée.
+
+`disk7` : validé au niveau des actions (`W_p`/`W_p†` sur un échantillon déterministe de la base réelle), jamais par assemblage matriciel complet — coût jugé déraisonnable (~450 000+ états) pour la suite de tests courante.
+
+T4 (signes Jordan-Wigner) et T5 (amplitudes S±) : validés en amont dans `tests/level0/test_operators.py` (lot 3B). T6 : validé dans `tests/level0/test_basis.py` (lot 2).
