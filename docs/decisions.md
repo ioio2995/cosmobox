@@ -74,21 +74,57 @@ Un résultat négatif doit rester possible. Les seuils et diagnostics ne sont pa
 
 **Statut : gelé**
 
-H = H_dot + H_hop + H_E + H_B est implémenté dans `src/cosmobox/level0/hamiltonian.py`, assemblé sur la base physique exacte produite par `basis.py` :
+H = H_dot + H_hop + H_E + H_B est implémenté dans `src/cosmobox/level0/hamiltonian.py`, assemblé sur la base physique exacte produite par `basis.py`.
 
-- H_dot = Σ_i [ J_i(n_i1-1/2)(n_i2-1/2) + Σ_αβ h^(i)_αβ c†_iα c_iβ ], M=2 uniquement (D006).
-- H_hop = -t Σ_{e=(i→j),α} [ c†_iα U_e c_jα + c†_jα U_e† c_iα ], `t` scalaire réel global, diagonal en saveur — aucune matrice `t_{e,αβ}` au niveau 0.
-- H_E = (g_E/2) Σ_e E_e², linéaire en g_E.
-- H_B = -K Σ_p (W_p + W_p†). `W_p` est le produit ordonné des opérateurs de lien suivant `Plaquette.steps` parcouru en ordre inversé, sens inchangés (`+1→U_e`, `-1→U_e†`). `W_p†` parcourt `Plaquette.steps` dans l'ordre original avec chaque sens inversé — jamais construit comme le conjugué numérique de l'amplitude de `W_p` sur la même clé.
+Toute transition vers une clé hors base lève une exception d’invariant, jamais ignorée silencieusement.
 
-Chaque terme est assemblé séparément (COO puis CSR), indexé par une correspondance clé→ligne (`build_key_index`) partagée et validée (`validate_key_index`) ; toute transition vers une clé hors base lève une exception d'invariant, jamais ignorée silencieusement. `HamiltonianTerms` regroupe les quatre termes (copie défensive à la construction, `dtype=complex128`, forme carrée commune vérifiée) et expose `.total`, recalculé à chaque accès (non mis en cache).
+## D012 — Re-périmétrage du niveau 1
 
-Couverture de tests (voir `docs/validation-plan.md`) : T1, T2, T3, T7, T8, T9 validés pour les quatre termes et le total dans `tests/level0/test_hamiltonian.py`. `disk7` est validé au niveau des actions élémentaires (`W_p`/`W_p†` sur un échantillon déterministe de la base réelle), jamais par assemblage matriciel complet — sa base physique dépasse 450 000 états, coût jugé déraisonnable pour la suite de tests courante.
+**Statut : gelé**
+
+La trajectoire scientifique est désormais :
+
+1. niveau 0 : substrat physique exact, spectre, dégénérescences et symétries ;
+2. niveau 1A : classification des symétries, close dans la campagne historique du niveau 0 ;
+3. niveau 1B : corrélateurs relationnels invariants de jauge ;
+4. feature future : construction et validation d’une distance effective ;
+5. feature future : structure causale ou cône relationnel ;
+6. feature future : corrélations du secteur de jauge pur et matière–jauge.
+
+La distance combinatoire du graphe sert uniquement à sélectionner les chemins minimaux. Elle n’est pas une observable émergente.
+
+Aucune transformation logarithmique des corrélateurs en distance n’est autorisée au niveau 1B.
+
+## D013 — Gel scientifique du niveau 1B
+
+**Statut : gelé**
+
+Les décisions suivantes sont figées :
+
+- transporteur \(U_e=S_e^+/\sqrt{S(S+1)}\), \(\nu_S=1\) ;
+- état mixte canonique \(\rho=\Pi/d\) pour les multiplets complets ;
+- groupes tronqués marqués `partial_subspace`, sans conclusion définitive ;
+- \(C^{TT,\mathrm{raw}}\) et \(C^{TT,\mathrm{conn}}\) inclus ;
+- secteur de jauge pur et corrélations matière–jauge hors périmètre ;
+- \(\gamma_O\) observable primaire de robustesse ;
+- seuil absolu 0.05 et relatif 0.15 ;
+- fenêtres spectrales : triangle 16, ring4 20, ring5 24 ;
+- `ring5`, \(S=3\), admis avec une dimension physique de 1504 ;
+- dimensions de référence \(S=1,2,3\) :
+  - triangle : 48 / 88 / 128 ;
+  - ring4 : 152 / 292 / 432 ;
+  - ring5 : 496 / 1000 / 1504 ;
+- point de référence \(J_i=1\) ;
+- contrôle `j_break` : \(J_0=1.5\), \(J_{i\neq0}=1\) ;
+- désordre gaussien hors niveau 1B ;
+- orbites déterminées par le groupe de symétrie du Hamiltonien ;
+- schéma de sortie v1 et manifeste pré-enregistré obligatoires.
+
+Aucune de ces décisions ne peut être modifiée après observation des corrélateurs sans nouvelle décision explicite.
 
 ## Questions ouvertes
 
-- valeur finale de h/J après le lot 1 ;
-- taille maximale accessible en diagonalisation exacte (point de repère empirique : `disk7` à M=2,S=1 dépasse 450 000 états dans la base physique, cf. D011 — question toujours ouverte, non tranchée) ;
-- définition finale des distances du niveau 1 ;
 - protocole d’injection d’énergie des niveaux 2 et 3 ;
-- mécanisme éventuel de la piste B pour obtenir une phase non-expandeur.
+- mécanisme éventuel de la piste B pour obtenir une phase non-expandeur ;
+- définition et validation d’une future distance effective ;
+- admissibilité de `disk7` après comptage de base et garde-fous de ressources.
