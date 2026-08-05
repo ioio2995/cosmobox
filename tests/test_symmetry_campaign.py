@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from cosmobox.level0 import compute_config_fingerprint
+from cosmobox.level0 import compute_config_fingerprint, level0_experiment_result_to_json_dict
 from cosmobox.level0.degeneracy import DegeneracyReport, SpectralLevelGroup
 from cosmobox.level0.symmetries import OperatorKind, SymmetrySectorDiagnostic
 from scripts.level0_symmetry_campaign.analysis import (
@@ -132,8 +132,8 @@ def test_json_export_has_required_symmetry_fields() -> None:
     result = run_symmetry_experiment(spec_to_experiment(spec))
     payload = symmetry_experiment_result_to_json_dict(result)
 
-    assert payload["schema_version"] == SYMMETRY_JSON_SCHEMA_VERSION
     symmetry = payload["symmetry"]
+    assert symmetry["schema_version"] == SYMMETRY_JSON_SCHEMA_VERSION
     assert symmetry["operators"] == list(SYMMETRY_OPERATOR_NAMES)
     for diagnostic in symmetry["diagnostics"]:
         assert "spectral_group_lower_bound_only" in diagnostic
@@ -148,6 +148,33 @@ def test_json_export_has_required_symmetry_fields() -> None:
     assert symmetry["published_eigenvalues"] == payload["report"]["spectrum"]["computed_eigenvalues"]
     assert "symmetry_operators_build_seconds" in payload["timings"]
     assert "symmetry_diagnostics_seconds" in payload["timings"]
+
+
+def test_top_level_schema_version_is_untouched_by_the_symmetry_block() -> None:
+    """payload["schema_version"] must remain exactly what
+    level0_experiment_result_to_json_dict(result.base) itself produces --
+    the symmetry campaign must not overwrite that field with its own,
+    independent SYMMETRY_JSON_SCHEMA_VERSION."""
+    specs = build_symmetry_campaign_specs()
+    spec = next(s for s in specs if s.experiment_id == "triangle/reference")
+    result = run_symmetry_experiment(spec_to_experiment(spec))
+
+    base_payload = level0_experiment_result_to_json_dict(result.base)
+    combined_payload = symmetry_experiment_result_to_json_dict(result)
+
+    assert combined_payload["schema_version"] == base_payload["schema_version"]
+
+
+def test_symmetry_block_has_its_own_independent_schema_version() -> None:
+    specs = build_symmetry_campaign_specs()
+    spec = next(s for s in specs if s.experiment_id == "triangle/reference")
+    result = run_symmetry_experiment(spec_to_experiment(spec))
+    payload = symmetry_experiment_result_to_json_dict(result)
+
+    assert payload["symmetry"]["schema_version"] == SYMMETRY_JSON_SCHEMA_VERSION
+    # a distinct field, in its own namespace -- not aliased to the top-level one
+    assert "schema_version" in payload
+    assert "schema_version" in payload["symmetry"]
 
 
 def test_json_export_is_json_serializable_with_no_nan() -> None:
@@ -216,20 +243,20 @@ def _diagnostic(*, group_index: int, restriction_defect: float, commutator_defec
 def test_consistency_check_passes_when_small_commutator_matches_small_restriction() -> None:
     groups = (_group(0, 1, lower_bound_only=False),)
     diagnostics = (_diagnostic(group_index=0, restriction_defect=1e-12, commutator_defect=1e-12),)
-    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups))  # must not raise
+    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups), thresholds=SYMMETRY_CAMPAIGN_THRESHOLDS)
 
 
 def test_consistency_check_passes_when_commutator_is_large_regardless_of_restriction() -> None:
     groups = (_group(0, 1, lower_bound_only=False),)
     diagnostics = (_diagnostic(group_index=0, restriction_defect=0.9, commutator_defect=5.0),)
-    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups))  # must not raise
+    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups), thresholds=SYMMETRY_CAMPAIGN_THRESHOLDS)
 
 
 def test_consistency_check_raises_on_small_commutator_with_large_restriction_non_truncated() -> None:
     groups = (_group(0, 1, lower_bound_only=False),)
     diagnostics = (_diagnostic(group_index=0, restriction_defect=0.5, commutator_defect=1e-12),)
     with pytest.raises(RuntimeError, match="commutator_defect"):
-        _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups))
+        _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups), thresholds=SYMMETRY_CAMPAIGN_THRESHOLDS)
 
 
 def test_consistency_check_does_not_raise_on_truncated_group_even_with_large_restriction() -> None:
@@ -238,13 +265,40 @@ def test_consistency_check_does_not_raise_on_truncated_group_even_with_large_res
         _diagnostic(group_index=0, restriction_defect=1e-12, commutator_defect=1e-12),
         _diagnostic(group_index=1, restriction_defect=0.9, commutator_defect=1e-12),
     )
-    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups))  # must not raise
+    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups), thresholds=SYMMETRY_CAMPAIGN_THRESHOLDS)  # must not raise
 
 
 def test_consistency_check_skips_none_commutator() -> None:
     groups = (_group(0, 1, lower_bound_only=False),)
     diagnostics = (_diagnostic(group_index=0, restriction_defect=0.9, commutator_defect=None),)
-    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups))  # must not raise
+    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups), thresholds=SYMMETRY_CAMPAIGN_THRESHOLDS)  # must not raise
+
+
+def test_consistency_check_uses_the_thresholds_it_is_given_not_a_hardcoded_value() -> None:
+    """A concrete demonstration that the thresholds argument is the actual
+    source of truth: the exact same diagnostics pass under one threshold
+    dict and raise under another, stricter one -- proving the function does
+    not fall back to some internal constant regardless of what is passed."""
+    groups = (_group(0, 1, lower_bound_only=False),)
+    # restriction_defect=1e-7 is < the campaign's default 1e-8 * 10, and
+    # commutator_defect=1e-9 claims commutation under either threshold set.
+    diagnostics = (_diagnostic(group_index=0, restriction_defect=1e-7, commutator_defect=1e-9),)
+
+    lenient_thresholds = dict(SYMMETRY_CAMPAIGN_THRESHOLDS)
+    lenient_thresholds["complete_group_restriction_tolerance"] = 1e-6
+    _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups), thresholds=lenient_thresholds)
+
+    strict_thresholds = dict(SYMMETRY_CAMPAIGN_THRESHOLDS)
+    strict_thresholds["complete_group_restriction_tolerance"] = 1e-8
+    with pytest.raises(RuntimeError, match="commutator_defect"):
+        _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups), thresholds=strict_thresholds)
+
+
+def test_consistency_check_requires_thresholds_argument() -> None:
+    groups = (_group(0, 1, lower_bound_only=False),)
+    diagnostics = (_diagnostic(group_index=0, restriction_defect=1e-12, commutator_defect=1e-12),)
+    with pytest.raises(TypeError):
+        _check_commutator_restriction_consistency(diagnostics, _degeneracy(groups))  # no default anymore
 
 
 # ---------------------------------------------------------------------------

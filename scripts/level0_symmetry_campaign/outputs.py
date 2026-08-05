@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from cosmobox.level0 import level0_experiment_config_to_json_dict
+from cosmobox.level0.experiments import JSON_SCHEMA_VERSION as LEVEL0_JSON_SCHEMA_VERSION
 
 from .analysis import SYMMETRY_JSON_SCHEMA_VERSION, SYMMETRY_OPERATOR_NAMES
 from .grid import SymmetryCampaignExperimentSpec, spec_to_experiment
@@ -253,7 +254,15 @@ def _check_report(report: object, expected_config: dict) -> list:
 
 
 def _check_symmetry_block(symmetry: object, groups: list) -> None:
-    _require_keys(symmetry, ("solver_method", "dimension", "published_eigenvalues", "operators", "diagnostics"), "symmetry")
+    _require_keys(
+        symmetry,
+        ("schema_version", "solver_method", "dimension", "published_eigenvalues", "operators", "diagnostics"),
+        "symmetry",
+    )
+    _require(
+        symmetry["schema_version"] == SYMMETRY_JSON_SCHEMA_VERSION,
+        f"unexpected symmetry.schema_version {symmetry['schema_version']!r}",
+    )
     _require(symmetry["operators"] == list(SYMMETRY_OPERATOR_NAMES), "symmetry.operators does not match the expected operator set")
 
     diagnostics = symmetry["diagnostics"]
@@ -332,8 +341,9 @@ def _validate_run_payload(parsed: object, spec: SymmetryCampaignExperimentSpec, 
         parsed, ("schema_version", "config_fingerprint", "config", "environment", "timings", "report", "symmetry"), "run file"
     )
     _require(
-        parsed["schema_version"] == SYMMETRY_JSON_SCHEMA_VERSION,
-        f"unexpected schema_version {parsed['schema_version']!r}",
+        parsed["schema_version"] == LEVEL0_JSON_SCHEMA_VERSION,
+        f"unexpected schema_version {parsed['schema_version']!r} (must match "
+        "cosmobox.level0.experiments.JSON_SCHEMA_VERSION, the base Level0ExperimentResult contract)",
     )
     _require(
         parsed["config_fingerprint"] == expected_fingerprint,

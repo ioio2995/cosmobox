@@ -38,6 +38,8 @@ from cosmobox.level0 import (
     level0_experiment_result_to_json_dict,
 )
 
+from .grid import SYMMETRY_CAMPAIGN_THRESHOLDS
+
 SYMMETRY_OPERATOR_NAMES: tuple[str, ...] = ("T^2", "T", "R")
 
 
@@ -51,9 +53,6 @@ def _cosmobox_version() -> str | None:
         return importlib_metadata.version("cosmobox")
     except importlib_metadata.PackageNotFoundError:
         return None
-
-EXACT_SYMMETRY_COMMUTATOR_TOLERANCE = 1e-8
-COMPLETE_GROUP_RESTRICTION_TOLERANCE = 1e-8
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,14 +79,26 @@ class SymmetryExperimentResult:
 
 
 def _check_commutator_restriction_consistency(
-    diagnostics: tuple[SymmetrySectorDiagnostic, ...], degeneracy
+    diagnostics: tuple[SymmetrySectorDiagnostic, ...],
+    degeneracy,
+    *,
+    thresholds: dict[str, float],
 ) -> None:
     """A necessary numeric consistency condition, not a physics
     interpretation: if an operator's global commutator with H is below
-    tolerance (it numerically commutes), it must preserve every COMPLETE
-    spectral group's subspace almost exactly -- restriction_defect can't
-    stay large there without something being wrong (a bug, or an operator
-    that doesn't actually commute as its own commutator_defect claims).
+    thresholds["exact_symmetry_commutator_tolerance"] (it numerically
+    commutes), it must preserve every COMPLETE spectral group's subspace
+    almost exactly (restriction_defect below
+    thresholds["complete_group_restriction_tolerance"]) -- restriction_defect
+    can't stay large there without something being wrong (a bug, or an
+    operator that doesn't actually commute as its own commutator_defect
+    claims).
+
+    `thresholds` is required (no default): the caller must pass the exact
+    same mapping written to the manifest before any experiment runs
+    (grid.SYMMETRY_CAMPAIGN_THRESHOLDS in production use) -- there must be
+    exactly one place a threshold value is defined, not a local constant
+    here that could silently drift from the manifest's own record.
 
     Exempted for a window-truncated last group (lower_bound_only=True):
     only a partial slice of a possibly-larger degenerate manifold is
@@ -96,20 +107,22 @@ def _check_commutator_restriction_consistency(
     full (unobserved) manifold -- a large restriction_defect there is
     ambiguous, not necessarily a bug, so it must never raise.
     """
+    commutator_tolerance = thresholds["exact_symmetry_commutator_tolerance"]
+    restriction_tolerance = thresholds["complete_group_restriction_tolerance"]
+
     for diagnostic in diagnostics:
         group = degeneracy.groups[diagnostic.spectral_group_index]
         if group.lower_bound_only:
             continue
         if diagnostic.commutator_defect is None:
             continue
-        if diagnostic.commutator_defect < EXACT_SYMMETRY_COMMUTATOR_TOLERANCE:
-            if diagnostic.restriction_defect >= COMPLETE_GROUP_RESTRICTION_TOLERANCE:
+        if diagnostic.commutator_defect < commutator_tolerance:
+            if diagnostic.restriction_defect >= restriction_tolerance:
                 raise RuntimeError(
                     f"{diagnostic.operator_name} group {diagnostic.spectral_group_index}: "
-                    f"commutator_defect={diagnostic.commutator_defect} < "
-                    f"{EXACT_SYMMETRY_COMMUTATOR_TOLERANCE} (claims global commutation) but "
-                    f"restriction_defect={diagnostic.restriction_defect} >= "
-                    f"{COMPLETE_GROUP_RESTRICTION_TOLERANCE} on a non-truncated group"
+                    f"commutator_defect={diagnostic.commutator_defect} < {commutator_tolerance} "
+                    f"(claims global commutation) but restriction_defect={diagnostic.restriction_defect} "
+                    f">= {restriction_tolerance} on a non-truncated group"
                 )
 
 
@@ -180,7 +193,7 @@ def run_symmetry_experiment(config: Level0Experiment) -> SymmetryExperimentResul
     )
     after_diagnostics = time.perf_counter_ns()
 
-    _check_commutator_restriction_consistency(diagnostics, degeneracy)
+    _check_commutator_restriction_consistency(diagnostics, degeneracy, thresholds=SYMMETRY_CAMPAIGN_THRESHOLDS)
 
     return SymmetryExperimentResult(
         base=base,
@@ -198,8 +211,12 @@ def run_symmetry_experiment(config: Level0Experiment) -> SymmetryExperimentResul
 
 SYMMETRY_JSON_SCHEMA_VERSION = 1
 """This package's own schema version, independent of
-cosmobox.level0.experiments.JSON_SCHEMA_VERSION -- the "symmetry" block and
-the two extra timings fields are this campaign's own contract."""
+cosmobox.level0.experiments.JSON_SCHEMA_VERSION -- the "symmetry" block's
+own contract. Recorded as payload["symmetry"]["schema_version"], never as
+payload["schema_version"] itself: that top-level field is
+level0_experiment_result_to_json_dict's own contract for the
+config/environment/timings/report blocks and must not be overwritten --
+the two schemas version two different, independent contracts."""
 
 
 def _complex_to_json(value: complex) -> list[float]:
@@ -225,12 +242,12 @@ def _diagnostic_to_json(diagnostic: SymmetrySectorDiagnostic, degeneracy) -> dic
 
 def symmetry_experiment_result_to_json_dict(result: SymmetryExperimentResult) -> dict:
     payload = level0_experiment_result_to_json_dict(result.base)
-    payload["schema_version"] = SYMMETRY_JSON_SCHEMA_VERSION
     payload["timings"]["symmetry_operators_build_seconds"] = result.symmetry_operators_build_seconds
     payload["timings"]["symmetry_diagnostics_seconds"] = result.symmetry_diagnostics_seconds
 
     degeneracy = result.base.report.spectrum.degeneracy
     payload["symmetry"] = {
+        "schema_version": SYMMETRY_JSON_SCHEMA_VERSION,
         "solver_method": result.base.report.spectrum.method,
         "dimension": result.base.report.dimension,
         "published_eigenvalues": result.base.report.spectrum.computed_eigenvalues,
