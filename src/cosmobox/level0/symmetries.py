@@ -177,6 +177,9 @@ class SymmetrySectorDiagnostic:
     spectral_group_index: int
     restricted_eigenvalues: tuple[complex, ...]
     restriction_defect: float
+    """||O*psi - psi*O_rest||_F / max(1, ||O*psi||_F): relative, not
+    absolute -- scale-invariant under O -> c*O and comparable across
+    operators of different magnitude (a Casimir vs. a single generator)."""
     restricted_hermiticity_defect: float | None
     restricted_unitarity_defect: float | None
     subspace_orthonormality_defect: float
@@ -296,8 +299,16 @@ def analyze_symmetry_in_subspaces(
         gram = psi.conj().T @ psi
         subspace_orthonormality_defect = _frobenius_norm_dense(gram - np.eye(gram.shape[0]))
 
-        o_rest = psi.conj().T @ (operator @ psi)
-        restriction_defect = _frobenius_norm_dense((operator @ psi) - psi @ o_rest)
+        operator_psi = operator @ psi
+        o_rest = psi.conj().T @ operator_psi
+        # Relative, not absolute: a defect measured in absolute Frobenius
+        # norm would grow mechanically under O -> c*O for any scalar c, and
+        # would not be comparable between operators of different scale (a
+        # Casimir vs. a single generator, say). max(1, ...) keeps the
+        # denominator from vanishing/blowing up in the ||O*psi|| < 1 regime.
+        numerator = _frobenius_norm_dense(operator_psi - psi @ o_rest)
+        denominator = max(1.0, _frobenius_norm_dense(operator_psi))
+        restriction_defect = float(numerator / denominator)
 
         if operator_kind in _WANTS_HERMITICITY:
             restricted_eigenvalues = tuple(complex(v) for v in np.linalg.eigvalsh(o_rest))

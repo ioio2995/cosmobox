@@ -64,7 +64,13 @@ def _hermiticity_defect(matrix: sp.spmatrix) -> float:
     return float(np.max(np.abs(difference.data))) if difference.nnz else 0.0
 
 
-def _commutator_norm(a: sp.spmatrix, b: sp.spmatrix) -> float:
+def _commutator_max_norm(a: sp.spmatrix, b: sp.spmatrix) -> float:
+    """Max-abs-element norm of [a, b] -- used only for this file's own pass/fail
+    assertions. Deliberately NOT the same norm as
+    SymmetrySectorDiagnostic.commutator_defect, which is a global Frobenius
+    norm (see analyze_symmetry_in_subspaces); the two are not meant to be
+    compared numerically against each other, only each used consistently
+    within its own context."""
     commutator = (a @ b - b @ a).tocsr()
     commutator.eliminate_zeros()
     return float(np.max(np.abs(commutator.data))) if commutator.nnz else 0.0
@@ -147,7 +153,7 @@ def test_generators_commute_with_gauss_law_in_the_full_space() -> None:
         g_operator = sp.diags(g_values).tocsr()
 
         for operator in (tx, ty, tz):
-            assert _commutator_norm(operator, g_operator) < 1e-10
+            assert _commutator_max_norm(operator, g_operator) < 1e-10
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +193,7 @@ def test_casimir_commutes_with_every_generator() -> None:
     tx, ty, tz = build_flavor_generators(lattice, 2, 1, report.keys, key_index)
     casimir = build_flavor_casimir(lattice, 2, 1, report.keys, key_index)
     for operator in (tx, ty, tz):
-        assert _commutator_norm(casimir, operator) < 1e-10
+        assert _commutator_max_norm(casimir, operator) < 1e-10
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +210,7 @@ def test_generators_commute_with_h_when_h_is_zero() -> None:
 
     tx, ty, tz = build_flavor_generators(lattice, 2, 1, report.keys, key_index)
     for operator in (tx, ty, tz):
-        assert _commutator_norm(operator, terms.total) < COMMUTATOR_ATOL
+        assert _commutator_max_norm(operator, terms.total) < COMMUTATOR_ATOL
 
 
 def test_only_the_aligned_flavor_direction_commutes_with_uniform_h() -> None:
@@ -217,9 +223,9 @@ def test_only_the_aligned_flavor_direction_commutes_with_uniform_h() -> None:
     tx, ty, tz = build_flavor_generators(lattice, 2, 1, report.keys, key_index)
     t_n = ((tx + tz) / np.sqrt(2)).tocsr()
 
-    assert _commutator_norm(t_n, terms.total) < COMMUTATOR_ATOL
+    assert _commutator_max_norm(t_n, terms.total) < COMMUTATOR_ATOL
     # Tz alone is not aligned with (sigma_x + sigma_z)/sqrt(2) -- must not commute.
-    assert _commutator_norm(tz, terms.total) > 1e-6
+    assert _commutator_max_norm(tz, terms.total) > 1e-6
 
 
 def test_casimir_commutes_with_uniform_h_since_it_is_a_single_generator_direction() -> None:
@@ -233,7 +239,7 @@ def test_casimir_commutes_with_uniform_h_since_it_is_a_single_generator_directio
     params = _params(n_nodes, h=aligned_h)
     terms = build_hamiltonian_terms(lattice, 2, 1, report.keys, key_index, params)
     casimir = build_flavor_casimir(lattice, 2, 1, report.keys, key_index)
-    assert _commutator_norm(casimir, terms.total) < COMMUTATOR_ATOL
+    assert _commutator_max_norm(casimir, terms.total) < COMMUTATOR_ATOL
 
 
 def test_no_generator_commutes_with_a_generic_nonuniform_h() -> None:
@@ -244,7 +250,7 @@ def test_no_generator_commutes_with_a_generic_nonuniform_h() -> None:
 
     tx, ty, tz = build_flavor_generators(lattice, 2, 1, report.keys, key_index)
     for operator in (tx, ty, tz):
-        assert _commutator_norm(operator, terms.total) > 1e-6
+        assert _commutator_max_norm(operator, terms.total) > 1e-6
 
 
 # ---------------------------------------------------------------------------
@@ -415,16 +421,58 @@ def test_degenerate_group_restricted_eigenvalues_match_full_spectrum() -> None:
     # A 2x2 Hermitian operator with a doubly-degenerate eigenvalue 5.0,
     # diagonalized in a basis that mixes the two degenerate eigenvectors:
     # analyze_symmetry_in_subspaces must recover 5.0 (twice) when restricted
-    # to that single 2-dimensional group.
+    # to that single 2-dimensional group, and -- since the operator is 5*I,
+    # exactly proportional to identity -- ANY 2-dimensional subspace of it
+    # is exactly invariant, so restriction_defect must vanish at machine
+    # precision even though the columns supplied are not individually
+    # eigenvectors of the operator's own natural (standard) basis.
     operator = sp.csr_matrix(np.diag([5.0, 5.0]).astype(np.complex128))
     theta = 0.7
     rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]], dtype=np.complex128)
-    degeneracy = _small_degeneracy(2, 2)  # groups from eigenvalues [0.0, 1.0] -> irrelevant, just shape
+    degeneracy = analyze_spectral_degeneracies([5.0, 5.0], dimension=2)  # one true 2-dim group
 
     diagnostics = analyze_symmetry_in_subspaces(operator, "D", OperatorKind.HERMITIAN, rotation, degeneracy)
-    assert len(diagnostics) == 2
-    for diagnostic in diagnostics:
-        assert diagnostic.restricted_eigenvalues[0] == pytest.approx(5.0)
+    assert len(diagnostics) == 1
+    diagnostic = diagnostics[0]
+    assert diagnostic.restricted_eigenvalues == pytest.approx((5.0, 5.0))
+    assert diagnostic.restriction_defect == pytest.approx(0.0, abs=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# restriction_defect normalization: relative, not absolute
+# ---------------------------------------------------------------------------
+
+
+def test_restriction_defect_is_scale_invariant() -> None:
+    # A 2x2 Hermitian operator with a purely off-diagonal coupling: psi (the
+    # first standard basis vector) is not invariant under it, and
+    # ||O @ psi|| = 2 > 1, so the normalization denominator is that norm,
+    # not the max(1, ...) floor -- scaling O by 1000 must leave the ratio
+    # exactly unchanged.
+    operator = sp.csr_matrix(np.array([[0.0, 2.0], [2.0, 0.0]], dtype=np.complex128))
+    eigenvectors = np.array([[1.0], [0.0]], dtype=np.complex128)
+    degeneracy = _small_degeneracy(2, 1)
+
+    small = analyze_symmetry_in_subspaces(operator, "O", OperatorKind.HERMITIAN, eigenvectors, degeneracy)
+    scaled_operator = (1000.0 * operator).tocsr()
+    large = analyze_symmetry_in_subspaces(
+        scaled_operator, "1000*O", OperatorKind.HERMITIAN, eigenvectors, degeneracy
+    )
+
+    assert small[0].restriction_defect == pytest.approx(1.0)
+    assert small[0].restriction_defect == pytest.approx(large[0].restriction_defect, rel=1e-10)
+
+
+def test_restriction_defect_denominator_stays_one_below_unit_norm() -> None:
+    # ||O @ psi|| = 0.3 < 1, so the max(1, ...) floor keeps the denominator
+    # at exactly 1 -- restriction_defect must equal the raw (unnormalized)
+    # residual norm in this regime, not a rescaled version of it.
+    operator = sp.csr_matrix(np.array([[0.0, 0.3], [0.3, 0.0]], dtype=np.complex128))
+    eigenvectors = np.array([[1.0], [0.0]], dtype=np.complex128)
+    degeneracy = _small_degeneracy(2, 1)
+
+    diagnostics = analyze_symmetry_in_subspaces(operator, "O", OperatorKind.HERMITIAN, eigenvectors, degeneracy)
+    assert diagnostics[0].restriction_defect == pytest.approx(0.3, abs=1e-12)
 
 
 def test_commutator_defect_is_shared_across_all_groups() -> None:
