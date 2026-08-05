@@ -47,7 +47,7 @@ def validate_capacity(n_nodes: int, n_flavors: int, n_edges: int) -> None:
         )
 
 
-def _validate_spin(spin: int) -> None:
+def validate_spin(spin: int) -> None:
     if spin not in SUPPORTED_SPINS:
         raise ValueError(f"spin S={spin} is not supported at level 0; expected one of {SUPPORTED_SPINS}")
 
@@ -60,7 +60,7 @@ def encode(
     flux: Sequence[int],
 ) -> np.uint64:
     """Pack occupations and per-edge electric field E_e into a canonical uint64 key."""
-    _validate_spin(spin)
+    validate_spin(spin)
     n_nodes = len(lattice.nodes)
     n_edges = len(lattice.edges)
     validate_capacity(n_nodes, n_flavors, n_edges)
@@ -93,7 +93,7 @@ def decode(
     key: np.uint64,
 ) -> tuple[tuple[int, ...], tuple[int, ...]]:
     """Unpack a canonical uint64 key into (occupations, electric field E_e per edge)."""
-    _validate_spin(spin)
+    validate_spin(spin)
     n_nodes = len(lattice.nodes)
     n_edges = len(lattice.edges)
     validate_capacity(n_nodes, n_flavors, n_edges)
