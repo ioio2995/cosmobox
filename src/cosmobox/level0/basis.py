@@ -24,6 +24,7 @@ from fractions import Fraction
 
 import numpy as np
 
+from .charges import doubled_external_charges, normalize_external_charges
 from .encoding import encode, validate_capacity, validate_spin
 from .lattice import Lattice
 
@@ -113,22 +114,6 @@ def _known_edges_for_resolution(
     return known
 
 
-def _doubled_external_charges(n_nodes: int, external_charges: Sequence[object] | None) -> tuple[int, ...]:
-    if external_charges is None:
-        return (0,) * n_nodes
-    if len(external_charges) != n_nodes:
-        raise ValueError(f"expected {n_nodes} external charges, got {len(external_charges)}")
-    doubled = []
-    for q in external_charges:
-        fraction = Fraction(q)
-        if fraction.denominator not in (1, 2):
-            raise ValueError(
-                f"external charge {q} must be an integer or a half-integer (denominator 1 or 2)"
-            )
-        doubled.append(int(fraction * 2))
-    return tuple(doubled)
-
-
 def _resolve_flux(
     lattice: Lattice,
     known_edges: dict[int, list[tuple[int, int]]],
@@ -181,7 +166,7 @@ def build_basis(
     n_edges = len(lattice.edges)
     validate_capacity(n_nodes, n_flavors, n_edges)
 
-    q2_ext = _doubled_external_charges(n_nodes, external_charges)
+    q2_ext = doubled_external_charges(normalize_external_charges(n_nodes, external_charges))
     target_q2_tot = -sum(q2_ext)
 
     incident = _incident_edges(lattice)
