@@ -54,10 +54,10 @@ def _validate_edges(n_nodes: int, edges: tuple[Edge, ...]) -> None:
             raise ValueError(f"edge {edge} references a node outside [0, {n_nodes})")
         if edge.source == edge.target:
             raise ValueError(f"self-loop edge is not allowed: {edge}")
-        pair = (edge.source, edge.target)
-        if pair in seen:
-            raise ValueError(f"duplicate directed edge: {edge}")
-        seen.add(pair)
+        undirected_pair = tuple(sorted((edge.source, edge.target)))
+        if undirected_pair in seen:
+            raise ValueError(f"a physical link is stored once; duplicate/reverse edge: {edge}")
+        seen.add(undirected_pair)
 
 
 def _validate_plaquettes(edges: tuple[Edge, ...], plaquettes: tuple[Plaquette, ...]) -> None:

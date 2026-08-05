@@ -70,6 +70,19 @@ def test_required_bits_and_capacity_boundary() -> None:
         validate_capacity(n_nodes=62, n_flavors=1, n_edges=1)
 
 
+@pytest.mark.parametrize("n_flavors", [0, -1])
+def test_required_bits_rejects_non_positive_n_flavors(n_flavors: int) -> None:
+    with pytest.raises(ValueError):
+        required_bits(n_nodes=3, n_flavors=n_flavors, n_edges=2)
+
+
+@pytest.mark.parametrize("n_flavors", [0, -1])
+def test_encode_rejects_non_positive_n_flavors(n_flavors: int) -> None:
+    lattice = build_lattice("triangle")
+    with pytest.raises(ValueError):
+        encode(lattice, n_flavors, 1, occupations=[], flux=[0, 0, 0])
+
+
 def test_encode_raises_when_capacity_exceeds_64_bits() -> None:
     lattice = build_lattice("disk7")  # N=7, L=12 -> N*M + 3*L = 7*M + 36
     n_flavors = 5  # 7*5 + 36 = 71 > 64

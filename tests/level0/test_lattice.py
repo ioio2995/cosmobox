@@ -217,6 +217,11 @@ def test_validate_edges_rejects_duplicate_directed_edge() -> None:
         _validate_edges(2, (Edge(0, 1), Edge(0, 1)))
 
 
+def test_validate_edges_rejects_reverse_duplicate() -> None:
+    with pytest.raises(ValueError):
+        _validate_edges(2, (Edge(0, 1), Edge(1, 0)))
+
+
 def test_validate_edges_rejects_out_of_range_node() -> None:
     with pytest.raises(ValueError):
         _validate_edges(2, (Edge(0, 5),))

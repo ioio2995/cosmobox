@@ -33,6 +33,8 @@ def flux_bit_offset(n_nodes: int, n_flavors: int, edge_index: int) -> int:
 
 
 def required_bits(n_nodes: int, n_flavors: int, n_edges: int) -> int:
+    if n_flavors <= 0:
+        raise ValueError(f"n_flavors must be strictly positive, got {n_flavors}")
     return n_nodes * n_flavors + FLUX_BITS_PER_EDGE * n_edges
 
 
