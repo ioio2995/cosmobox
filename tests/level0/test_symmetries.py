@@ -16,9 +16,14 @@ from cosmobox.level0.params import HamiltonianParameters
 from cosmobox.level0.symmetries import (
     OperatorKind,
     SymmetrySectorDiagnostic,
+    _apply_automorphism,
+    _edge_image,
+    _mode_permutation,
     analyze_symmetry_in_subspaces,
     build_flavor_casimir,
     build_flavor_generators,
+    build_reflection_operator,
+    build_translation_operator,
 )
 
 HERMITICITY_ATOL = 1e-12
@@ -517,3 +522,267 @@ def test_non_commuting_operator_has_nonzero_global_commutator_defect() -> None:
         tz, "T_z", OperatorKind.HERMITIAN, eigenvectors, degeneracy, total=terms.total
     )
     assert diagnostics[0].commutator_defect > 1e-6
+
+
+# ===========================================================================
+# Lot 6B.2: geometric automorphisms (translation, reflection)
+# ===========================================================================
+
+
+def _frobenius_diff(a: sp.spmatrix, b) -> float:
+    diff = (a - b).tocsr()
+    diff.eliminate_zeros()
+    return float(np.sqrt(np.sum(np.abs(diff.data) ** 2))) if diff.nnz else 0.0
+
+
+# ---------------------------------------------------------------------------
+# Rejects a site_permutation that is not a lattice automorphism
+# ---------------------------------------------------------------------------
+
+
+def test_translation_rejects_chain3_which_has_no_wraparound_edge() -> None:
+    lattice, report, key_index = _build("chain3")
+    with pytest.raises(ValueError, match="automorphism"):
+        build_translation_operator(lattice, 2, 1, report.keys, key_index)
+
+
+def test_translation_rejects_disk7_hub_and_spoke_structure() -> None:
+    # No basis build here: the shift's edge-image mismatch is detected
+    # before any key is touched, so an empty (but self-consistent) key set
+    # is enough -- building disk7's ~450k-state basis just for this
+    # negative path is exactly the cost this project avoids paying in the
+    # unit suite.
+    lattice = build_lattice("disk7")
+    with pytest.raises(ValueError, match="automorphism"):
+        build_translation_operator(lattice, 2, 1, (), {})
+
+
+# ---------------------------------------------------------------------------
+# external_charges invariance guardrail
+# ---------------------------------------------------------------------------
+
+
+def test_translation_rejects_noninvariant_external_charges() -> None:
+    lattice, report, key_index = _build("ring4")
+    with pytest.raises(ValueError, match="external_charges"):
+        build_translation_operator(lattice, 2, 1, report.keys, key_index, external_charges=(1, 0, 0, 0))
+
+
+def test_translation_accepts_default_none_external_charges() -> None:
+    lattice, report, key_index = _build("ring4")
+    build_translation_operator(lattice, 2, 1, report.keys, key_index)  # must not raise
+
+
+def test_reflection_accepts_symmetric_but_translation_rejects_asymmetric_charges() -> None:
+    lattice, report, key_index = _build("triangle")
+    # Invariant under reflection (node 0 fixed, nodes 1 and 2 swapped) but
+    # not under a cyclic shift.
+    charges = (5, 2, 2)
+    build_reflection_operator(lattice, 2, 1, report.keys, key_index, external_charges=charges)  # must not raise
+    with pytest.raises(ValueError, match="external_charges"):
+        build_translation_operator(lattice, 2, 1, report.keys, key_index, external_charges=charges)
+
+
+# ---------------------------------------------------------------------------
+# Fermion sign: hand-derived inversion-count example (triangle, translation)
+# ---------------------------------------------------------------------------
+
+
+def test_fermion_sign_matches_hand_derived_inversion_count() -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 2, 1
+    n_nodes = len(lattice.nodes)
+    n_edges = len(lattice.edges)
+    site_permutation = [(node + 1) % n_nodes for node in range(n_nodes)]
+    mode_permutation = _mode_permutation(n_nodes, n_flavors, site_permutation)
+    edge_image = _edge_image(lattice, site_permutation)
+    # mode_permutation = [2, 3, 4, 5, 0, 1] for this site_permutation.
+
+    # Occupied modes {0, 2} (node0-flavor0, node1-flavor0): sorted [0, 2] maps
+    # to [mode_permutation[0], mode_permutation[2]] = [2, 4] -- no inversion,
+    # so the sign is +1.
+    occupation_a = [0] * (n_nodes * n_flavors)
+    occupation_a[0] = 1
+    occupation_a[2] = 1
+    flux = [0] * n_edges
+    key_a = encode(lattice, n_flavors, spin, occupation_a, flux)
+    result_a = _apply_automorphism(lattice, n_flavors, spin, key_a, mode_permutation, edge_image)
+    assert result_a.amplitude == pytest.approx(1.0 + 0j)
+
+    # Occupied modes {0, 4} (node0-flavor0, node2-flavor0): sorted [0, 4] maps
+    # to [mode_permutation[0], mode_permutation[4]] = [2, 0] -- one inversion
+    # (2 > 0): c^dagger_2 c^dagger_0 |0> = -c^dagger_0 c^dagger_2 |0>, sign -1.
+    # The resulting occupied set {2, 0} == {0, 2} is exactly key_a's occupation.
+    occupation_b = [0] * (n_nodes * n_flavors)
+    occupation_b[0] = 1
+    occupation_b[4] = 1
+    key_b = encode(lattice, n_flavors, spin, occupation_b, flux)
+    result_b = _apply_automorphism(lattice, n_flavors, spin, key_b, mode_permutation, edge_image)
+    assert result_b.amplitude == pytest.approx(-1.0 + 0j)
+    assert int(result_b.key) == int(key_a)
+
+
+# ---------------------------------------------------------------------------
+# Gauss covariance in the full unconstrained space
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kind", ["translation", "reflection"])
+def test_automorphism_covaries_gauss_law_in_the_full_space(kind: str) -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 2, 1
+    n_nodes = len(lattice.nodes)
+    n_edges = len(lattice.edges)
+
+    if kind == "translation":
+        site_permutation = [(node + 1) % n_nodes for node in range(n_nodes)]
+    else:
+        site_permutation = [(n_nodes - node) % n_nodes for node in range(n_nodes)]
+    mode_permutation = _mode_permutation(n_nodes, n_flavors, site_permutation)
+    edge_image = _edge_image(lattice, site_permutation)
+
+    all_keys = [
+        encode(lattice, n_flavors, spin, occupation, flux)
+        for occupation in itertools.product((0, 1), repeat=n_nodes * n_flavors)
+        for flux in itertools.product(range(-spin, spin + 1), repeat=n_edges)
+    ]
+
+    for key in all_keys:
+        occupation, flux = decode(lattice, n_flavors, spin, key)
+        g_original = gauss_vector(lattice, n_flavors, occupation, flux)
+
+        result = _apply_automorphism(lattice, n_flavors, spin, key, mode_permutation, edge_image)
+        new_occupation, new_flux = decode(lattice, n_flavors, spin, result.key)
+        g_transformed = gauss_vector(lattice, n_flavors, new_occupation, new_flux)
+
+        for node in range(n_nodes):
+            assert g_transformed[site_permutation[node]] == g_original[node]
+
+
+# ---------------------------------------------------------------------------
+# Algebraic relations: T^N = I, R^2 = I, unitarity, R T R = T^-1 (dihedral)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("geometry", ["triangle", "ring4", "ring5", "ring6"])
+def test_translation_to_the_n_is_identity_and_unitary(geometry: str) -> None:
+    lattice, report, key_index = _build(geometry)
+    n_nodes = len(lattice.nodes)
+    dim = len(report.keys)
+    identity = sp.identity(dim, format="csr", dtype=np.complex128)
+
+    T = build_translation_operator(lattice, 2, 1, report.keys, key_index)
+    power = identity
+    for _ in range(n_nodes):
+        power = (power @ T).tocsr()
+    assert _frobenius_diff(power, identity) < 1e-10
+    assert _frobenius_diff(T.conj().T @ T, identity) < 1e-10
+
+
+@pytest.mark.parametrize("geometry", ["triangle", "ring4", "ring5", "ring6"])
+def test_reflection_is_an_involution_hermitian_and_unitary(geometry: str) -> None:
+    lattice, report, key_index = _build(geometry)
+    dim = len(report.keys)
+    identity = sp.identity(dim, format="csr", dtype=np.complex128)
+
+    R = build_reflection_operator(lattice, 2, 1, report.keys, key_index)
+    assert _frobenius_diff(R @ R, identity) < 1e-10
+    assert _frobenius_diff(R, R.conj().T) < 1e-12
+    assert _frobenius_diff(R.conj().T @ R, identity) < 1e-10
+
+
+@pytest.mark.parametrize("geometry", ["triangle", "ring4", "ring5", "ring6"])
+def test_dihedral_relation_r_t_r_equals_t_inverse(geometry: str) -> None:
+    lattice, report, key_index = _build(geometry)
+    T = build_translation_operator(lattice, 2, 1, report.keys, key_index)
+    R = build_reflection_operator(lattice, 2, 1, report.keys, key_index)
+    lhs = (R @ T @ R).tocsr()
+    rhs = T.conj().T  # T unitary: T^-1 == T^dagger
+    assert _frobenius_diff(lhs, rhs) < 1e-10
+
+
+# ---------------------------------------------------------------------------
+# Commutation with H at spatially uniform parameters
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("geometry", ["triangle", "ring4", "ring5"])
+def test_translation_and_reflection_commute_with_uniform_h(geometry: str) -> None:
+    lattice, report, key_index = _build(geometry)
+    n_nodes = len(lattice.nodes)
+    uniform_h = _uniform_h(n_nodes, 0.3 * _ALIGNED_H)
+    params = _params(n_nodes, h=uniform_h)
+    terms = build_hamiltonian_terms(lattice, 2, 1, report.keys, key_index, params)
+
+    T = build_translation_operator(lattice, 2, 1, report.keys, key_index)
+    R = build_reflection_operator(lattice, 2, 1, report.keys, key_index)
+
+    for operator in (T, R):
+        assert _commutator_max_norm(operator, terms.total) < COMMUTATOR_ATOL
+
+
+# ---------------------------------------------------------------------------
+# analyze_symmetry_in_subspaces integration: UNITARY (T), HERMITIAN_UNITARY (R)
+# ---------------------------------------------------------------------------
+
+
+def test_translation_restricted_diagnostics_are_unitary_and_commute_with_h() -> None:
+    lattice, report, key_index = _build("ring4")
+    n_nodes = len(lattice.nodes)
+    uniform_h = _uniform_h(n_nodes, 0.3 * _ALIGNED_H)
+    params = _params(n_nodes, h=uniform_h)
+    terms = build_hamiltonian_terms(lattice, 2, 1, report.keys, key_index, params)
+    dimension = len(report.keys)
+
+    eigenvalues, eigenvectors = np.linalg.eigh(terms.total.toarray())
+    degeneracy = analyze_spectral_degeneracies(list(eigenvalues), dimension=dimension)
+
+    T = build_translation_operator(lattice, 2, 1, report.keys, key_index)
+    diagnostics = analyze_symmetry_in_subspaces(
+        T, "T", OperatorKind.UNITARY, eigenvectors, degeneracy, total=terms.total
+    )
+    for diagnostic in diagnostics:
+        assert diagnostic.restricted_hermiticity_defect is None
+        assert diagnostic.restricted_unitarity_defect < 1e-8
+        assert diagnostic.commutator_defect < COMMUTATOR_ATOL
+        assert diagnostic.restriction_defect < 1e-8
+        for eigenvalue in diagnostic.restricted_eigenvalues:
+            assert abs(eigenvalue) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_reflection_restricted_diagnostics_are_hermitian_and_unitary() -> None:
+    lattice, report, key_index = _build("ring4")
+    n_nodes = len(lattice.nodes)
+    uniform_h = _uniform_h(n_nodes, 0.3 * _ALIGNED_H)
+    params = _params(n_nodes, h=uniform_h)
+    terms = build_hamiltonian_terms(lattice, 2, 1, report.keys, key_index, params)
+    dimension = len(report.keys)
+
+    eigenvalues, eigenvectors = np.linalg.eigh(terms.total.toarray())
+    degeneracy = analyze_spectral_degeneracies(list(eigenvalues), dimension=dimension)
+
+    R = build_reflection_operator(lattice, 2, 1, report.keys, key_index)
+    diagnostics = analyze_symmetry_in_subspaces(
+        R, "R", OperatorKind.HERMITIAN_UNITARY, eigenvectors, degeneracy, total=terms.total
+    )
+    for diagnostic in diagnostics:
+        assert diagnostic.restricted_hermiticity_defect < 1e-8
+        assert diagnostic.restricted_unitarity_defect < 1e-8
+        assert diagnostic.commutator_defect < COMMUTATOR_ATOL
+        assert diagnostic.restriction_defect < 1e-8
+        for eigenvalue in diagnostic.restricted_eigenvalues:
+            assert abs(eigenvalue.imag) < 1e-6  # R Hermitian -> real eigenvalues
+            assert abs(abs(eigenvalue.real) - 1.0) < 1e-6  # R^2 = I -> eigenvalues +-1
+
+
+# ---------------------------------------------------------------------------
+# No flux-conjugation operator is exposed
+# ---------------------------------------------------------------------------
+
+
+def test_no_flux_conjugation_operator_is_exported() -> None:
+    import cosmobox.level0.symmetries as symmetries_module
+    import cosmobox.level0 as level0_module
+
+    assert not hasattr(symmetries_module, "build_flux_conjugation_operator")
+    assert not hasattr(level0_module, "build_flux_conjugation_operator")

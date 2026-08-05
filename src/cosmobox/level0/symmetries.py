@@ -8,8 +8,6 @@ behaves there. It never diagonalizes anything itself -- eigenvectors are
 supplied by the caller (reports.py's spectral computation stays internal
 to reports.py; this module does not import its private helpers).
 
-Geometric automorphisms (translation, reflection) are lot 6B.2, not here.
-
 Flavor mixing is site-local (c^dagger_{i,alpha} c_{i,beta} moves a fermion
 between flavors at the SAME node i, never between nodes and never
 touching flux), so it leaves the total occupation n_{i0}+n_{i1} at every
@@ -19,6 +17,23 @@ which flavor is occupied) and flavor mixing never touches E_e, T_x/T_y/T_z
 map the physical basis into itself exactly like H_dot's off-diagonal
 h-coupling does -- a transition landing outside key_index is therefore a
 genuine T2-style invariant violation, not something to drop silently.
+
+Lot 6B.2: geometric automorphisms (cyclic translation, reflection) via a
+single shared _build_graph_automorphism_operator. Unlike the flavor
+generators, these are not built by composing operators.annihilate/create:
+a graph automorphism relabels every occupied mode SIMULTANEOUSLY, and the
+resulting fermionic sign is the parity of the number of inversions needed
+to re-sort the permuted occupied-mode sequence back into the canonical
+increasing-index order the key encoding assumes -- a global sign, not the
+local per-transposition JW-hop sign used elsewhere. E_e/U_e transform
+according to whether the image edge keeps or reverses its stored
+orientation (E_e -> E_image, U_e -> U_image if preserved; E_e -> -E_image,
+U_e -> U_image^dagger if reversed) -- never by an "E -> -E under parity"
+analogy. Flux conjugation (E -> -E alone, without a matching Q -> -Q) is
+deliberately NOT built here: it does not preserve Gauss's law on its own
+(Q_i is unchanged while div(E)_i flips sign), so it is not a well-defined
+operator on the physical basis, and a combined charge-conjugation is
+deferred to a later lot as a new physics convention.
 """
 
 from __future__ import annotations
@@ -31,10 +46,12 @@ from enum import Enum
 import numpy as np
 import scipy.sparse as sp
 
+from .charges import normalize_external_charges
 from .degeneracy import DegeneracyReport
+from .encoding import decode, encode
 from .hamiltonian import validate_key_index
 from .lattice import Lattice
-from .operators import annihilate, create
+from .operators import OperatorResult, annihilate, create
 
 _PAULI_X = np.array([[0, 1], [1, 0]], dtype=np.complex128)
 _PAULI_Y = np.array([[0, -1j], [1j, 0]], dtype=np.complex128)
@@ -340,3 +357,197 @@ def analyze_symmetry_in_subspaces(
         )
 
     return tuple(diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# Geometric automorphisms: cyclic translation, reflection
+# ---------------------------------------------------------------------------
+
+
+def _validate_site_permutation(n_nodes: int, site_permutation: Sequence[int]) -> None:
+    if sorted(site_permutation) != list(range(n_nodes)):
+        raise ValueError(
+            f"site_permutation must be a permutation of range({n_nodes}), got {tuple(site_permutation)!r}"
+        )
+
+
+def _mode_permutation(n_nodes: int, n_flavors: int, site_permutation: Sequence[int]) -> list[int]:
+    mode_permutation = [0] * (n_nodes * n_flavors)
+    for node in range(n_nodes):
+        new_node = site_permutation[node]
+        for flavor in range(n_flavors):
+            mode_permutation[node * n_flavors + flavor] = new_node * n_flavors + flavor
+    return mode_permutation
+
+
+def _edge_image(lattice: Lattice, site_permutation: Sequence[int]) -> list[tuple[int, int]]:
+    """For each stored edge, (image edge index, orientation sign): sign=+1
+    if the permuted (source, target) pair matches a stored edge exactly
+    (orientation preserved), sign=-1 if it matches only in reversed order
+    (orientation inverted). Raises ValueError if neither matches -- the
+    permutation is not an automorphism of this lattice's edge set."""
+    lookup = {(edge.source, edge.target): index for index, edge in enumerate(lattice.edges)}
+    image: list[tuple[int, int]] = []
+    for edge in lattice.edges:
+        new_source = site_permutation[edge.source]
+        new_target = site_permutation[edge.target]
+        if (new_source, new_target) in lookup:
+            image.append((lookup[(new_source, new_target)], 1))
+        elif (new_target, new_source) in lookup:
+            image.append((lookup[(new_target, new_source)], -1))
+        else:
+            raise ValueError(
+                f"site_permutation does not map edge ({edge.source}, {edge.target}) onto any stored edge "
+                f"in either orientation (image is ({new_source}, {new_target})) -- not a lattice automorphism"
+            )
+    return image
+
+
+def _inversion_count(sequence: Sequence[int]) -> int:
+    count = 0
+    for i in range(len(sequence)):
+        for j in range(i + 1, len(sequence)):
+            if sequence[i] > sequence[j]:
+                count += 1
+    return count
+
+
+def _apply_automorphism(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    key: np.uint64,
+    mode_permutation: Sequence[int],
+    edge_image: Sequence[tuple[int, int]],
+) -> OperatorResult:
+    """Relabel every occupied mode and every edge's flux simultaneously.
+
+    The fermion sign is the parity of the number of inversions in the
+    sequence obtained by mapping the sorted list of occupied modes through
+    mode_permutation. This is exactly the sign needed to re-sort
+    c^dagger_{pi(b1)} c^dagger_{pi(b2)} ... |0> (pi applied to the
+    originally-sorted b1 < b2 < ...) back into the canonical
+    increasing-mode-index order the key encoding assumes -- a single global
+    sign for the whole relabeling, not operators.py's local per-transposition
+    JW-hop sign (which answers a different question: the sign picked up by
+    one creation/annihilation acting past already-occupied lower modes).
+    """
+    occupation, flux = decode(lattice, n_flavors, spin, key)
+
+    new_occupation = [0] * len(occupation)
+    occupied_modes: list[int] = []
+    for mode, value in enumerate(occupation):
+        new_occupation[mode_permutation[mode]] = value
+        if value:
+            occupied_modes.append(mode)
+
+    new_flux = [0] * len(flux)
+    for edge_index, value in enumerate(flux):
+        target_edge, sign = edge_image[edge_index]
+        new_flux[target_edge] = sign * value
+
+    mapped_modes = [mode_permutation[mode] for mode in occupied_modes]
+    fermion_sign = -1 if _inversion_count(mapped_modes) % 2 else 1
+
+    new_key = encode(lattice, n_flavors, spin, new_occupation, new_flux)
+    return OperatorResult(new_key, complex(fermion_sign, 0))
+
+
+def _build_graph_automorphism_operator(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    keys: Sequence[np.uint64],
+    key_index: dict[int, int],
+    site_permutation: Sequence[int],
+    *,
+    external_charges: Sequence[object] | None = None,
+) -> sp.csr_matrix:
+    """Shared constructor for translation, reflection, and any other graph
+    automorphism: the signed permutation operator that relabels sites via
+    site_permutation (see _edge_image and _apply_automorphism for the
+    orientation and fermion-sign rules).
+
+    external_charges must be invariant under site_permutation
+    (q^ext_{site_permutation[i]} == q^ext_i for every i): Gauss's law
+    transforms covariantly, G'_{site_permutation[i]} == G_i, only under
+    this condition (the div(E) part is covariant unconditionally, by the
+    orientation-sign construction in _edge_image; the -Q_i part is
+    covariant unconditionally too, since occupation is directly relabeled;
+    only the -q_i^ext part requires this explicit check). Checked here,
+    before touching any key, rather than left to surface as a RuntimeError
+    from a missing key in the physical basis.
+    """
+    n_nodes = len(lattice.nodes)
+    _validate_site_permutation(n_nodes, site_permutation)
+    validate_key_index(keys, key_index)
+
+    normalized_charges = normalize_external_charges(n_nodes, external_charges)
+    for node in range(n_nodes):
+        image = site_permutation[node]
+        if normalized_charges[image] != normalized_charges[node]:
+            raise ValueError(
+                f"external_charges is not invariant under site_permutation: "
+                f"q[{node}]={normalized_charges[node]} != q[{image}]={normalized_charges[image]} "
+                f"(image of node {node}); Gauss's law would not transform covariantly"
+            )
+
+    mode_permutation = _mode_permutation(n_nodes, n_flavors, site_permutation)
+    edge_image = _edge_image(lattice, site_permutation)
+
+    dim = len(keys)
+    rows: list[int] = []
+    cols: list[int] = []
+    values: list[complex] = []
+    for col, key in enumerate(keys):
+        result = _apply_automorphism(lattice, n_flavors, spin, key, mode_permutation, edge_image)
+        row = _row_for_key(key_index, result.key)
+        rows.append(row)
+        cols.append(col)
+        values.append(result.amplitude)
+
+    return _assemble_csr(rows, cols, values, dim)
+
+
+def build_translation_operator(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    keys: Sequence[np.uint64],
+    key_index: dict[int, int],
+    *,
+    external_charges: Sequence[object] | None = None,
+) -> sp.csr_matrix:
+    """Cyclic translation, node i -> (i+1) mod N.
+
+    Requires the lattice's edges to be cyclically consistent under this
+    shift (true for the ring geometries as built by lattice.py); raises
+    ValueError otherwise -- e.g. chain3, which has no wraparound edge, or
+    disk7, whose hub-and-spoke structure this uniform shift does not
+    preserve.
+    """
+    n_nodes = len(lattice.nodes)
+    site_permutation = [(node + 1) % n_nodes for node in range(n_nodes)]
+    return _build_graph_automorphism_operator(
+        lattice, n_flavors, spin, keys, key_index, site_permutation, external_charges=external_charges
+    )
+
+
+def build_reflection_operator(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    keys: Sequence[np.uint64],
+    key_index: dict[int, int],
+    *,
+    external_charges: Sequence[object] | None = None,
+) -> sp.csr_matrix:
+    """Reflection, node i -> (N-i) mod N (node 0 fixed).
+
+    Same automorphism requirement as build_translation_operator.
+    """
+    n_nodes = len(lattice.nodes)
+    site_permutation = [(n_nodes - node) % n_nodes for node in range(n_nodes)]
+    return _build_graph_automorphism_operator(
+        lattice, n_flavors, spin, keys, key_index, site_permutation, external_charges=external_charges
+    )

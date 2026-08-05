@@ -7,7 +7,11 @@ hamiltonian._canonical_csr, reports._term_statistics,
 reports._eigenpair_diagnostic, reports._SpectrumComputation,
 reports._compute_spectrum, experiments._canonical_config_payload,
 symmetries._one_body_flavor_operator, symmetries._row_for_key,
-symmetries._assemble_csr) are intentionally not re-exported here.
+symmetries._assemble_csr, symmetries._build_graph_automorphism_operator,
+symmetries._apply_automorphism, symmetries._edge_image,
+symmetries._mode_permutation, symmetries._inversion_count,
+symmetries._validate_site_permutation) are intentionally not re-exported
+here.
 """
 
 from .basis import BasisReport, SectorReport, build_basis
@@ -40,6 +44,8 @@ from .symmetries import (
     analyze_symmetry_in_subspaces,
     build_flavor_casimir,
     build_flavor_generators,
+    build_reflection_operator,
+    build_translation_operator,
 )
 
 __all__ = [
@@ -68,6 +74,8 @@ __all__ = [
     "build_key_index",
     "build_lattice",
     "build_level0_report",
+    "build_reflection_operator",
+    "build_translation_operator",
     "compute_config_fingerprint",
     "doubled_gauss_vector",
     "dump_level0_experiment_result_json",
