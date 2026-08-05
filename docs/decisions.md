@@ -87,13 +87,15 @@ La trajectoire scientifique est désormais :
 1. niveau 0 : substrat physique exact, spectre, dégénérescences et symétries ;
 2. niveau 1A : classification des symétries, close dans la campagne historique du niveau 0 ;
 3. niveau 1B : corrélateurs relationnels invariants de jauge ;
-4. feature future : construction et validation d’une distance effective ;
-5. feature future : structure causale ou cône relationnel ;
-6. feature future : corrélations du secteur de jauge pur et matière–jauge.
+4. niveau futur : construction et validation d’une distance effective ;
+5. niveau futur : structure causale ou cône relationnel ;
+6. niveau futur : corrélations du secteur de jauge pur et matière–jauge.
 
 La distance combinatoire du graphe sert uniquement à sélectionner les chemins minimaux. Elle n’est pas une observable émergente.
 
 Aucune transformation logarithmique des corrélateurs en distance n’est autorisée au niveau 1B.
+
+La spécification normative du niveau 1B est `docs/level1-specification.md`, conformément à l’organisation documentaire du niveau 0.
 
 ## D013 — Gel scientifique du niveau 1B
 
@@ -101,29 +103,35 @@ Aucune transformation logarithmique des corrélateurs en distance n’est autori
 
 Les décisions suivantes sont figées :
 
-- transporteur \(U_e=S_e^+/\sqrt{S(S+1)}\), \(\nu_S=1\) ;
-- état mixte canonique \(\rho=\Pi/d\) pour les multiplets complets ;
+- transporteur U_e=S_e^+/sqrt(S(S+1)), nu_S=1 ;
+- état mixte canonique rho=Pi/d pour les multiplets complets ;
 - groupes tronqués marqués `partial_subspace`, sans conclusion définitive ;
-- \(C^{TT,\mathrm{raw}}\) et \(C^{TT,\mathrm{conn}}\) inclus ;
+- C_TT_raw et C_TT_conn inclus ;
 - secteur de jauge pur et corrélations matière–jauge hors périmètre ;
-- \(\gamma_O\) observable primaire de robustesse ;
+- gamma_O observable primaire de robustesse ;
+- verdicts secondaires limités à G_occ, rho_QQ, C_TT_conn, `flavor_singular_value_ratio` et `path_phase_coherence` ;
 - seuil absolu 0.05 et relatif 0.15 ;
 - fenêtres spectrales : triangle 16, ring4 20, ring5 24 ;
-- `ring5`, \(S=3\), admis avec une dimension physique de 1504 ;
-- dimensions de référence \(S=1,2,3\) :
+- `ring5`, S=3, admis avec une dimension physique de 1504 ;
+- dimensions de référence S=1,2,3 :
   - triangle : 48 / 88 / 128 ;
   - ring4 : 152 / 292 / 432 ;
   - ring5 : 496 / 1000 / 1504 ;
-- point de référence \(J_i=1\) ;
-- contrôle `j_break` : \(J_0=1.5\), \(J_{i\neq0}=1\) ;
+- point de référence J_i=1 ;
+- contrôle `j_break` : triangle et ring5 à S=2, fenêtres 16 et 24, J_0=1.5 et J_i=1 ailleurs ;
 - désordre gaussien hors niveau 1B ;
 - orbites déterminées par le groupe de symétrie du Hamiltonien ;
-- schéma de sortie v1 et manifeste pré-enregistré obligatoires.
+- statistiques d’orbite gelées : moyenne, dispersion maximale par paire et défaut de covariance ;
+- aucune moyenne entre orbites, longueurs de chemin, groupes spectraux ou définitions d’observables distincts ;
+- diagnostics non hermitiens limités à la trace normalisée, aux valeurs singulières et à la norme de Frobenius ;
+- décomposition de Schur, spectre complexe et vecteurs propres non hermitiens exclus ;
+- schéma de sortie v1, manifeste pré-enregistré et plan de validation obligatoires.
 
 Aucune de ces décisions ne peut être modifiée après observation des corrélateurs sans nouvelle décision explicite.
 
 ## Questions ouvertes
 
+- organisation logicielle des utilitaires de campagne, mutualisés ou locaux ;
 - protocole d’injection d’énergie des niveaux 2 et 3 ;
 - mécanisme éventuel de la piste B pour obtenir une phase non-expandeur ;
 - définition et validation d’une future distance effective ;
