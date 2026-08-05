@@ -6,30 +6,73 @@ import numpy as np
 import pytest
 import scipy.sparse as sp
 
+from scipy.sparse.linalg import expm_multiply
+
 from cosmobox.level0.basis import build_basis
 from cosmobox.level0.encoding import decode, encode
 from cosmobox.level0.gauge import gauss_vector, is_physical
 from cosmobox.level0.hamiltonian import (
+    HamiltonianTerms,
+    _apply_plaquette,
     _assemble_csr,
+    _canonical_csr,
     _row_for_key,
     build_dot_term,
     build_electric_term,
+    build_hamiltonian_terms,
     build_hopping_term,
     build_key_index,
+    build_magnetic_term,
     validate_key_index,
 )
 from cosmobox.level0.lattice import build_lattice
-from cosmobox.level0.operators import annihilate, create, jordan_wigner_sign, transport
+from cosmobox.level0.operators import annihilate, create, jordan_wigner_sign, transport, transport_dagger
 from cosmobox.level0.params import HamiltonianParameters
 
 HERMITICITY_ATOL = 1e-13
+
+
+# ===========================================================================
+# T1-T9 coverage map (docs/validation-plan.md), across lots 4A/4B/4C.
+# T4 (Jordan-Wigner signs) and T5 (S+/S- amplitudes) were already validated
+# exhaustively in tests/level0/test_operators.py (lot 3B); T6 (tree vs.
+# brute-force basis) in tests/level0/test_basis.py (lot 2). No new work on
+# T4/T5/T6 in this file -- listed here only for a complete picture.
+#
+#   T1  hermiticity, term by term    test_t1_hermiticity_dot_and_electric,
+#                                     test_t1_hopping_hermiticity,
+#                                     test_t1_magnetic_and_total_hermiticity
+#   T2  closure of the basis         test_t2_dot_term_never_leaves_the_physical_basis,
+#                                     test_t2_hopping_never_leaves_the_physical_basis(+incomplete),
+#                                     test_t2_magnetic_never_leaves_the_physical_basis(+incomplete)
+#   T3  commutes with G_i            test_t3_dot_and_electric_commute_with_gauss_law_in_the_full_space,
+#                                     test_t3_hopping_commutes_with_gauss_law_in_the_full_space,
+#                                     test_t3_magnetic_and_total_commute_with_gauss_law_in_the_full_space
+#   T4  Jordan-Wigner signs          tests/level0/test_operators.py (lot 3B)
+#   T5  S+/S- amplitudes             tests/level0/test_operators.py (lot 3B)
+#   T6  tree vs. brute force basis   tests/level0/test_basis.py (lot 2)
+#   T7  total charge conservation    test_t7_dot_term_transitions_conserve_total_occupation,
+#                                     test_t7_hopping_transitions_conserve_total_occupation,
+#                                     test_t7_magnetic_transitions_conserve_the_full_occupation_vector
+#   T8  no dynamical leakage         test_t8_matrix_shape_matches_basis_dimension,
+#                                     test_t8_every_hopping_transition_is_canonical_physical_and_indexed,
+#                                     test_disk7_plaquette_actions_are_canonical_physical_and_adjoint_consistent,
+#                                     test_t8_dynamic_evolution_conserves_norm_and_energy
+#   T9  analytic/decoupled limits    test_t9_all_couplings_zero_gives_zero_matrices,
+#                                     test_t9_electric_only_diagonal_matches_closed_form,
+#                                     test_t9_j_only_spectrum_matches_analytic_diagonal,
+#                                     test_t9_single_isolated_hopping_transition_matches_analytic_amplitude,
+#                                     test_t9_isolated_plaquette_single_orientation_allowed
+# ===========================================================================
 
 
 def _hermitian_matrix(diag0: float, diag1: float, off: complex) -> np.ndarray:
     return np.array([[diag0, off], [np.conj(off), diag1]], dtype=np.complex128)
 
 
-def _random_params(n_nodes: int, seed: int, *, g_E: float = 0.7, t: float = 0.0) -> HamiltonianParameters:
+def _random_params(
+    n_nodes: int, seed: int, *, g_E: float = 0.7, t: float = 0.0, K: float = 0.0
+) -> HamiltonianParameters:
     rng = np.random.default_rng(seed)
     J = tuple(float(rng.uniform(-1, 1)) for _ in range(n_nodes))
     h = tuple(
@@ -40,7 +83,7 @@ def _random_params(n_nodes: int, seed: int, *, g_E: float = 0.7, t: float = 0.0)
         )
         for _ in range(n_nodes)
     )
-    return HamiltonianParameters(J=J, h=h, t=t, g_E=g_E, K=0.0)
+    return HamiltonianParameters(J=J, h=h, t=t, g_E=g_E, K=K)
 
 
 def _hermiticity_defect(matrix: sp.csr_matrix) -> float:
@@ -621,3 +664,359 @@ def test_hopping_works_for_multiple_flavors() -> None:
     params = _random_params(len(lattice.nodes), seed=18, t=1.0)
     hopping = build_hopping_term(lattice, n_flavors, spin, report.keys, key_index, params)
     assert _hermiticity_defect(hopping) < HERMITICITY_ATOL
+
+
+# ===========================================================================
+# H_B and HamiltonianTerms (lot 4C)
+# ===========================================================================
+
+
+def _triangle_full_unconstrained_keys(n_flavors: int, spin: int) -> list[np.uint64]:
+    lattice = build_lattice("triangle")
+    n_nodes = len(lattice.nodes)
+    n_edges = len(lattice.edges)
+    return [
+        encode(lattice, n_flavors, spin, occupation, flux)
+        for occupation in itertools.product((0, 1), repeat=n_nodes * n_flavors)
+        for flux in itertools.product(range(-spin, spin + 1), repeat=n_edges)
+    ]
+
+
+# ---------------------------------------------------------------------------
+# T1 -- hermiticity, magnetic term alone and total, on triangle/ring4/ring5
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("geometry", ["triangle", "ring4", "ring5"])
+def test_t1_magnetic_and_total_hermiticity(geometry: str) -> None:
+    lattice = build_lattice(geometry)
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    assert report.keys
+    key_index = build_key_index(report.keys)
+    params = _random_params(len(lattice.nodes), seed=20, t=0.8, K=1.2)
+
+    magnetic = build_magnetic_term(lattice, n_flavors, spin, report.keys, key_index, params)
+    assert _hermiticity_defect(magnetic) < HERMITICITY_ATOL
+
+    terms = build_hamiltonian_terms(lattice, n_flavors, spin, report.keys, key_index, params)
+    assert _hermiticity_defect(terms.total) < HERMITICITY_ATOL
+
+
+# ---------------------------------------------------------------------------
+# disk7: action-level test only -- never assemble the full ~450k-key matrix
+# in the unit suite. Deterministic sample of the real physical basis, every
+# plaquette, both orientations: canonicity, physicality, basis membership,
+# and the adjoint relation.
+# ---------------------------------------------------------------------------
+
+
+def test_disk7_plaquette_actions_are_canonical_physical_and_adjoint_consistent() -> None:
+    lattice = build_lattice("disk7")
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    assert report.keys
+    key_set = {int(key) for key in report.keys}
+    sample_size = 200
+    stride = max(1, len(report.keys) // sample_size)
+    sample = report.keys[::stride]
+
+    checked_at_least_one_nonzero_action = False
+    for key in sample:
+        for plaquette in lattice.plaquettes:
+            for dagger in (False, True):
+                result = _apply_plaquette(lattice, n_flavors, spin, key, plaquette, dagger)
+                if result is None:
+                    continue
+                checked_at_least_one_nonzero_action = True
+                decode(lattice, n_flavors, spin, result.key)  # must not raise
+                assert is_physical(lattice, n_flavors, spin, result.key) is True
+                assert int(result.key) in key_set
+
+                back = _apply_plaquette(lattice, n_flavors, spin, result.key, plaquette, not dagger)
+                assert back is not None
+                assert back.key == key
+                assert back.amplitude == pytest.approx(np.conj(result.amplitude))
+
+    assert checked_at_least_one_nonzero_action
+
+
+# ---------------------------------------------------------------------------
+# T2 -- closure: positive (real physical basis) and negative (deliberately
+# incomplete basis must raise RuntimeError)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("geometry", ["triangle", "ring4", "ring5"])
+def test_t2_magnetic_never_leaves_the_physical_basis(geometry: str) -> None:
+    # disk7 is deliberately excluded: the full matrix assembly over its
+    # ~450k-key basis is exactly the cost the review flagged as
+    # unreasonable for the unit suite -- disk7's magnetic-term coverage is
+    # the action-level test above (sample of the real basis, no full CSR).
+    lattice = build_lattice(geometry)
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    assert report.keys
+    key_index = build_key_index(report.keys)
+    params = _random_params(len(lattice.nodes), seed=21, K=0.6)
+
+    magnetic = build_magnetic_term(lattice, n_flavors, spin, report.keys, key_index, params)
+    assert magnetic.shape == (len(report.keys), len(report.keys))
+
+
+def test_t2_magnetic_raises_on_a_deliberately_incomplete_basis() -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 1, 1
+    all_keys = _triangle_full_unconstrained_keys(n_flavors, spin)
+    plaquette = lattice.plaquettes[0]
+
+    occupation = tuple(0 for _ in range(len(lattice.nodes) * n_flavors))
+    flux = (0, 0, 0)
+    source_key = encode(lattice, n_flavors, spin, occupation, flux)
+    target = _apply_plaquette(lattice, n_flavors, spin, source_key, plaquette, dagger=False)
+    assert target is not None
+    assert source_key in all_keys
+    assert target.key in all_keys
+
+    incomplete_keys = [key for key in all_keys if int(key) != int(target.key)]
+    key_index = build_key_index(incomplete_keys)  # self-consistent, just missing target.key
+    params = HamiltonianParameters(
+        J=(0.0,) * len(lattice.nodes),
+        h=(_hermitian_matrix(0, 0, 0),) * len(lattice.nodes),
+        t=0.0,
+        g_E=0.0,
+        K=1.0,
+    )
+
+    with pytest.raises(RuntimeError):
+        build_magnetic_term(lattice, n_flavors, spin, incomplete_keys, key_index, params)
+
+
+# ---------------------------------------------------------------------------
+# T3 -- gauge invariance in the full unconstrained space: magnetic alone,
+# then the total Hamiltonian (triangle, M=2, S=1, 1728 canonical keys)
+# ---------------------------------------------------------------------------
+
+
+def test_t3_magnetic_and_total_commute_with_gauss_law_in_the_full_space() -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 2, 1
+    all_keys = _triangle_full_unconstrained_keys(n_flavors, spin)
+    key_index = build_key_index(all_keys)
+    dim = len(all_keys)
+
+    has_non_physical_state = False
+    for key in all_keys:
+        occupation, flux = decode(lattice, n_flavors, spin, key)
+        if any(residual != 0 for residual in gauss_vector(lattice, n_flavors, occupation, flux)):
+            has_non_physical_state = True
+            break
+    assert has_non_physical_state
+
+    params = _random_params(len(lattice.nodes), seed=22, t=0.9, K=1.1)
+    magnetic = build_magnetic_term(lattice, n_flavors, spin, all_keys, key_index, params)
+    terms = build_hamiltonian_terms(lattice, n_flavors, spin, all_keys, key_index, params)
+
+    for node in lattice.nodes:
+        g_values = np.empty(dim, dtype=np.complex128)
+        for row, key in enumerate(all_keys):
+            occupation, flux = decode(lattice, n_flavors, spin, key)
+            g_values[row] = complex(float(gauss_vector(lattice, n_flavors, occupation, flux)[node]))
+        g_operator = sp.diags(g_values).tocsr()
+
+        for term in (magnetic, terms.total):
+            commutator = (term @ g_operator - g_operator @ term).tocsr()
+            commutator.eliminate_zeros()
+            if commutator.nnz:
+                assert np.max(np.abs(commutator.data)) < 1e-10
+
+
+# ---------------------------------------------------------------------------
+# T7 -- H_B never touches occupation: exact full occupation vector
+# conservation, not just the total count
+# ---------------------------------------------------------------------------
+
+
+def test_t7_magnetic_transitions_conserve_the_full_occupation_vector() -> None:
+    lattice = build_lattice("ring4")
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    key_index = build_key_index(report.keys)
+    params = _random_params(len(lattice.nodes), seed=23, K=0.8)
+
+    magnetic = build_magnetic_term(lattice, n_flavors, spin, report.keys, key_index, params)
+    coo = magnetic.tocoo()
+    assert coo.nnz > 0
+    for row, col in zip(coo.row, coo.col):
+        occ_col, _ = decode(lattice, n_flavors, spin, report.keys[col])
+        occ_row, _ = decode(lattice, n_flavors, spin, report.keys[row])
+        assert occ_col == occ_row
+
+
+# ---------------------------------------------------------------------------
+# t = 0 / K = 0 / no plaquette -> zero matrix
+# ---------------------------------------------------------------------------
+
+
+def test_magnetic_with_k_zero_gives_the_zero_matrix() -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    key_index = build_key_index(report.keys)
+    params = _random_params(len(lattice.nodes), seed=24, K=0.0)
+    magnetic = build_magnetic_term(lattice, n_flavors, spin, report.keys, key_index, params)
+    assert magnetic.nnz == 0
+
+
+def test_magnetic_on_a_plaquette_less_lattice_gives_the_zero_matrix() -> None:
+    lattice = build_lattice("chain3")
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    assert report.keys
+    key_index = build_key_index(report.keys)
+    params = _random_params(len(lattice.nodes), seed=25, K=3.0)
+    magnetic = build_magnetic_term(lattice, n_flavors, spin, report.keys, key_index, params)
+    assert magnetic.nnz == 0
+
+
+# ---------------------------------------------------------------------------
+# T9 -- isolated plaquette: one orientation blocked by flux truncation, the
+# other allowed; amplitude and target key computed step by step by hand
+# ---------------------------------------------------------------------------
+
+
+def test_t9_isolated_plaquette_single_orientation_allowed() -> None:
+    lattice = build_lattice("triangle")  # single plaquette, steps=((0,1),(1,1),(2,1))
+    n_flavors, spin = 2, 1
+    K = 0.9
+
+    occupation = tuple(0 for _ in range(len(lattice.nodes) * n_flavors))
+    flux = (spin, 0, 0)  # edge0 at the top boundary blocks W_p; W_p^dagger stays allowed
+    key = encode(lattice, n_flavors, spin, occupation, flux)
+    plaquette = lattice.plaquettes[0]
+
+    blocked = _apply_plaquette(lattice, n_flavors, spin, key, plaquette, dagger=False)
+    assert blocked is None
+
+    allowed = _apply_plaquette(lattice, n_flavors, spin, key, plaquette, dagger=True)
+    assert allowed is not None
+
+    # Hand computation: W_p^dagger visits plaquette.steps in their *original*
+    # order with every sense inverted, updating the flux after each step.
+    expected_amplitude = complex(1, 0)
+    current_key = key
+    for edge_index, sense in plaquette.steps:
+        op = transport_dagger if sense == 1 else transport
+        result = op(lattice, n_flavors, spin, current_key, edge_index)
+        assert result is not None
+        expected_amplitude *= result.amplitude
+        current_key = result.key
+
+    assert allowed.key == current_key
+    assert allowed.amplitude == pytest.approx(expected_amplitude)
+
+    _, expected_flux = decode(lattice, n_flavors, spin, current_key)
+    assert expected_flux == (0, -1, -1)
+
+    report_keys = [key, current_key]
+    key_index = build_key_index(report_keys)
+    params = HamiltonianParameters(
+        J=(0.0,) * len(lattice.nodes),
+        h=(_hermitian_matrix(0, 0, 0),) * len(lattice.nodes),
+        t=0.0,
+        g_E=0.0,
+        K=K,
+    )
+    magnetic = build_magnetic_term(lattice, n_flavors, spin, report_keys, key_index, params)
+    row, col = key_index[int(current_key)], key_index[int(key)]
+    assert magnetic[row, col] == pytest.approx(-K * expected_amplitude)
+
+
+# ---------------------------------------------------------------------------
+# HamiltonianTerms / build_hamiltonian_terms
+# ---------------------------------------------------------------------------
+
+
+def test_build_hamiltonian_terms_smoke() -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    key_index = build_key_index(report.keys)
+    params = _random_params(len(lattice.nodes), seed=26, t=0.5, K=0.4)
+    terms = build_hamiltonian_terms(lattice, n_flavors, spin, report.keys, key_index, params)
+    dim = len(report.keys)
+    assert terms.dot.shape == terms.hopping.shape == terms.electric.shape == terms.magnetic.shape == (dim, dim)
+    assert terms.total.shape == (dim, dim)
+    numeric_total = (terms.dot + terms.hopping + terms.electric + terms.magnetic).toarray()
+    assert np.allclose(terms.total.toarray(), numeric_total)
+
+
+def test_hamiltonian_terms_rejects_mismatched_shapes() -> None:
+    small = _assemble_csr([0], [0], [complex(1, 0)], dim=1)
+    big = _assemble_csr([0], [0], [complex(1, 0)], dim=2)
+    with pytest.raises(ValueError):
+        HamiltonianTerms(dot=small, hopping=big, electric=small, magnetic=small)
+
+
+def test_hamiltonian_terms_rejects_non_sparse_input() -> None:
+    dense = np.zeros((2, 2), dtype=np.complex128)
+    small = _assemble_csr([0], [0], [complex(1, 0)], dim=2)
+    with pytest.raises(ValueError):
+        HamiltonianTerms(dot=dense, hopping=small, electric=small, magnetic=small)
+
+
+def test_hamiltonian_terms_copies_defensively_not_write_locking() -> None:
+    source = _assemble_csr([0, 1], [0, 1], [complex(2, 0), complex(3, 0)], dim=2)
+    terms = HamiltonianTerms(dot=source, hopping=source, electric=source, magnetic=source)
+
+    # Mutating the source matrix (a legitimate SciPy operation) after
+    # construction must not affect the copy stored in HamiltonianTerms.
+    source.data[:] = 0
+    assert terms.dot.toarray()[0, 0] == complex(2, 0)
+    assert terms.dot.toarray()[1, 1] == complex(3, 0)
+
+    # And the stored copies are not write-locked (unlike HamiltonianParameters.h):
+    # this must succeed without raising.
+    terms.dot.data[:] = 0
+    assert terms.dot.nnz == 2  # still 2 stored entries, just zeroed
+
+
+def test_canonical_csr_merges_duplicates_and_sorts_indices() -> None:
+    duplicated = sp.coo_matrix(
+        ([complex(2, 0), complex(3, 0)], ([0, 0], [0, 0])), shape=(2, 2)
+    ).tocsr()
+    result = _canonical_csr(duplicated, "test")
+    assert result.dtype == np.complex128
+    assert result.toarray()[0, 0] == complex(5, 0)
+    assert list(result.indices) == sorted(result.indices)
+
+
+# ---------------------------------------------------------------------------
+# T8 -- dynamic evolution: norm and energy conservation under exp(-iHt)
+# (structurally, the state vector staying in the same-dimensional space is
+# a tautology of the matrix representation, not an independent T8 check --
+# the meaningful properties are norm and energy conservation).
+# ---------------------------------------------------------------------------
+
+
+def test_t8_dynamic_evolution_conserves_norm_and_energy() -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    key_index = build_key_index(report.keys)
+    params = _random_params(len(lattice.nodes), seed=27, t=1.0, K=0.7)
+    terms = build_hamiltonian_terms(lattice, n_flavors, spin, report.keys, key_index, params)
+    hamiltonian = terms.total
+
+    dim = hamiltonian.shape[0]
+    rng = np.random.default_rng(99)
+    psi0 = rng.normal(size=dim) + 1j * rng.normal(size=dim)
+    psi0 /= np.linalg.norm(psi0)
+
+    psi_t = expm_multiply((-1j * 0.3) * hamiltonian, psi0)
+
+    assert np.linalg.norm(psi_t) == pytest.approx(1.0, abs=1e-8)
+
+    energy0 = np.vdot(psi0, hamiltonian @ psi0).real
+    energy_t = np.vdot(psi_t, hamiltonian @ psi_t).real
+    assert energy_t == pytest.approx(energy0, abs=1e-6)

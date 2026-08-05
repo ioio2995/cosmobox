@@ -1,24 +1,31 @@
-"""Sparse Hamiltonian assembly on the exact physical basis (lot 4B: + H_hop).
+"""Sparse Hamiltonian assembly on the exact physical basis (lot 4C: + H_B, HamiltonianTerms).
 
 Each term is built as its own COO -> CSR matrix over an explicit,
 caller-supplied ``key_index`` (row/col position of every physical basis
 key). A transition that lands on a key absent from ``key_index`` is an
 invariant violation (T2) and raises ``RuntimeError`` -- it is never
-silently dropped. Separate term constructors are kept distinct (no
-combined ``HamiltonianTerms``/``.total`` yet); that assembly is deferred to
-lot 4C once H_B exists too.
+silently dropped.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import scipy.sparse as sp
 
 from .encoding import validate_capacity
-from .lattice import Lattice
-from .operators import annihilate, create, read_flux, read_occupation, transport, transport_dagger
+from .lattice import Lattice, Plaquette
+from .operators import (
+    OperatorResult,
+    annihilate,
+    create,
+    read_flux,
+    read_occupation,
+    transport,
+    transport_dagger,
+)
 from .params import HamiltonianParameters
 
 
@@ -242,3 +249,144 @@ def build_hopping_term(
                                 values.append(amplitude_hc)
 
     return _assemble_csr(rows, cols, values, dim)
+
+
+def _apply_plaquette(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    key: np.uint64,
+    plaquette: Plaquette,
+    dagger: bool,
+) -> OperatorResult | None:
+    """W_p (dagger=False) or W_p^dagger (dagger=True) applied to |key>.
+
+    W_p = O_0 O_1 ... O_{r-1} (O_0 leftmost in the product), so applying it
+    to a ket goes right to left: reversed(plaquette.steps), senses
+    unchanged. W_p^dagger = O_{r-1}^dagger ... O_0^dagger, which applied
+    right to left visits plaquette.steps in their *original* order with
+    every sense inverted -- this is never the numeric conjugate of W_p's
+    amplitude on the same key, but an independently composed action.
+    """
+    if dagger:
+        step_sequence: Sequence[tuple[int, int]] = plaquette.steps
+        sense_sign = -1
+    else:
+        step_sequence = tuple(reversed(plaquette.steps))
+        sense_sign = 1
+
+    current_key = key
+    amplitude = complex(1, 0)
+    for edge_index, sense in step_sequence:
+        op = transport if sense * sense_sign == 1 else transport_dagger
+        result = op(lattice, n_flavors, spin, current_key, edge_index)
+        if result is None:
+            return None
+        current_key = result.key
+        amplitude *= result.amplitude
+
+    return OperatorResult(current_key, amplitude)
+
+
+def build_magnetic_term(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    keys: Sequence[np.uint64],
+    key_index: dict[int, int],
+    params: HamiltonianParameters,
+) -> sp.csr_matrix:
+    """H_B = -K sum_p (W_p + W_p^dagger).
+
+    Never touches occupation, so no M restriction (like H_hop). A lattice
+    with no plaquette (chain3) naturally yields the zero matrix -- the loop
+    over lattice.plaquettes is simply empty, no special case needed.
+    """
+    validate_capacity(len(lattice.nodes), n_flavors, len(lattice.edges))
+    validate_key_index(keys, key_index)
+
+    dim = len(keys)
+    rows: list[int] = []
+    cols: list[int] = []
+    values: list[complex] = []
+
+    if params.K != 0:
+        for col, key in enumerate(keys):
+            for plaquette in lattice.plaquettes:
+                for dagger in (False, True):
+                    result = _apply_plaquette(lattice, n_flavors, spin, key, plaquette, dagger)
+                    if result is not None:
+                        amplitude = -params.K * result.amplitude
+                        row = _row_for_key(key_index, result.key)
+                        rows.append(row)
+                        cols.append(col)
+                        values.append(amplitude)
+
+    return _assemble_csr(rows, cols, values, dim)
+
+
+def _canonical_csr(matrix: object, name: str) -> sp.csr_matrix:
+    """Defensive copy, normalized to CSR/complex128 with merged/sorted internals.
+
+    A copy rather than a write-lock on the caller's buffers: CSR objects
+    are internal SciPy structures, and legitimate operations (addition,
+    eliminate_zeros, sort_indices, factorizations) may need to touch their
+    own buffers. Copying at the boundary protects HamiltonianTerms against
+    later mutation of the *source* matrix without making SciPy's internals
+    read-only.
+    """
+    if not sp.issparse(matrix):
+        raise ValueError(f"{name} must be a scipy.sparse matrix, got {type(matrix).__name__}")
+    copied = matrix.astype(np.complex128, copy=True).tocsr()
+    copied.sum_duplicates()
+    copied.sort_indices()
+    return copied
+
+
+@dataclass(frozen=True, slots=True)
+class HamiltonianTerms:
+    """The four terms of H = H_dot + H_hop + H_E + H_B, each already canonical CSR."""
+
+    dot: sp.csr_matrix
+    hopping: sp.csr_matrix
+    electric: sp.csr_matrix
+    magnetic: sp.csr_matrix
+
+    def __post_init__(self) -> None:
+        dot = _canonical_csr(self.dot, "dot")
+        hopping = _canonical_csr(self.hopping, "hopping")
+        electric = _canonical_csr(self.electric, "electric")
+        magnetic = _canonical_csr(self.magnetic, "magnetic")
+
+        shapes = {dot.shape, hopping.shape, electric.shape, magnetic.shape}
+        if len(shapes) != 1:
+            raise ValueError(f"all four terms must share the same shape, got {shapes}")
+        shape = next(iter(shapes))
+        if shape[0] != shape[1]:
+            raise ValueError(f"terms must be square, got shape {shape}")
+
+        object.__setattr__(self, "dot", dot)
+        object.__setattr__(self, "hopping", hopping)
+        object.__setattr__(self, "electric", electric)
+        object.__setattr__(self, "magnetic", magnetic)
+
+    @property
+    def total(self) -> sp.csr_matrix:
+        return (self.dot + self.hopping + self.electric + self.magnetic).tocsr()
+
+
+def build_hamiltonian_terms(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    keys: Sequence[np.uint64],
+    key_index: dict[int, int],
+    params: HamiltonianParameters,
+) -> HamiltonianTerms:
+    """Build all four terms and assemble them into a HamiltonianTerms."""
+    return HamiltonianTerms(
+        dot=build_dot_term(lattice, n_flavors, spin, keys, key_index, params),
+        hopping=build_hopping_term(lattice, n_flavors, spin, keys, key_index, params),
+        electric=build_electric_term(lattice, n_flavors, spin, keys, key_index, params),
+        magnetic=build_magnetic_term(lattice, n_flavors, spin, keys, key_index, params),
+    )
