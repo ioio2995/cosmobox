@@ -1,66 +1,37 @@
 # Cosmobox
 
-Cosmobox est un simulateur modulaire d'un réseau diamant/blende déformable.
+Cosmobox est le socle logiciel d'un modèle de jauge U(1) fini sur graphe
+(recherche sur un substrat quantique relationnel, piste A, niveau 0). Voir
+`docs/project-context.md`, `docs/physical-model.md` et
+`docs/level0-specification.md` pour le contexte et la spécification
+complète.
 
-## Architecture
+L'ancien prototype de maillage diamant/blende déformable est archivé sur la
+branche `legacy/mesh-prototype` (tag `legacy/mesh-prototype-v1`) et n'est
+plus une fondation du code actuel.
+
+## Arborescence
 
 ```text
-cosmobox/
-├── core/
-│   ├── config.py
-│   ├── matrix.py
-│   ├── mechanics.py
-│   └── simulation.py
-├── physics/
-│   ├── particle.py
-│   └── metrics.py
-├── visualization/
-│   └── animation.py
-└── cli.py
-```
+src/cosmobox/level0/
+├── lattice.py    # géométries finies déterministes (nœuds, liens, arbre, plaquettes)
+└── encoding.py   # encodage canonique uint64 (occupations + flux)
 
-- `Matrix` porte la géométrie et les degrés de liberté.
-- `Particle` injecte des contraintes et des flux.
-- `MechanicsEngine` transforme ces contraintes en déformation réelle.
-- `Simulation` orchestre les cycles.
-- `AnimationRenderer` exporte un GIF ou un MP4.
+tests/level0/
+├── test_lattice.py
+└── test_encoding.py
+```
 
 ## Installation
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e ".[dev]"
 ```
 
-Sous Windows PowerShell :
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e .
-```
-
-## Exécution
+## Tests
 
 ```bash
-cosmobox --config examples/opposed.yaml
+pytest tests/ -v
 ```
-
-ou :
-
-```bash
-python -m cosmobox.cli --config examples/opposed.yaml
-```
-
-## Animation
-
-```bash
-cosmobox \
-  --config examples/opposed.yaml \
-  --animate \
-  --rotate \
-  --visual-amplification 5
-```
-
-Les résultats sont écrits dans `output/`.
