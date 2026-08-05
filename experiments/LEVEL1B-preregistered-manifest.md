@@ -24,15 +24,30 @@ g_E = 1
 K = 1
 ```
 
-Contrôle de brisure :
+Le désordre gaussien est hors périmètre de la campagne Level 1B.
+
+## Contrôle de brisure `j_break`
+
+Le contrôle est épinglé aux points suivants :
+
+| Géométrie | S | Fenêtre |
+|---|---:|---:|
+| triangle | 2 | 16 |
+| ring5 | 2 | 24 |
+
+Paramètres :
 
 ```text
 control_id = j_break
 J_0 = 1.5
 J_i = 1 pour i != 0
+h = 0
+t = 1
+g_E = 1
+K = 1
 ```
 
-Le désordre gaussien est hors périmètre.
+Les orbites sont recalculées avec le sous-groupe de symétrie du Hamiltonien brisé.
 
 ## Géométries, troncatures et fenêtres
 
@@ -52,22 +67,23 @@ Le désordre gaussien est hors périmètre.
 
 - groupe fondamental complet ;
 - premier groupe excité complet avec `exact_label_match` ;
-- groupe complet de saveur maximale \(T=n/2\) ;
-- pour les géométries impaires, plus bas groupe complet \(T=3/2\) lorsqu’il est distinct ;
-- `ring4`: \(T=3/2\) est `structurally_not_applicable`.
+- groupe complet de saveur maximale T=n/2 ;
+- pour les géométries impaires, plus bas groupe complet T=3/2 lorsqu’il est distinct ;
+- `ring4` : T=3/2 est `structurally_not_applicable`.
 
 ## Observables obligatoires
 
-- \(C^{QQ}\) et \(\rho^{QQ}\) ;
-- \(C^{TT,\mathrm{raw}}\) et \(C^{TT,\mathrm{conn}}\) ;
+- C_QQ et rho_QQ ;
+- C_TT_raw et C_TT_conn ;
 - matrice habillée complète de saveur ;
 - singlet de saveur ;
 - norme de Frobenius au carré ;
 - valeurs singulières ;
-- \(G\) brut ;
-- \(G^{\mathrm{occ}}\) ;
-- \(\gamma_O\) ;
-- statistiques de chemins minimaux.
+- G brut ;
+- G_occ ;
+- gamma_O ;
+- statistiques de chemins minimaux ;
+- statistiques d’orbite : moyenne, dispersion maximale par paire et défaut de covariance.
 
 ## Verdicts de robustesse
 
@@ -82,6 +98,7 @@ Secondaires :
 ```text
 G_occ
 rho_QQ
+C_TT_conn
 flavor_singular_value_ratio
 path_phase_coherence
 ```
@@ -96,9 +113,37 @@ normalization_floor = 1e-12
 
 Aucune autre observable ne reçoit un verdict binaire automatique.
 
+## Diagnostics non hermitiens
+
+Sont sérialisés uniquement :
+
+```text
+normalized_trace
+singular_values
+frobenius_norm
+```
+
+Sont exclus :
+
+```text
+schur_decomposition
+complex_eigenvalues
+nonhermitian_eigenvectors
+```
+
 ## Orbites
 
-Les orbites sont calculées à partir du groupe de symétrie du Hamiltonien. Leur dispersion au point symétrique est un défaut numérique, pas une dispersion physique.
+Pour chaque orbite comparable, les valeurs individuelles restent primaires et les statistiques stockées sont :
+
+```text
+orbit_mean
+orbit_max_pairwise_spread
+orbit_covariance_defect
+```
+
+Aucune moyenne n’est autorisée entre orbites distinctes, chemins de longueurs différentes, groupes spectraux différents ou définitions d’observables différentes.
+
+Au point symétrique, la dispersion intra-orbite est un défaut numérique, pas une dispersion physique.
 
 ## Garde-fous de ressources
 
