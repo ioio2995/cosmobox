@@ -64,7 +64,6 @@ def _brute_force_basis(
 
     keys: set[int] = set()
     sectors: dict[tuple[Fraction, ...], tuple[int, int, int]] = {}
-    excluded: set[tuple[Fraction, ...]] = set()
     per_occupation_flux_counts: list[int] = []
 
     for charge_vector, occupation_list in occupations_by_sector.items():
@@ -75,23 +74,29 @@ def _brute_force_basis(
                 admissible.append(flux)
         n_flux = len(admissible)
         per_occupation_flux_counts.extend([n_flux] * len(occupation_list))
-        if n_flux == 0:
-            excluded.add(charge_vector)
-            continue
         sectors[charge_vector] = (len(occupation_list), n_flux, len(occupation_list) * n_flux)
         for occupation in occupation_list:
             for flux in admissible:
                 keys.add(int(encode(lattice, n_flavors, spin, occupation, flux)))
 
-    return keys, sectors, excluded, per_occupation_flux_counts
+    return keys, sectors, per_occupation_flux_counts
 
 
 @pytest.mark.parametrize(
     ("geometry", "n_flavors", "spin", "external_charges"),
     [
+        # Non-empty, non-trivial cases: M=2 keeps Q_i integer, so these
+        # actually exercise the chords and a cyclic tree resolution with
+        # several admissible flux configurations per sector -- not just
+        # two independent methods agreeing that a sector is impossible.
+        ("triangle", 2, 1, None),
+        ("ring4", 2, 1, None),
+        ("ring5", 2, 1, None),
+        # M=1 cases: every sector is empty (parity constraint), which
+        # exercises the "correctly reports nothing" path instead.
         ("triangle", 1, 1, None),
         ("chain3", 1, 1, None),  # expected empty: no occupation reaches Q_tot = 0
-        ("chain3", 2, 1, None),
+        ("chain3", 2, 1, None),  # non-empty but chain3 has no chords
         ("ring4", 1, 1, None),
         ("ring5", 1, 1, None),
         ("chain3", 1, 1, (Fraction(1, 2), Fraction(1, 2), Fraction(1, 2))),
@@ -104,7 +109,7 @@ def test_tree_resolution_matches_brute_force_exactly(
     report = build_basis(lattice, n_flavors, spin, external_charges)
 
     ext = external_charges if external_charges is not None else tuple(Fraction(0) for _ in lattice.nodes)
-    brute_keys, brute_sectors, brute_excluded, brute_flux_counts = _brute_force_basis(
+    brute_keys, brute_sectors, brute_flux_counts = _brute_force_basis(
         lattice, n_flavors, spin, external_charges
     )
 
@@ -117,7 +122,13 @@ def test_tree_resolution_matches_brute_force_exactly(
     }
     assert tree_sectors == brute_sectors
 
-    assert set(report.excluded_sectors) == brute_excluded
+    brute_excluded = {cv: stats for cv, stats in brute_sectors.items() if stats[1] == 0}
+    tree_excluded = {
+        sector.charge_vector: (sector.matter_multiplicity, sector.n_flux_admissible, sector.dimension)
+        for sector in report.excluded_sectors
+    }
+    assert tree_excluded == brute_excluded
+    assert set(report.excluded_sectors) <= set(report.sectors)
 
     if brute_flux_counts:
         assert report.mean_flux_configs_per_occupation == pytest.approx(
@@ -167,6 +178,18 @@ def test_every_returned_key_satisfies_exact_gauss_law(geometry: str, n_flavors: 
         occupation, flux = decode(lattice, n_flavors, spin, key)
         residuals = _exact_gauss_residuals(lattice, n_flavors, occupation, flux, ext)
         assert all(r == 0 for r in residuals)
+
+
+def test_excluded_sectors_preserve_matter_multiplicity() -> None:
+    lattice = build_lattice("ring4")
+    report = build_basis(lattice, n_flavors=1, spin=1)
+    assert report.sectors  # ring4, M=1: several Q_tot=0 sectors exist, all excluded (parity)
+    assert report.sectors == report.excluded_sectors
+    for sector in report.excluded_sectors:
+        assert sector.n_flux_admissible == 0
+        assert sector.dimension == 0
+        # at M=1 each charge vector corresponds to exactly one occupation bit pattern
+        assert sector.matter_multiplicity == 1
 
 
 def test_dimension_equals_sum_of_sector_dimensions() -> None:

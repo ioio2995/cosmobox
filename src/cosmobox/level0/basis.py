@@ -40,11 +40,19 @@ class SectorReport:
 
 @dataclass(frozen=True, slots=True)
 class BasisReport:
-    """The exact physical basis and its per-sector breakdown."""
+    """The exact physical basis and its per-sector breakdown.
+
+    ``sectors`` lists every charge vector Q encountered (after the cheap
+    Q_tot filter), including those with ``n_flux_admissible=0`` -- so
+    ``matter_multiplicity`` is never lost for an excluded sector.
+    ``excluded_sectors`` is the subset of ``sectors`` with
+    ``n_flux_admissible=0``, kept as a convenience view (same
+    ``SectorReport`` objects, not just their charge vectors).
+    """
 
     keys: tuple[np.uint64, ...]
     sectors: tuple[SectorReport, ...]
-    excluded_sectors: tuple[tuple[Fraction, ...], ...]
+    excluded_sectors: tuple[SectorReport, ...]
     mean_flux_configs_per_occupation: float
     max_flux_configs_per_occupation: int
 
@@ -78,6 +86,13 @@ def _tree_parent_edges(
                 visited.add(neighbour)
                 parent_edge[neighbour] = (edge_index, -sense)
                 queue.append(neighbour)
+
+    if len(parent_edge) != len(lattice.nodes) - 1:
+        raise ValueError(
+            "tree does not provide exactly one parent edge per non-root node "
+            f"(got {len(parent_edge)}, expected {len(lattice.nodes) - 1}); "
+            "tree_edges must form a spanning tree rooted at lattice.root"
+        )
     return parent_edge
 
 
@@ -183,9 +198,8 @@ def build_basis(
             continue
         occupations_by_sector.setdefault(charge_vector_q2, []).append(occupation)
 
-    keys: list[np.uint64] = []
+    keys: list[int] = []
     sectors: list[SectorReport] = []
-    excluded_sectors: list[tuple[Fraction, ...]] = []
     flux_configs_per_occupation: list[int] = []
 
     for charge_vector_q2 in sorted(occupations_by_sector):
@@ -204,10 +218,6 @@ def build_basis(
         charge_vector = tuple(Fraction(q2, 2) for q2 in charge_vector_q2)
         flux_configs_per_occupation.extend([n_flux] * matter_multiplicity)
 
-        if n_flux == 0:
-            excluded_sectors.append(charge_vector)
-            continue
-
         sectors.append(
             SectorReport(
                 charge_vector=charge_vector,
@@ -218,15 +228,20 @@ def build_basis(
         )
         for occupation in occupation_list:
             for flux in admissible_flux_configs:
-                keys.append(encode(lattice, n_flavors, spin, occupation, flux))
+                keys.append(int(encode(lattice, n_flavors, spin, occupation, flux)))
 
-    unique_sorted_keys = tuple(sorted(set(int(key) for key in keys)))
-    keys_as_uint64 = tuple(np.uint64(key) for key in unique_sorted_keys)
+    if len(keys) != len(set(keys)):
+        raise RuntimeError(
+            "basis generation emitted duplicate physical states; "
+            "this indicates a bug in the tree resolution or the encoding, not a case to silently repair"
+        )
+    sorted_keys = tuple(np.uint64(key) for key in sorted(keys))
+    excluded_sectors = tuple(sector for sector in sectors if sector.n_flux_admissible == 0)
 
     return BasisReport(
-        keys=keys_as_uint64,
+        keys=sorted_keys,
         sectors=tuple(sectors),
-        excluded_sectors=tuple(excluded_sectors),
+        excluded_sectors=excluded_sectors,
         mean_flux_configs_per_occupation=(
             statistics.fmean(flux_configs_per_occupation) if flux_configs_per_occupation else 0.0
         ),
