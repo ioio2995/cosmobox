@@ -129,6 +129,25 @@ Les décisions suivantes sont figées :
 
 Aucune de ces décisions ne peut être modifiée après observation des corrélateurs sans nouvelle décision explicite.
 
+## D014 — Gouvernance normative de la documentation
+
+**Statut : gelé**
+
+La charte `docs/documentation-governance.md` définit l’architecture documentaire obligatoire du dépôt.
+
+Les règles suivantes sont notamment gelées :
+
+- une spécification normative de niveau réside dans `docs/levelN-specification.md` ;
+- `features/` est réservé aux propositions temporaires et non gelées ;
+- une feature validée est migrée vers `docs/`, `experiments/`, `schemas/` et le plan de validation approprié, puis supprimée ;
+- une information normative possède une source de vérité principale ;
+- le README est une synthèse et ne remplace aucun document normatif ;
+- aucun gel ne peut être déclaré tant que des contradictions de statut ou de valeur subsistent ;
+- tout push documentaire final doit être vérifié sur le diff réel, fichier par fichier ;
+- le succès d’une mise à jour de référence Git ne prouve pas qu’un contenu annoncé a été modifié.
+
+Toute évolution de ces règles exige une nouvelle décision explicite.
+
 ## Questions ouvertes
 
 - organisation logicielle des utilitaires de campagne, mutualisés ou locaux ;
