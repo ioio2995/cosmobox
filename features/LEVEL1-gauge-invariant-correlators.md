@@ -1,420 +1,910 @@
-# Level 1 — Gauge-invariant relational correlators
+# Niveau 1 — Corrélateurs relationnels invariants de jauge
 
-Status: **feature definition — no implementation yet**
+Statut : **spécification scientifique en cours de validation — aucune implémentation autorisée**
 
-Branch: `research/level1-correlators`
+Branche : `research/level1-correlators`
 
-Base: Level 0 closed by `experiments/LEVEL0-synthesis-and-closure.md`.
-
----
-
-## 1. Purpose
-
-Level 0 established an exact finite U(1) lattice-gauge substrate with:
-
-- an explicitly constructed physical Hilbert space satisfying Gauss's law;
-- complex fermionic matter with two flavors;
-- finite-dimensional quantum links;
-- exact sparse Hamiltonians;
-- controlled spectral diagnostics;
-- classified flavor and spatial symmetry sectors.
-
-Level 1 introduces the first genuinely relational observables. Its purpose is to determine whether gauge-invariant correlations between matter degrees of freedom support a reproducible notion of relational separation across finite graphs and link truncations.
-
-The objective is not to assume a geometry and recover it by construction. The objective is to measure gauge-invariant correlations on the exact physical states and determine whether a stable, interpretable spatial organization can be extracted from them.
+Base : niveau 0 clos par `experiments/LEVEL0-synthesis-and-closure.md`.
 
 ---
 
-## 2. Scope
+## 1. Question scientifique
 
-This feature covers:
+Le niveau 1 introduit les premières observables relationnelles du programme Cosmobox.
 
-1. gauge-invariant two-point matter correlators joined by Wilson lines;
-2. local gauge-invariant density observables;
-3. flavor-resolved and flavor-summed correlators;
-4. path selection and path dependence;
-5. expectation values on non-degenerate states and degenerate spectral multiplets;
-6. normalization conventions;
-7. exact validation identities;
-8. a small, pre-registered Level 1B campaign;
-9. raw outputs suitable for later construction of an effective distance.
+Son objectif est de mesurer des corrélations invariantes de jauge entre degrés de liberté de matière sur l’espace de Hilbert physique exact établi au niveau 0.
 
-This feature does **not** yet define:
+La question principale est :
 
-- an effective metric;
-- a geodesic distance;
-- curvature;
-- causal structure;
-- gravitational dynamics;
-- continuum extrapolation;
-- thermodynamic-limit claims.
+> Les corrélations invariantes de jauge de matière et de charge présentent-elles une organisation relationnelle reproductible entre états, classes d’automorphismes du graphe et troncatures finies des liens ?
 
-Any distance-like quantity derived later from the correlators belongs to a subsequent feature and must not be silently folded into this one.
+Le niveau 1 mesure une structure de corrélation conditionnée par le graphe fini fourni en entrée.
 
----
+Il ne démontre pas que la géométrie du graphe émerge dynamiquement.
 
-## 3. Frozen Level 0 conventions
+Le niveau 1 ne définit pas :
 
-Level 1 reuses without modification:
+- de distance effective ;
+- de métrique ;
+- de géodésique ;
+- de courbure ;
+- de structure causale ;
+- de dynamique gravitationnelle ;
+- de limite continue ;
+- de limite thermodynamique.
 
-- the physical basis and encoding;
-- Gauss-law projection;
-- link orientation conventions;
-- fermionic Jordan–Wigner ordering;
-- Hamiltonian conventions;
-- external-charge conventions;
-- spectral degeneracy grouping;
-- flavor-SU(2) generators and Casimir;
-- translation and reflection operators;
-- `S=2` as the scientific reference truncation, with `S=3` reserved for robustness controls where computationally feasible.
-
-No Level 0 physical convention may be changed to simplify Level 1 observables.
+Toute transformation de corrélations en objet assimilable à une distance devra faire l’objet d’une feature distincte, pré-enregistrée et validée séparément.
 
 ---
 
-## 4. Primary observables
+## 2. Périmètre
 
-### 4.1 Local occupation and charge
+Cette feature couvre :
 
-For node `i` and flavor `alpha`:
+1. les corrélateurs de matière à deux points habillés par une ligne de Wilson ;
+2. les observables locales de densité et de charge ;
+3. les corrélateurs résolus en saveur et les invariants de saveur ;
+4. la sélection, l’orientation et la dépendance au chemin ;
+5. les états non dégénérés et les multiplets spectraux dégénérés ;
+6. les conventions de normalisation ;
+7. les validations exactes de jauge, d’adjoint, d’orientation et d’automorphisme ;
+8. une campagne Level 1B limitée et pré-enregistrée ;
+9. la production de données brutes utilisables par une future feature de distance effective.
 
-\[
- n_{i\alpha}=c^\dagger_{i\alpha}c_{i\alpha}.
-\]
+Cette feature ne couvre pas :
 
-Flavor-summed occupation:
-
-\[
- n_i=\sum_\alpha n_{i\alpha}.
-\]
-
-Dynamical charge, using the frozen Level 0 offset convention:
-
-\[
- Q_i=n_i-1.
-\]
-
-Connected charge correlator:
-
-\[
- C^{QQ}_{ij}
- =\langle Q_iQ_j\rangle
- -\langle Q_i\rangle\langle Q_j\rangle.
-\]
-
-This observable is local and gauge invariant. It provides a baseline against which Wilson-line-dressed matter correlators are compared.
-
-### 4.2 Gauge-invariant dressed matter correlator
-
-For an oriented path
-
-\[
- P:i=v_0\to v_1\to\cdots\to v_\ell=j,
-\]
-
-define the path transporter:
-
-\[
- W_P=\prod_{r=0}^{\ell-1} U_{e_r}^{s_r},
-\]
-
-where:
-
-- `e_r` is the stored lattice edge corresponding to the step between `v_r` and `v_{r+1}`;
-- `s_r=+1` when the path step follows the stored edge orientation;
-- `s_r=-1` when it opposes it;
-- `U_e^{-1}` means `U_e^\dagger` in the finite quantum-link representation.
-
-The flavor-resolved dressed correlator is:
-
-\[
- G^{\alpha\beta}_{ij}[P]
- =\left\langle
- c^\dagger_{i\alpha}
- W_P
- c_{j\beta}
- \right\rangle.
-\]
-
-The flavor trace is:
-
-\[
- G_{ij}[P]
- =\sum_\alpha G^{\alpha\alpha}_{ij}[P].
-\]
-
-For the two-flavor model, the full 2×2 flavor matrix may also be retained:
-
-\[
- \mathbf G_{ij}[P]
- =\left(G^{\alpha\beta}_{ij}[P]\right)_{\alpha,\beta=0,1}.
-\]
-
-### 4.3 Orientation reversal
-
-For the reversed path `P^{-1}:j\to i`, the implementation must satisfy:
-
-\[
- G^{\alpha\beta}_{ij}[P]
- =\left(G^{\beta\alpha}_{ji}[P^{-1}]\right)^*.
-\]
-
-This is a mandatory exact consistency identity, up to numerical precision in expectation values.
-
-### 4.4 Zero-length path
-
-For `i=j` and the empty path:
-
-\[
- W_\varnothing=I,
-\]
-
-so that:
-
-\[
- G^{\alpha\beta}_{ii}[\varnothing]
- =\langle c^\dagger_{i\alpha}c_{i\beta}\rangle.
-\]
-
-The diagonal element must reduce to the local occupation expectation.
+- les chemins arbitraires non minimaux ;
+- la construction d’un opérateur de distance ;
+- l’ajustement d’un modèle géométrique ;
+- la reconstruction d’une métrique ;
+- les extrapolations en taille ou en troncature ;
+- les revendications de géométrie ou de gravité émergente.
 
 ---
 
-## 5. Path conventions
+## 3. Conventions du niveau 0 réutilisées sans modification
 
-Path dependence is physical in a gauge theory and must not be hidden.
+Le niveau 1 réutilise :
 
-### 5.1 Canonical path family
+- la base physique et son encodage ;
+- la projection exacte sur la loi de Gauss ;
+- les conventions d’orientation des liens ;
+- l’ordre de Jordan–Wigner des modes fermioniques ;
+- les signes des opérateurs de création et d’annihilation ;
+- les conventions des opérateurs de lien quantique ;
+- les conventions de charge externe ;
+- les termes et paramètres du Hamiltonien ;
+- le groupement spectral par valeur d’ancrage ;
+- la distinction entre groupes complets et groupes `lower_bound_only=true` ;
+- les générateurs de saveur SU(2) et le Casimir \(T^2\) ;
+- les opérateurs validés de translation et de réflexion ;
+- \(S=2\) comme troncature scientifique de référence ;
+- \(S=3\) comme contrôle de robustesse lorsque son coût est admissible.
 
-For every ordered node pair `(i,j)`, the campaign must enumerate all simple shortest paths in the underlying undirected graph.
+Aucune convention physique du niveau 0 ne peut être modifiée pour simplifier les observables du niveau 1.
 
-The following quantities must be stored separately:
-
-1. each individual path correlator `G_ij[P]`;
-2. the number of shortest paths;
-3. the arithmetic path average;
-4. the maximum spread between shortest paths.
-
-For a set of shortest paths `SP(i,j)`:
-
-\[
- \overline G_{ij}
- =\frac{1}{|SP(i,j)|}
- \sum_{P\in SP(i,j)}G_{ij}[P].
-\]
-
-Path spread:
-
-\[
- \Delta^{\mathrm{path}}_{ij}
- =\max_{P,Q\in SP(i,j)}|G_{ij}[P]-G_{ij}[Q]|.
-\]
-
-The path average is a reported derived observable, not a replacement for the individual paths.
-
-### 5.2 Determinism
-
-Path enumeration must be deterministic and independent of dictionary or set iteration order.
-
-A path is serialized as an ordered node tuple, for example:
-
-```json
-{"nodes": [0, 1, 2]}
-```
-
-The corresponding oriented edge sequence must be derivable unambiguously from the lattice and is optionally included for auditability.
-
-### 5.3 Non-shortest paths
-
-Non-shortest simple paths are outside the initial Level 1B campaign. Their inclusion would mix correlation decay with Wilson-loop sensitivity and is deferred to a later feature.
+L’orientation exacte du transporteur de matière doit être dérivée des conventions de Gauss du niveau 0 avant toute implémentation.
 
 ---
 
-## 6. Operator construction
+## 4. États et sous-espaces spectraux
 
-### 6.1 Exact action on basis states
+### 4.1 État non dégénéré
 
-The dressed operator must be applied as an exact sequence on encoded basis states:
-
-1. annihilate flavor `beta` at node `j`;
-2. apply the ordered link transporters along `P`;
-3. create flavor `alpha` at node `i`.
-
-Elementary fermionic actions must reuse the existing Level 0 `annihilate` and `create` primitives.
-
-Link raising or lowering must reuse the existing quantum-link conventions. A state that exceeds the allowed flux range is annihilated by the operator, as prescribed by the finite link representation.
-
-The implementation must not infer gauge invariance by dropping states absent from the physical basis. Any nonzero transition whose resulting key is absent from the physical basis is an invariant violation and must raise.
-
-### 6.2 Gauge-invariance validation
-
-On the full unconstrained basis of a tractable small geometry, verify:
+Pour un état propre normalisé \(|\psi\rangle\) :
 
 \[
- [G_k,\widehat G^{\alpha\beta}_{ij}[P]]=0
+\langle O\rangle_\psi
+=
+\langle\psi|O|\psi\rangle.
 \]
 
-for every Gauss generator `G_k`.
+### 4.2 Groupe spectral dégénéré complet
 
-This test must cover:
-
-- a path following stored orientations;
-- a path containing at least one reversed edge;
-- a zero-length path;
-- at least one off-diagonal flavor component.
-
-### 6.3 Hermitian combinations
-
-The raw operator `c_i^\dagger W_P c_j` is generally non-Hermitian. For selected analyses, define:
+Pour un groupe spectral complet \(\mathcal M\) de dimension \(d\), dont les vecteurs propres orthonormés sont les colonnes de \(\Psi\), on définit :
 
 \[
- X_{ij}[P]=\frac12\left(O_{ij}[P]+O_{ij}[P]^\dagger\right),
+\Pi_{\mathcal M}
+=
+\Psi\Psi^\dagger,
 \]
+
+puis l’état mixte canonique :
 
 \[
- Y_{ij}[P]=\frac{1}{2i}\left(O_{ij}[P]-O_{ij}[P]^\dagger\right).
+\rho_{\mathcal M}
+=
+\frac{\Pi_{\mathcal M}}{d}.
 \]
 
-These combinations are diagnostic conveniences. The raw complex correlator remains the primary observable.
+L’espérance canonique d’une observable \(O\) dans ce multiplet est :
+
+\[
+\langle O\rangle_{\mathcal M}
+=
+\operatorname{Tr}(\rho_{\mathcal M}O)
+=
+\frac{1}{d}
+\operatorname{Tr}
+\left(
+\Psi^\dagger O\Psi
+\right).
+\]
+
+Cette prescription est invariante sous toute rotation unitaire des vecteurs propres à l’intérieur du sous-espace dégénéré.
+
+### 4.3 Corrélations connectées dans un multiplet
+
+Les corrélations connectées doivent être construites à partir du même état mixte :
+
+\[
+C_{AB}(\rho_{\mathcal M})
+=
+\operatorname{Tr}(\rho_{\mathcal M}AB)
+-
+\operatorname{Tr}(\rho_{\mathcal M}A)
+\operatorname{Tr}(\rho_{\mathcal M}B).
+\]
+
+Cette quantité n’est généralement pas égale à la moyenne des corrélations connectées calculées séparément sur les vecteurs propres retournés par LAPACK.
+
+La prescription par état mixte est la seule prescription canonique du niveau 1 pour un multiplet complet.
+
+### 4.4 Groupes spectraux tronqués
+
+Pour un groupe marqué `lower_bound_only=true` :
+
+- aucune moyenne de multiplet n’est définie ;
+- aucun champ `multiplet_average` ne doit être émis ;
+- une compression sur la tranche observée peut être conservée à titre exploratoire ;
+- cette compression doit être nommée `partial_subspace` ;
+- aucune conclusion physique définitive ne peut dépendre de cette tranche.
 
 ---
 
-## 7. Degenerate spectral multiplets
+## 5. Observables locales invariantes de jauge
 
-Individual eigenvectors inside a degenerate eigenspace are basis-dependent. Level 1 must therefore distinguish state-specific values from multiplet-invariant quantities.
-
-For a complete spectral group with orthonormal eigenvector matrix `Psi` and observable `O`, define the restricted matrix:
+Pour le nœud \(i\) et la saveur \(\alpha\) :
 
 \[
- O_{\mathrm{rest}}=\Psi^\dagger O\Psi.
+n_{i\alpha}
+=
+c^\dagger_{i\alpha}c_{i\alpha}.
 \]
 
-### 7.1 Canonical multiplet average
-
-The default scalar expectation for a complete multiplet of multiplicity `d` is the normalized trace:
+Occupation totale du nœud :
 
 \[
- \langle O\rangle_{\mathrm{mult}}
- =\frac{1}{d}\operatorname{Tr}(O_{\mathrm{rest}}).
+n_i
+=
+\sum_\alpha n_{i\alpha}.
 \]
 
-This is invariant under arbitrary unitary rotations within the degenerate eigenspace.
+Avec la convention de décalage gelée au niveau 0 :
 
-### 7.2 Multiplet spread
+\[
+Q_i=n_i-1.
+\]
 
-For Hermitian observables, report the eigenvalues of `O_rest` and their range.
+Pour un état pur ou mixte \(\rho\), le corrélateur connecté de charge est :
 
-For non-Hermitian observables, report:
+\[
+C^{QQ}_{ij}(\rho)
+=
+\operatorname{Tr}(\rho Q_iQ_j)
+-
+\operatorname{Tr}(\rho Q_i)
+\operatorname{Tr}(\rho Q_j).
+\]
 
-- the normalized trace;
-- singular values of `O_rest`;
-- Frobenius norm;
-- basis-invariance defect under test rotations.
+Le coefficient de corrélation de charge normalisé est :
 
-The raw matrix may be retained in memory but must not be serialized unless explicitly approved in the campaign schema.
+\[
+\rho^{QQ}_{ij}
+=
+\frac{C^{QQ}_{ij}}
+{\sqrt{C^{QQ}_{ii}C^{QQ}_{jj}}}.
+\]
 
-### 7.3 Symmetry-resolved refinement
+Cette quantité n’est définie que si :
 
-Where a complete multiplet can be decomposed using commuting validated symmetry operators, the campaign may report symmetry-resolved subblocks. This is optional for the first implementation and must not replace the normalized full-multiplet trace.
+\[
+C^{QQ}_{ii}C^{QQ}_{jj}
+>
+\epsilon_{\mathrm{norm}}^2.
+\]
 
-### 7.4 Truncated spectral groups
-
-A group marked `lower_bound_only=true` is not a complete multiplet.
-
-For such a group:
-
-- state-specific raw expectations may be reported as exploratory data;
-- the normalized trace over the observed slice must be labelled `partial_subspace_trace`;
-- it must not be described as a multiplet average;
-- no invariance conclusion may depend on it.
+Dans le cas contraire, la valeur sérialisée est `null`, accompagnée d’un code de raison explicite.
 
 ---
 
-## 8. Normalizations
+## 6. Chemins orientés et transporteurs
 
-Several normalizations are required because raw matter correlators mix occupation amplitudes with relational coherence.
+### 6.1 Chemin orienté
 
-### 8.1 Raw correlator
-
-\[
- G_{ij}[P].
-\]
-
-Always retain the complex raw value.
-
-### 8.2 Occupation-normalized coherence
-
-For flavor-summed occupation:
+Un chemin simple orienté est défini par :
 
 \[
- \widetilde G_{ij}[P]
- =\frac{G_{ij}[P]}
- {\sqrt{\langle n_i\rangle\langle n_j\rangle}}.
+P=(v_0,v_1,\ldots,v_\ell),
 \]
 
-This is defined only when the denominator exceeds a frozen numerical floor.
-
-Initial floor:
+avec :
 
 \[
- \epsilon_n=10^{-12}.
+v_0=i,
+\qquad
+v_\ell=j.
 \]
 
-When the denominator is below the floor, serialize `null` with an explicit reason rather than zero.
+Chaque paire consécutive de nœuds doit correspondre à une arête du graphe.
 
-### 8.3 Connected density correlation coefficient
+Dans la campagne Level 1B, un chemin simple ne peut contenir deux fois le même nœud.
+
+### 6.2 Transporteur élémentaire dirigé
+
+Pour une arête stockée \(e=(a,b)\), on définit :
 
 \[
- \rho^{QQ}_{ij}
- =\frac{C^{QQ}_{ij}}
- {\sqrt{C^{QQ}_{ii}C^{QQ}_{jj}}}.
+T_{a\rightarrow b}
+=
+\mathcal U_e,
 \]
 
-Apply the same `10^{-12}` denominator floor.
-
-### 8.4 No distance transform in this feature
-
-Expressions such as
+et :
 
 \[
- -\log|\widetilde G_{ij}|
+T_{b\rightarrow a}
+=
+\mathcal U_e^\dagger.
 \]
 
-or inverse-correlation distances are deliberately excluded. Their domain, regularization and triangle-inequality behavior require a separate pre-registered feature.
+La notation \(\mathcal U_e^{-1}\) est interdite.
+
+Dans une représentation de lien quantique de spin fini, \(\mathcal U_e\) n’est pas supposé unitaire et :
+
+\[
+\mathcal U_e^\dagger
+\neq
+\mathcal U_e^{-1}.
+\]
+
+### 6.3 Transporteur associé à un chemin
+
+Pour :
+
+\[
+P=(v_0,v_1,\ldots,v_\ell),
+\]
+
+le transporteur est :
+
+\[
+W_P
+=
+T_{v_{\ell-1}\rightarrow v_\ell}
+\cdots
+T_{v_1\rightarrow v_2}
+T_{v_0\rightarrow v_1}.
+\]
+
+Le transporteur situé le plus à droite agit en premier sur un ket.
+
+Pour le chemin inversé :
+
+\[
+P^{-1}
+=
+(v_\ell,\ldots,v_1,v_0),
+\]
+
+on doit avoir exactement :
+
+\[
+W_{P^{-1}}
+=
+W_P^\dagger.
+\]
+
+### 6.4 Normalisation du transporteur en fonction de \(S\)
+
+Deux conventions doivent être distinguées.
+
+Le transporteur utilisé dans le Hamiltonien du niveau 0 est noté :
+
+\[
+U_e^{\mathrm H}.
+\]
+
+Le transporteur utilisé pour les comparaisons entre troncatures est noté :
+
+\[
+\mathcal U_e
+=
+\frac{U_e^{\mathrm H}}{\nu_S}.
+\]
+
+La valeur de \(\nu_S\) doit être gelée avant toute campagne.
+
+Si le transporteur du niveau 0 est directement un opérateur d’échelle de spin, la proposition initiale est :
+
+\[
+\nu_S
+=
+\sqrt{S(S+1)}.
+\]
+
+Cette convention doit être confirmée par inspection de l’implémentation exacte du niveau 0.
+
+Le manifeste de campagne doit enregistrer :
+
+- la définition exacte de \(U_e^{\mathrm H}\) ;
+- la valeur de \(\nu_S\) ;
+- l’utilisation éventuelle simultanée du transporteur brut et du transporteur normalisé ;
+- la convention employée pour chaque observable sérialisée.
+
+Aucune comparaison entre valeurs de \(S\) n’est autorisée tant que cette convention n’a pas été vérifiée et gelée.
 
 ---
 
-## 9. Numerical diagnostics
+## 7. Opérateur de matière habillé
 
-Every constructed observable must report or satisfy:
+Pour une source \(j\), une cible \(i\), une saveur source \(\beta\), une saveur cible \(\alpha\), et un chemin \(P:i\rightarrow j\), on considère l’opérateur candidat :
 
-- matrix shape equal to the physical Hilbert-space dimension;
-- finite sparse data;
-- exact basis closure;
-- gauge-commutator defect;
-- adjoint-reversal identity defect;
-- zero-path reduction defect;
-- expectation-value finiteness;
-- multiplet-subspace orthonormality defect;
-- restriction defect where applicable.
+\[
+O^{\alpha\beta}_{ij}[P]
+=
+c^\dagger_{i\alpha}
+W_P
+c_{j\beta}.
+\]
 
-Frozen engineering thresholds for the initial implementation:
+Avant de figer cette définition, il faut dériver explicitement sa transformation sous les générateurs de Gauss du niveau 0.
+
+La convention retenue doit satisfaire :
+
+\[
+[G_k,O^{\alpha\beta}_{ij}[P]]
+=
+0
+\]
+
+pour tout nœud \(k\).
+
+Cette dérivation analytique doit apparaître dans la spécification ou dans un document de validation associé.
+
+Un test numérique de commutation est obligatoire, mais il ne remplace pas la dérivation.
+
+Pour un état \(\rho\), le corrélateur habillé est :
+
+\[
+G^{\alpha\beta}_{ij}[P;\rho]
+=
+\operatorname{Tr}
+\left(
+\rho
+O^{\alpha\beta}_{ij}[P]
+\right).
+\]
+
+La relation d’adjoint exacte est :
+
+\[
+\left(
+O^{\alpha\beta}_{ij}[P]
+\right)^\dagger
+=
+O^{\beta\alpha}_{ji}[P^{-1}].
+\]
+
+Pour un état hermitien \(\rho\) :
+
+\[
+G^{\alpha\beta}_{ij}[P;\rho]
+=
+\left(
+G^{\beta\alpha}_{ji}[P^{-1};\rho]
+\right)^*.
+\]
+
+---
+
+## 8. Décomposition en saveur
+
+La matrice complète de saveur est :
+
+\[
+\mathbf G_{ij}[P]
+=
+\left(
+G^{\alpha\beta}_{ij}[P]
+\right)_{\alpha,\beta}.
+\]
+
+### 8.1 Singlet de saveur
+
+L’observable scalaire primaire est :
+
+\[
+G^{(0)}_{ij}[P]
+=
+\operatorname{Tr}_{f}
+\mathbf G_{ij}[P].
+\]
+
+### 8.2 Composantes vectorielles de saveur
+
+Les composantes de type triplet sont :
+
+\[
+G^{(a)}_{ij}[P]
+=
+\operatorname{Tr}_{f}
+\left(
+\sigma_a
+\mathbf G_{ij}[P]
+\right).
+\]
+
+Ces composantes sont covariantes sous SU(2), mais ne sont pas des scalaires invariants de saveur.
+
+### 8.3 Invariants de matrice
+
+Les comparaisons indépendantes du repère de saveur peuvent utiliser :
+
+\[
+\operatorname{Tr}
+\left(
+\mathbf G^\dagger\mathbf G
+\right),
+\]
+
+les valeurs singulières de \(\mathbf G\), ou toute autre quantité explicitement validée comme invariant de saveur.
+
+La matrice complète peut être sérialisée pour auditabilité.
+
+Toute interprétation physique indépendante de la base de saveur doit reposer sur le singlet ou sur des invariants de matrice.
+
+---
+
+## 9. Chemin de longueur nulle
+
+Pour \(i=j\), le chemin est :
+
+\[
+P=(i),
+\]
+
+et :
+
+\[
+W_P=I.
+\]
+
+Alors :
+
+\[
+O^{\alpha\beta}_{ii}[P]
+=
+c^\dagger_{i\alpha}c_{i\beta}.
+\]
+
+Pour \(\alpha=\beta\) :
+
+\[
+G^{\alpha\alpha}_{ii}[P]
+=
+\langle n_{i\alpha}\rangle.
+\]
+
+Un chemin vide ou de longueur nulle avec des extrémités distinctes est invalide.
+
+---
+
+## 10. Famille canonique de chemins
+
+Pour chaque paire ordonnée \((i,j)\), la campagne Level 1B énumère tous les chemins simples de longueur minimale dans le graphe non orienté sous-jacent.
+
+La longueur utilisée est le nombre non pondéré d’arêtes.
+
+Cette convention dépend de la géométrie combinatoire fournie en entrée.
+
+Elle ne constitue pas une distance émergente.
+
+L’énumération doit être déterministe et indépendante de l’ordre d’itération des dictionnaires ou ensembles.
+
+Après validation, les chemins sont ordonnés lexicographiquement selon leur tuple de nœuds.
+
+Pour chaque chemin, les données suivantes doivent être enregistrées :
+
+- la suite ordonnée des nœuds ;
+- la suite des arêtes dirigées ;
+- la longueur combinatoire ;
+- le sens du transporteur sur chaque arête ;
+- les corrélateurs complexes individuels.
+
+Les chemins non minimaux sont exclus de la campagne Level 1B.
+
+---
+
+## 11. Traitement des chemins minimaux multiples
+
+Pour :
+
+\[
+SP(i,j)
+=
+\{P_1,\ldots,P_N\},
+\]
+
+chaque résultat individuel doit être conservé.
+
+La moyenne complexe est :
+
+\[
+\overline G_{ij}
+=
+\frac{1}{N}
+\sum_{P\in SP(i,j)}
+G_{ij}[P].
+\]
+
+La moyenne des modules est :
+
+\[
+\overline{|G|}_{ij}
+=
+\frac{1}{N}
+\sum_{P\in SP(i,j)}
+|G_{ij}[P]|.
+\]
+
+La valeur quadratique moyenne est :
+
+\[
+G^{\mathrm{rms}}_{ij}
+=
+\sqrt{
+\frac{1}{N}
+\sum_{P\in SP(i,j)}
+|G_{ij}[P]|^2
+}.
+\]
+
+La dispersion maximale entre chemins est :
+
+\[
+\Delta^{\mathrm{path}}_{ij}
+=
+\max_{P,Q\in SP(i,j)}
+|G_{ij}[P]-G_{ij}[Q]|.
+\]
+
+Lorsque :
+
+\[
+\sum_P|G_{ij}[P]|
+>
+\epsilon_{\mathrm{norm}},
+\]
+
+on définit l’indicateur de cohérence de phase :
+
+\[
+\chi^{\mathrm{path}}_{ij}
+=
+\frac{
+\left|
+\sum_PG_{ij}[P]
+\right|
+}{
+\sum_P|G_{ij}[P]|
+}.
+\]
+
+Sinon, cet indicateur vaut `null`.
+
+La moyenne complexe ne peut jamais être utilisée seule pour conclure à une corrélation faible, car des contributions de grande amplitude peuvent s’annuler par leur phase.
+
+---
+
+## 12. Normalisations des corrélateurs
+
+### 12.1 Corrélateur brut
+
+La valeur complexe brute doit toujours être conservée.
+
+### 12.2 Normalisation par les occupations aux extrémités
+
+On définit :
+
+\[
+G^{\mathrm{occ}}_{ij}[P]
+=
+\frac{
+G^{(0)}_{ij}[P]
+}{
+\sqrt{
+\langle n_i\rangle
+\langle n_j\rangle
+}
+}.
+\]
+
+Cette quantité n’est définie que si le dénominateur est supérieur au seuil gelé.
+
+Elle est sans dimension, mais elle n’est pas supposée être bornée par 1.
+
+Elle doit être décrite comme un corrélateur normalisé par les occupations aux extrémités, et non comme un coefficient de cohérence universel.
+
+### 12.3 Cohérence normalisée par l’opérateur
+
+Pour un opérateur \(O\) et un état \(\rho\), on peut définir :
+
+\[
+\gamma_O(\rho)
+=
+\frac{
+\operatorname{Tr}(\rho O)
+}{
+\sqrt{
+\operatorname{Tr}(\rho OO^\dagger)
+\operatorname{Tr}(\rho O^\dagger O)
+}
+}.
+\]
+
+Cette quantité n’est définie que lorsque les deux facteurs du dénominateur dépassent le seuil gelé.
+
+La normalisation par les occupations et la normalisation par l’opérateur répondent à deux questions différentes et doivent être sérialisées séparément.
+
+### 12.4 Transformations interdites au niveau 1
+
+Les expressions suivantes sont exclues :
+
+\[
+-\log|G|,
+\]
+
+\[
+-\log|G^{\mathrm{occ}}|,
+\]
+
+ainsi que toute autre transformation en distance ou pseudo-distance.
+
+Leur domaine, leur régularisation, leur comportement sous changement de chemin et leur compatibilité éventuelle avec une inégalité triangulaire devront être étudiés dans une feature ultérieure.
+
+---
+
+## 13. Compression dans un sous-espace dégénéré
+
+Pour un groupe spectral complet :
+
+\[
+O_{\mathrm{rest}}
+=
+\Psi^\dagger O\Psi.
+\]
+
+Il s’agit d’une compression de l’opérateur dans le sous-espace.
+
+Cette opération ne suppose pas que le sous-espace propre de \(H\) soit invariant sous \(O\).
+
+Il n’est donc pas exigé que :
+
+\[
+O\Psi
+\simeq
+\Psi O_{\mathrm{rest}}.
+\]
+
+Un tel défaut de restriction n’est pertinent que pour un opérateur supposé préserver le sous-espace, notamment un opérateur de symétrie commutant avec \(H\).
+
+Il ne doit pas être utilisé comme critère général pour les corrélateurs de matière ou de charge.
+
+Pour un opérateur hermitien comprimé, on rapporte :
+
+- la trace normalisée ;
+- les valeurs propres ;
+- le minimum ;
+- le maximum ;
+- l’étendue spectrale.
+
+Pour un opérateur non hermitien comprimé, on rapporte :
+
+- la trace normalisée ;
+- les valeurs singulières ;
+- la norme de Frobenius.
+
+Ces quantités doivent être invariantes sous :
+
+\[
+\Psi
+\longmapsto
+\Psi V,
+\]
+
+pour toute matrice unitaire \(V\) agissant à l’intérieur du sous-espace dégénéré.
+
+Les rotations unitaires aléatoires sont des tests de validation et non des observables scientifiques.
+
+---
+
+## 14. Covariance sous automorphismes
+
+Pour un automorphisme validé \(A\) du graphe :
+
+\[
+U_A
+O_{ij}[P]
+U_A^\dagger
+=
+O_{A(i)A(j)}[A(P)].
+\]
+
+Il s’agit d’une covariance de la famille d’opérateurs.
+
+Un opérateur associé à une paire fixe \((i,j)\) n’a pas à commuter individuellement avec l’automorphisme.
+
+Les résultats doivent être produits à deux niveaux :
+
+1. paire ordonnée et chemin individuel ;
+2. orbite de paires ordonnées sous le groupe d’automorphismes validé.
+
+Les comparaisons entre géométries ne peuvent porter que sur des classes partageant des descripteurs explicitement déclarés :
+
+- longueur combinatoire minimale ;
+- nombre de chemins minimaux ;
+- type d’orbite de la paire ordonnée ;
+- règle de sélection de l’état ;
+- définition de l’observable ;
+- convention de normalisation du transporteur.
+
+Les numéros de nœuds ne doivent jamais servir d’identifiants physiques entre géométries différentes.
+
+---
+
+## 15. Appariement des états entre valeurs de \(S\)
+
+Les états calculés pour différentes valeurs de \(S\) ne doivent pas être appariés uniquement selon leur rang énergétique.
+
+Un groupe candidat doit être comparé selon les étiquettes disponibles et validées :
+
+- géométrie ;
+- paramètres du Hamiltonien ;
+- statut de groupe complet ;
+- valeur de \(T\) ;
+- secteur de translation ;
+- information de réflexion lorsqu’elle est simultanément définie ;
+- multiplicité.
+
+L’ordre énergétique ne peut être utilisé qu’après accord de ces étiquettes.
+
+Le statut d’appariement est :
 
 ```text
-operator_identity_tolerance               = 1e-10
-gauss_commutator_tolerance                = 1e-10
-multiplet_orthonormality_tolerance         = 1e-8
-complete_multiplet_invariance_tolerance    = 1e-8
-occupation_normalization_floor             = 1e-12
+exact_label_match
+partial_label_match
+ambiguous
+unavailable
 ```
 
-These thresholds must be stored in the campaign manifest before execution and must not be adjusted after observing results.
+Seuls les groupes `exact_label_match` peuvent soutenir une conclusion définitive de robustesse état par état entre troncatures.
+
+Le groupe fondamental complet peut être comparé séparément lorsqu’il est identifié sans ambiguïté pour toutes les valeurs de \(S\).
 
 ---
 
-## 10. Proposed public API
+## 16. Robustesse sous troncature
 
-Names remain subject to implementation review, but the public contract should be no broader than necessary.
+Les quantités brutes dépendant explicitement de la convention de normalisation du lien ne reçoivent pas de verdict binaire de robustesse.
+
+Pour une observable sans dimension approuvée \(x\), on compare les deux valeurs de \(S\) les plus élevées disponibles :
+
+\[
+D_S(x)
+=
+|x_{S_{\mathrm{haut}}}-x_{S_{\mathrm{bas}}}|.
+\]
+
+L’observable est classée stable si :
+
+\[
+D_S(x)
+\le
+\max
+\left[
+\tau_{\mathrm{abs}},
+\tau_{\mathrm{rel}}
+\max
+\left(
+|x_{S_{\mathrm{haut}}}|,
+|x_{S_{\mathrm{bas}}}|
+\right)
+\right].
+\]
+
+Seuils initiaux proposés :
+
+```text
+truncation_absolute_tolerance = 0.05
+truncation_relative_tolerance = 0.15
+```
+
+Ces valeurs doivent être validées avant exécution de la campagne.
+
+La différence réelle doit toujours être enregistrée, indépendamment de sa classification.
+
+Aucune conclusion du niveau 1 ne peut dépendre d’une observable classée :
+
+- instable ;
+- ambiguë ;
+- indisponible ;
+- ou non comparable.
+
+---
+
+## 17. Diagnostics numériques et seuils
+
+Les seuils initiaux proposés sont :
+
+```text
+operator_identity_tolerance             = 1e-10
+gauss_commutator_tolerance              = 1e-10
+adjoint_reversal_tolerance              = 1e-10
+zero_path_tolerance                     = 1e-10
+automorphism_covariance_tolerance       = 1e-10
+multiplet_orthonormality_tolerance      = 1e-8
+multiplet_basis_invariance_tolerance    = 1e-8
+normalization_floor                     = 1e-12
+truncation_absolute_tolerance           = 0.05
+truncation_relative_tolerance           = 0.15
+```
+
+Ces seuils doivent être enregistrés dans le manifeste avant toute exécution scientifique.
+
+Ils ne peuvent pas être modifiés après observation des résultats.
+
+Chaque observable construite doit vérifier ou rapporter :
+
+- la dimension de la matrice ;
+- la finitude des coefficients ;
+- la fermeture exacte dans la base physique ;
+- le défaut de commutation avec les générateurs de Gauss ;
+- le défaut de la relation d’adjoint ;
+- le défaut de réduction du chemin nul ;
+- le défaut de covariance sous automorphisme ;
+- l’orthonormalité du sous-espace spectral ;
+- l’invariance de base des diagnostics de multiplet ;
+- la validité des dénominateurs de normalisation ;
+- le statut complet ou tronqué du groupe spectral.
+
+---
+
+## 18. Validations scientifiques obligatoires
+
+Avant toute campagne réelle, il faut :
+
+1. dériver analytiquement la transformation de jauge de l’opérateur habillé ;
+2. vérifier sa commutation avec tous les générateurs de Gauss dans un espace non projeté tractable ;
+3. vérifier la convention de normalisation des liens pour chaque valeur de \(S\) ;
+4. vérifier l’identité exacte entre chemin inversé et adjoint ;
+5. vérifier la réduction au chemin de longueur nulle ;
+6. vérifier l’énumération déterministe des chemins minimaux ;
+7. vérifier la fermeture dans la base physique sans suppression silencieuse de transitions ;
+8. vérifier la covariance de la famille d’opérateurs sous translation et réflexion ;
+9. vérifier l’invariance des diagnostics dans les sous-espaces dégénérés complets ;
+10. vérifier que les corrélations connectées de multiplet utilisent bien l’état mixte \(\Pi/d\) ;
+11. vérifier l’invariance du singlet de saveur et la covariance des composantes de triplet ;
+12. vérifier au moins un élément de matrice calculé à la main, incluant le signe fermionique et l’amplitude du transporteur ;
+13. vérifier la sérialisation `null` sous les seuils de normalisation ;
+14. vérifier qu’un groupe tronqué ne peut jamais être émis comme multiplet complet ;
+15. vérifier la déterminisme du manifeste, des empreintes, de la reprise et des écritures atomiques.
+
+---
+
+## 19. API publique proposée
+
+Les noms exacts restent soumis à revue d’implémentation.
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -426,7 +916,8 @@ def enumerate_shortest_paths(
     lattice: Lattice,
     source: int,
     target: int,
-) -> tuple[OrientedPath, ...]: ...
+) -> tuple[OrientedPath, ...]:
+    ...
 
 
 def build_dressed_matter_operator(
@@ -440,10 +931,16 @@ def build_dressed_matter_operator(
     source_flavor: int,
     target_flavor: int,
     path: OrientedPath,
-) -> sp.csr_matrix: ...
+    transporter_normalization: float,
+) -> sp.csr_matrix:
+    ...
 
 
-def build_charge_operator(..., node: int) -> sp.csr_matrix: ...
+def build_charge_operator(
+    ...,
+    node: int,
+) -> sp.csr_matrix:
+    ...
 
 
 def analyze_observable_in_subspaces(
@@ -452,23 +949,22 @@ def analyze_observable_in_subspaces(
     operator_kind: OperatorKind,
     eigenvectors: np.ndarray,
     degeneracy: DegeneracyReport,
-) -> tuple[ObservableSectorDiagnostic, ...]: ...
+) -> tuple[ObservableSectorDiagnostic, ...]:
+    ...
 ```
 
-The existing symmetry diagnostic API may be generalized only if the resulting abstraction remains clearer than maintaining a separate observable diagnostic type. This decision must be made during implementation review, not assumed here.
+L’API ne doit pas exposer une notion de distance au niveau 1.
 
 ---
 
-## 11. Level 1B reference campaign
+## 20. Campagne de référence Level 1B
 
-### 11.1 Scientific reference
-
-All primary runs use:
+### 20.1 Paramètres de référence
 
 ```text
 n_flavors = 2
 external_charges = 0
-spin S = 2
+S = 2
 J_i = 1
 t = 1
 g_E = 1
@@ -476,216 +972,299 @@ K = 1
 h = 0
 ```
 
-Geometries:
+Géométries :
 
-- triangle;
-- ring4;
-- ring5.
+- `triangle` ;
+- `ring4` ;
+- `ring5`.
 
-Spectral window:
+### 20.2 Contrôles de robustesse
 
-- 16 lowest eigenvalues and retained eigenvectors;
-- anchor-based degeneracy tolerance `1e-10`;
-- complete and truncated groups treated separately.
+Sous réserve du coût mesuré et des garde-fous de dimension :
 
-### 11.2 Robustness controls
+- `triangle` pour \(S=1,2,3\) ;
+- `ring4` pour \(S=1,2,3\) ;
+- `ring5` pour \(S=1,2\) ;
+- `ring5` pour \(S=3\) uniquement si ce point est accepté avant l’exécution.
 
-Subject to measured cost:
+### 20.3 Sélection des groupes spectraux
 
-- triangle at `S=1,2,3`;
-- ring4 at `S=1,2,3`;
-- ring5 at `S=1,2`, with `S=3` only if tractable under the existing dimension guardrails.
+Les analyses principales portent sur :
 
-No physical interpretation may rely on an observable that changes by more than the pre-registered truncation criterion between the two highest available `S` values.
+1. le groupe fondamental complet ;
+2. le plus bas groupe excité complet disposant d’un `exact_label_match` entre valeurs de \(S\) ;
+3. le plus bas groupe complet de saveur \(T=3/2\) disposant d’un `exact_label_match` ;
+4. aucun groupe tronqué ou apparié de manière ambiguë.
 
-The exact robustness threshold must be frozen before campaign execution. The Level 0 experience suggests that a universal 5% criterion may be too strict for all observables; Level 1 must pre-register observable-specific absolute and relative tolerances instead of tuning them after the fact.
+La taille de la fenêtre spectrale doit être gelée avant la campagne.
 
-### 11.3 State selection
+Si un groupe ciblé n’est pas complet dans la fenêtre, il est déclaré indisponible.
 
-Primary analysis targets:
-
-1. the complete ground spectral group;
-2. the first complete excited spectral group;
-3. any complete `T=3/2` multiplet identified in Level 0;
-4. no scientific conclusion from a window-truncated group.
-
-### 11.4 Output per node pair
-
-For every ordered node pair and every shortest path:
-
-- raw flavor matrix `G^{alpha beta}`;
-- flavor trace;
-- normalized coherence when defined;
-- charge connected correlator;
-- normalized charge coefficient when defined;
-- path-average values;
-- path spread;
-- multiplet averaging mode;
-- truncation status;
-- all numeric defects.
+Il est interdit d’augmenter la fenêtre après inspection des corrélateurs afin de récupérer un résultat souhaité.
 
 ---
 
-## 12. Validation tests
+## 21. Sorties requises
 
-Minimum required tests before any real campaign:
+Chaque résultat doit enregistrer :
 
-### T1 — path validation
-
-Reject:
-
-- empty path with different endpoints;
-- repeated nodes in a simple path;
-- nonexistent edge steps;
-- endpoint mismatch;
-- out-of-range nodes.
-
-### T2 — deterministic shortest paths
-
-Verify exact path ordering on triangle, ring4 and ring5.
-
-### T3 — physical-basis closure
-
-Every nonzero dressed transition lands in the physical basis.
-
-### T4 — full-space Gauss commutation
-
-Verify exact commutation on a tractable unconstrained space.
-
-### T5 — path reversal
-
-Verify:
-
-\[
- O_{ij}[P]^\dagger=O_{ji}[P^{-1}].
-\]
-
-### T6 — zero-path reduction
-
-Verify equality with local one-body flavor operators.
-
-### T7 — symmetry covariance
-
-At spatially uniform parameters, verify translation and reflection covariance of the correlator family rather than requiring each fixed ordered pair operator to commute individually.
-
-For an automorphism `A`:
-
-\[
- U_A O_{ij}[P]U_A^\dagger
- =O_{A(i)A(j)}[A(P)].
-\]
-
-### T8 — multiplet basis invariance
-
-Apply random unitary rotations inside a synthetic degenerate eigenspace and verify invariance of the normalized trace, singular values and Frobenius norm.
-
-### T9 — truncated-group labelling
-
-Ensure no partial subspace is serialized or described as a complete multiplet average.
-
-### T10 — normalization floors
-
-Verify `null` and explicit reason below the frozen denominator floor.
-
-### T11 — exact small-model expectations
-
-Use at least one hand-derived minimal basis case to validate signs, orientation and complex conjugation.
-
-### T12 — campaign determinism and resume
-
-Validate fingerprints, atomic outputs, manifest pre-registration and complete resume behavior.
+- le commit du dépôt ;
+- la version du schéma ;
+- l’empreinte du manifeste ;
+- la géométrie ;
+- les paramètres du Hamiltonien ;
+- la valeur de \(S\) ;
+- la convention du transporteur ;
+- le facteur de normalisation du transporteur ;
+- l’identité du groupe spectral ;
+- le statut complet ou tronqué ;
+- le statut d’appariement entre valeurs de \(S\) ;
+- la prescription d’état pur ou mixte ;
+- la paire ordonnée de nœuds ;
+- l’identifiant de l’orbite d’automorphisme ;
+- tous les chemins minimaux ;
+- la matrice brute complète de saveur ;
+- le singlet de saveur ;
+- les invariants de saveur approuvés ;
+- la normalisation par les occupations ;
+- la cohérence normalisée par l’opérateur ;
+- le corrélateur connecté de charge ;
+- le coefficient de charge normalisé ;
+- la moyenne complexe sur les chemins ;
+- la moyenne des modules ;
+- la valeur RMS ;
+- la dispersion maximale entre chemins ;
+- l’indicateur de cohérence de phase ;
+- tous les défauts numériques applicables ;
+- les raisons explicites des valeurs `null` ou exclues.
 
 ---
 
-## 13. Implementation lots
+## 22. Tests minimums
 
-### 1A — path model and link transporter
+### T1 — validation des chemins
 
-- `OrientedPath` validation;
-- deterministic shortest-path enumeration;
-- exact link transporter action;
-- tests T1–T2 and orientation tests.
+Rejeter :
 
-### 1B — dressed matter and charge operators
+- un chemin nul entre extrémités distinctes ;
+- un chemin simple contenant un nœud répété ;
+- une étape ne correspondant pas à une arête ;
+- des extrémités incohérentes ;
+- un nœud hors plage.
 
-- exact sparse operator construction;
-- local charge operators;
-- basis closure and Gauss tests;
-- tests T3–T6 and T11.
+### T2 — chemins minimaux déterministes
 
-### 1C — observable diagnostics on spectral groups
+Vérifier l’ordre exact des chemins sur :
 
-- normalized multiplet trace;
-- Hermitian and non-Hermitian diagnostics;
-- truncated-group contract;
-- tests T8–T10.
+- `triangle` ;
+- `ring4` ;
+- `ring5`.
 
-### 1D — symmetry covariance
+### T3 — fermeture de la base physique
 
-- translation/reflection covariance diagnostics for node-pair operator families;
+Toute transition non nulle doit aboutir dans la base physique.
+
+Une transition non nulle absente de la base physique doit provoquer une erreur explicite.
+
+### T4 — commutation avec la loi de Gauss
+
+Vérifier la commutation exacte dans un espace complet tractable.
+
+Le test doit couvrir :
+
+- un chemin suivant les orientations stockées ;
+- un chemin contenant au moins une arête parcourue en sens inverse ;
+- un chemin de longueur nulle ;
+- une composante hors diagonale en saveur.
+
+### T5 — inversion du chemin
+
+Vérifier :
+
+\[
+O_{ij}[P]^\dagger
+=
+O_{ji}[P^{-1}].
+\]
+
+### T6 — réduction au chemin nul
+
+Vérifier l’égalité avec les opérateurs locaux à un corps.
+
+### T7 — covariance sous automorphismes
+
+Vérifier :
+
+\[
+U_AO_{ij}[P]U_A^\dagger
+=
+O_{A(i)A(j)}[A(P)].
+\]
+
+### T8 — invariance de base des multiplets
+
+Appliquer des rotations unitaires aléatoires dans un sous-espace dégénéré synthétique.
+
+Vérifier l’invariance :
+
+- de la trace normalisée ;
+- des valeurs propres pour un opérateur hermitien ;
+- des valeurs singulières ;
+- de la norme de Frobenius.
+
+### T9 — état mixte du multiplet
+
+Vérifier que le corrélateur connecté est calculé à partir de \(\rho_{\mathcal M}=\Pi_{\mathcal M}/d\), et non comme moyenne des corrélateurs connectés des vecteurs LAPACK.
+
+### T10 — groupes tronqués
+
+Vérifier qu’aucun groupe `lower_bound_only=true` ne peut être sérialisé comme multiplet complet.
+
+### T11 — seuils de normalisation
+
+Vérifier la valeur `null` et le code de raison sous le seuil gelé.
+
+### T12 — cas analytique minimal
+
+Valider au moins un cas calculé à la main :
+
+- signe fermionique ;
+- orientation ;
+- amplitude du lien ;
+- conjugaison complexe.
+
+### T13 — normalisation en \(S\)
+
+Vérifier explicitement les éléments de matrice du transporteur brut et du transporteur normalisé pour \(S=1,2,3\).
+
+### T14 — déterminisme et reprise
+
+Vérifier :
+
+- les empreintes ;
+- les sorties atomiques ;
+- le manifeste pré-enregistré ;
+- la reprise complète ;
+- l’absence de dépendance à l’ordre d’itération.
+
+---
+
+## 23. Lots d’implémentation
+
+### Lot 1A — modèle de chemin et transporteur
+
+- validation de `OrientedPath` ;
+- énumération déterministe des chemins minimaux ;
+- transporteur orienté exact ;
+- normalisation explicite en \(S\) ;
+- tests T1, T2, T5 et T13.
+
+### Lot 1B — opérateurs de matière et de charge
+
+- construction exacte des opérateurs creux ;
+- opérateurs locaux de charge ;
+- fermeture dans la base physique ;
+- validation de jauge ;
+- tests T3, T4, T6 et T12.
+
+### Lot 1C — diagnostics spectraux
+
+- état mixte canonique des multiplets complets ;
+- compression des observables ;
+- diagnostics hermitiens et non hermitiens ;
+- contrat des groupes tronqués ;
+- tests T8, T9, T10 et T11.
+
+### Lot 1D — saveur et automorphismes
+
+- singlet et composantes covariantes de saveur ;
+- invariants de matrice ;
+- covariance sous translation et réflexion ;
+- agrégation par orbite ;
 - test T7.
 
-### 1E — campaign tooling
+### Lot 1E — outillage de campagne
 
-- frozen Level 1B grid;
-- thresholds and manifest;
-- JSON/CSV output;
-- resume and atomic writes;
-- test T12;
-- no real scientific execution yet.
+- grille Level 1B gelée ;
+- schéma JSON versionné ;
+- manifeste et seuils ;
+- sorties JSON et CSV ;
+- reprise et écritures atomiques ;
+- test T14 ;
+- aucune exécution scientifique réelle.
 
-### 1F — real campaign and analysis
+### Lot 1F — campagne scientifique
 
-- execute the pre-registered grid;
-- preserve artefacts outside Git;
-- report raw observations;
-- classify robust and non-robust correlation structures;
-- do not define an effective distance until a separate feature is approved.
+- exécution de la grille pré-enregistrée ;
+- conservation des artefacts hors Git ;
+- rapport des observations brutes ;
+- classification des structures robustes ou non robustes ;
+- absence de toute construction de distance.
 
-Each lot requires independent review and validation before the next begins.
-
----
-
-## 14. Acceptance criteria
-
-Level 1B is complete when:
-
-1. dressed matter correlators are proven gauge invariant under the exact finite conventions;
-2. orientation and adjoint identities hold to the frozen tolerance;
-3. multiplet averages are basis invariant;
-4. truncated groups are never treated as complete multiplets;
-5. raw and normalized correlators are available for all shortest paths and node pairs;
-6. path dependence is explicitly quantified;
-7. at least the reference `S=2` campaign succeeds for triangle, ring4 and ring5;
-8. truncation robustness is measured on the approved controls;
-9. no threshold or observable definition is changed after results are observed;
-10. conclusions remain limited to relational correlation structure.
+Chaque lot doit faire l’objet d’une revue indépendante avant le début du suivant.
 
 ---
 
-## 15. Authorized conclusions
+## 24. Critères d’acceptation
 
-If the acceptance criteria are met, Level 1B may establish:
+Le niveau 1B est considéré comme terminé lorsque :
 
-- that gauge-invariant matter correlations are well-defined on the exact physical Hilbert space;
-- whether they organize node pairs reproducibly across symmetry sectors;
-- whether shortest-path correlators are path-independent, weakly path-dependent or strongly path-dependent on each graph;
-- whether the observed organization is robust under link truncation;
-- whether a later distance construction is scientifically justified.
-
-Level 1B may not by itself establish an emergent metric or gravity.
+1. la définition de l’opérateur habillé est dérivée analytiquement ;
+2. son invariance de jauge est vérifiée avec les conventions exactes du niveau 0 ;
+3. les conventions d’orientation et d’adjoint sont validées ;
+4. la normalisation du transporteur entre valeurs de \(S\) est gelée et testée ;
+5. les moyennes de multiplet sont invariantes sous changement de base ;
+6. les corrélations connectées utilisent l’état mixte canonique ;
+7. les groupes tronqués ne sont jamais interprétés comme multiplets complets ;
+8. les corrélateurs bruts et normalisés sont disponibles pour chaque chemin minimal ;
+9. la dépendance au chemin est quantifiée sans masquer les annulations de phase ;
+10. la covariance sous automorphismes est vérifiée ;
+11. les comparaisons entre géométries utilisent des classes d’orbites et non les numéros de nœuds ;
+12. l’appariement entre valeurs de \(S\) est explicite et non fondé uniquement sur le rang énergétique ;
+13. la robustesse sous troncature est évaluée selon les seuils pré-enregistrés ;
+14. aucune définition ou seuil n’est modifié après observation des résultats ;
+15. les conclusions restent limitées à la structure relationnelle des corrélations.
 
 ---
 
-## 16. Open decisions before implementation
+## 25. Conclusions autorisées
 
-The following decisions must be resolved and frozen before lot 1A begins:
+Si les critères d’acceptation sont satisfaits, le niveau 1B peut établir :
 
-1. whether the first campaign serializes the full flavor matrix or only the trace plus invariants;
-2. the exact observable-specific truncation robustness thresholds;
-3. whether ring5 at `S=3` is computationally admissible;
-4. whether non-Hermitian restricted matrices require serialization of Schur data, or whether trace/singular values/Frobenius norm are sufficient;
-5. the exact JSON schema and versioning boundary;
-6. whether shared campaign I/O utilities should be factored out or remain campaign-local.
+- que les opérateurs de matière habillés sont bien définis et invariants de jauge dans le modèle fini exact ;
+- que leurs corrélateurs sont reproductibles dans les multiplets dégénérés complets ;
+- que les familles de corrélateurs sont covariantes sous les automorphismes validés ;
+- que des paires appartenant à une même orbite présentent ou non des résultats équivalents ;
+- que les chemins minimaux multiples produisent des résultats identiques, faiblement différents ou fortement différents ;
+- que certaines observables sans dimension sont ou non robustes sous les troncatures testées ;
+- que les données justifient ou non l’ouverture d’une future feature consacrée à une distance effective.
 
-No code should be written until these decisions have been reviewed.
+Le niveau 1B ne peut pas établir :
+
+- que la distance combinatoire du graphe a émergé ;
+- que l’indépendance au chemin est générale au-delà de la famille testée ;
+- qu’une métrique effective existe ;
+- qu’une inégalité triangulaire est satisfaite ;
+- qu’une courbure a émergé ;
+- qu’une structure causale a émergé ;
+- qu’une dynamique gravitationnelle a émergé.
+
+---
+
+## 26. Décisions restant à valider avant implémentation
+
+Les décisions suivantes doivent être explicitement validées avant le lot 1A :
+
+1. la définition exacte du transporteur du niveau 0 ;
+2. la valeur du facteur \(\nu_S\) ;
+3. la conservation éventuelle des deux versions, brute et normalisée, du corrélateur ;
+4. les seuils absolu et relatif de robustesse ;
+5. l’admissibilité de `ring5` à \(S=3\) ;
+6. la taille de la fenêtre spectrale ;
+7. le schéma JSON final et sa version ;
+8. la liste exacte des invariants de saveur sérialisés ;
+9. la liste des diagnostics non hermitiens conservés ;
+10. les règles d’agrégation par orbite d’automorphisme ;
+11. les utilitaires de campagne mutualisés ou locaux.
+
+Aucun code scientifique du niveau 1 ne doit être écrit avant validation de ces décisions.
