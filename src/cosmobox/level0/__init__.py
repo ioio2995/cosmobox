@@ -14,6 +14,7 @@ from .experiments import (
     Level0ExperimentResult,
     compute_config_fingerprint,
     dump_level0_experiment_result_json,
+    level0_experiment_config_to_json_dict,
     level0_experiment_result_to_json_dict,
     run_level0_experiment,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "dump_level0_experiment_result_json",
     "gauss_vector",
     "is_physical",
+    "level0_experiment_config_to_json_dict",
     "level0_experiment_result_to_json_dict",
     "run_level0_experiment",
 ]

@@ -362,18 +362,26 @@ def _report_to_json(report: Level0Report) -> dict:
     }
 
 
+def level0_experiment_config_to_json_dict(config: Level0Experiment) -> dict:
+    """The "config" sub-block on its own -- e.g. to compute the JSON shape a
+    given Level0Experiment *would* produce without running it, for
+    validating an existing result file against a currently-expected config
+    (as scripts/level0_reference_campaign/outputs.py does)."""
+    return {
+        "geometry": config.geometry,
+        "n_flavors": config.n_flavors,
+        "spin": config.spin,
+        "external_charges": [_fraction_to_json(q) for q in config.external_charges],
+        "parameters": _parameters_to_json(config.parameters),
+        "spectrum_options": _spectrum_options_to_json(config.spectrum_options),
+    }
+
+
 def level0_experiment_result_to_json_dict(result: Level0ExperimentResult) -> dict:
     return {
         "schema_version": JSON_SCHEMA_VERSION,
         "config_fingerprint": result.config_fingerprint,
-        "config": {
-            "geometry": result.config.geometry,
-            "n_flavors": result.config.n_flavors,
-            "spin": result.config.spin,
-            "external_charges": [_fraction_to_json(q) for q in result.config.external_charges],
-            "parameters": _parameters_to_json(result.config.parameters),
-            "spectrum_options": _spectrum_options_to_json(result.config.spectrum_options),
-        },
+        "config": level0_experiment_config_to_json_dict(result.config),
         "environment": {
             "python_version": result.python_version,
             "numpy_version": result.numpy_version,

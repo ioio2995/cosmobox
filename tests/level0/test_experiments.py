@@ -13,6 +13,7 @@ from cosmobox.level0.experiments import (
     Level0ExperimentResult,
     compute_config_fingerprint,
     dump_level0_experiment_result_json,
+    level0_experiment_config_to_json_dict,
     level0_experiment_result_to_json_dict,
     run_level0_experiment,
 )
@@ -449,3 +450,10 @@ def test_result_rejects_report_with_different_spectrum_options() -> None:
     kwargs["report"] = mismatched_report
     with pytest.raises(ValueError):
         Level0ExperimentResult(**kwargs)
+
+
+def test_level0_experiment_config_to_json_dict_matches_the_config_block_of_the_full_export() -> None:
+    config = _config("triangle")
+    result = run_level0_experiment(config)
+    full_export = level0_experiment_result_to_json_dict(result)
+    assert level0_experiment_config_to_json_dict(config) == full_export["config"]
