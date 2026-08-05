@@ -19,7 +19,7 @@ from cosmobox.level0.experiments import (
 from cosmobox.level0.hamiltonian import build_hamiltonian_terms, build_key_index
 from cosmobox.level0.lattice import build_lattice
 from cosmobox.level0.params import HamiltonianParameters
-from cosmobox.level0.reports import SpectrumOptions, build_level0_report
+from cosmobox.level0.reports import Level0Report, SpectrumOptions, SpectrumReport, TermStatistics, build_level0_report
 
 
 def _hermitian_matrix(diag0: float, diag1: float, off: complex) -> np.ndarray:
@@ -254,6 +254,129 @@ def _valid_result_kwargs() -> dict:
         "cosmobox_version": result.cosmobox_version,
         "config_fingerprint": result.config_fingerprint,
     }
+
+
+def _dummy_report(config: Level0Experiment, **overrides) -> Level0Report:
+    """A minimal (dimension=0) Level0Report matching `config` except for
+    whatever field is overridden -- avoids building a real basis/Hamiltonian
+    just to test a single mismatch-detection branch of __post_init__."""
+    empty_terms = tuple(
+        TermStatistics(name=name, nnz=0, density=0.0, hermiticity_defect=0.0, frobenius_norm=0.0)
+        for name in ("dot", "hopping", "electric", "magnetic", "total")
+    )
+    empty_spectrum = SpectrumReport(
+        status="computed",
+        method="direct",
+        requested_eigenvalues=config.spectrum_options.n_eigenvalues,
+        computed_eigenvalues=0,
+        tolerance=None,
+        reason=None,
+        eigenpairs=(),
+        spectral_gap=None,
+    )
+    fields = {
+        "lattice_name": config.geometry,
+        "n_flavors": config.n_flavors,
+        "spin": config.spin,
+        "external_charges": config.external_charges,
+        "dimension": 0,
+        "sector_count": 0,
+        "excluded_sector_count": 0,
+        "mean_flux_configs_per_occupation": 0.0,
+        "max_flux_configs_per_occupation": 0,
+        "terms": empty_terms,
+        "spectrum": empty_spectrum,
+        "spectrum_options": config.spectrum_options,
+        "parameters": config.parameters,
+    }
+    fields.update(overrides)
+    return Level0Report(**fields)
+
+
+# ---------------------------------------------------------------------------
+# Correction 1 -- lattice_name / n_flavors / spin consistency
+# ---------------------------------------------------------------------------
+
+
+def test_result_rejects_report_with_mismatched_lattice_name() -> None:
+    kwargs = _valid_result_kwargs()
+    kwargs["report"] = _dummy_report(kwargs["config"], lattice_name="ring4")
+    with pytest.raises(ValueError):
+        Level0ExperimentResult(**kwargs)
+
+
+def test_result_rejects_report_with_mismatched_n_flavors() -> None:
+    kwargs = _valid_result_kwargs()
+    kwargs["report"] = _dummy_report(kwargs["config"], n_flavors=3)
+    with pytest.raises(ValueError):
+        Level0ExperimentResult(**kwargs)
+
+
+def test_result_rejects_report_with_mismatched_spin() -> None:
+    kwargs = _valid_result_kwargs()
+    kwargs["report"] = _dummy_report(kwargs["config"], spin=2)
+    with pytest.raises(ValueError):
+        Level0ExperimentResult(**kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Correction 2 -- fingerprint must match compute_config_fingerprint(config),
+# not just be well-formed
+# ---------------------------------------------------------------------------
+
+
+def test_result_rejects_well_formed_fingerprint_belonging_to_another_config() -> None:
+    kwargs = _valid_result_kwargs()
+    other_config = _config("ring4")
+    kwargs["config_fingerprint"] = compute_config_fingerprint(other_config)
+    with pytest.raises(ValueError):
+        Level0ExperimentResult(**kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Correction 3 -- semantic (canonical-payload) equality of parameters, not
+# object identity: equivalent-but-distinct objects accepted, any numeric
+# difference rejected.
+# ---------------------------------------------------------------------------
+
+
+def test_result_accepts_equivalent_but_distinct_parameters_objects() -> None:
+    kwargs = _valid_result_kwargs()
+    base = kwargs["config"].parameters
+    equivalent_params = HamiltonianParameters(
+        J=tuple(base.J),
+        h=tuple(np.array(matrix, dtype=np.complex128, copy=True) for matrix in base.h),
+        t=base.t,
+        g_E=base.g_E,
+        K=base.K,
+    )
+    assert equivalent_params is not base
+
+    kwargs["report"] = _dummy_report(kwargs["config"], parameters=equivalent_params)
+    Level0ExperimentResult(**kwargs)  # must not raise
+
+
+@pytest.mark.parametrize("field", ["J", "h", "t", "g_E", "K"])
+def test_result_rejects_report_with_one_differing_parameter_coefficient(field: str) -> None:
+    kwargs = _valid_result_kwargs()
+    base = kwargs["config"].parameters
+
+    if field == "J":
+        altered = HamiltonianParameters(J=(base.J[0] + 1.0,) + base.J[1:], h=base.h, t=base.t, g_E=base.g_E, K=base.K)
+    elif field == "h":
+        altered_h0 = np.array(base.h[0], dtype=np.complex128, copy=True)
+        altered_h0[0, 0] += 1.0  # stays real -> stays Hermitian
+        altered = HamiltonianParameters(J=base.J, h=(altered_h0,) + base.h[1:], t=base.t, g_E=base.g_E, K=base.K)
+    elif field == "t":
+        altered = HamiltonianParameters(J=base.J, h=base.h, t=base.t + 1.0, g_E=base.g_E, K=base.K)
+    elif field == "g_E":
+        altered = HamiltonianParameters(J=base.J, h=base.h, t=base.t, g_E=base.g_E + 1.0, K=base.K)
+    else:
+        altered = HamiltonianParameters(J=base.J, h=base.h, t=base.t, g_E=base.g_E, K=base.K + 1.0)
+
+    kwargs["report"] = _dummy_report(kwargs["config"], parameters=altered)
+    with pytest.raises(ValueError):
+        Level0ExperimentResult(**kwargs)
 
 
 def test_result_rejects_negative_timing() -> None:

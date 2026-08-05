@@ -82,61 +82,11 @@ class Level0Experiment:
             raise ValueError(f"parameters.h has {len(self.parameters.h)} entries, expected {n_nodes}")
 
 
-@dataclass(frozen=True, slots=True)
-class Level0ExperimentResult:
-    """Lightweight run outcome: config, report, timings, provenance. No
-    basis, no key_index, no CSR matrices, no eigenvectors."""
-
-    config: Level0Experiment
-    report: Level0Report
-    basis_build_seconds: float
-    hamiltonian_build_seconds: float
-    report_build_seconds: float
-    python_version: str
-    numpy_version: str
-    scipy_version: str
-    cosmobox_version: str | None
-    config_fingerprint: str
-
-    def __post_init__(self) -> None:
-        for name, value in (
-            ("basis_build_seconds", self.basis_build_seconds),
-            ("hamiltonian_build_seconds", self.hamiltonian_build_seconds),
-            ("report_build_seconds", self.report_build_seconds),
-        ):
-            if not (math.isfinite(value) and value >= 0):
-                raise ValueError(f"{name} must be finite and >= 0, got {value}")
-
-        fingerprint = self.config_fingerprint
-        if len(fingerprint) != 64 or fingerprint != fingerprint.lower() or any(
-            c not in "0123456789abcdef" for c in fingerprint
-        ):
-            raise ValueError(f"config_fingerprint must be 64 lowercase hex characters, got {fingerprint!r}")
-
-        for name, value in (
-            ("python_version", self.python_version),
-            ("numpy_version", self.numpy_version),
-            ("scipy_version", self.scipy_version),
-        ):
-            if not value:
-                raise ValueError(f"{name} must be non-empty")
-        # cosmobox_version may legitimately be None (package metadata unavailable).
-
-        # report.parameters is passed through by run_level0_experiment as the
-        # *same object* as config.parameters -- an identity check, since
-        # HamiltonianParameters.h holds numpy arrays and dataclass value
-        # equality (==) on it raises ("truth value of an array is ambiguous").
-        if self.report.parameters is not self.config.parameters:
-            raise ValueError("report.parameters is not the same object as config.parameters")
-        if self.report.spectrum_options != self.config.spectrum_options:
-            raise ValueError("report.spectrum_options does not match config.spectrum_options")
-        if self.report.external_charges != self.config.external_charges:
-            raise ValueError("report.external_charges does not match config.external_charges")
-
-
 # ---------------------------------------------------------------------------
 # Canonical (hash-stable) payload and SHA-256 fingerprint -- config only,
-# never timings, software versions, or results.
+# never timings, software versions, or results. Defined before
+# Level0ExperimentResult because its __post_init__ uses
+# _canonical_parameters_payload and compute_config_fingerprint.
 # ---------------------------------------------------------------------------
 
 
@@ -193,6 +143,75 @@ def compute_config_fingerprint(config: Level0Experiment) -> str:
     payload = _canonical_config_payload(config)
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class Level0ExperimentResult:
+    """Lightweight run outcome: config, report, timings, provenance. No
+    basis, no key_index, no CSR matrices, no eigenvectors."""
+
+    config: Level0Experiment
+    report: Level0Report
+    basis_build_seconds: float
+    hamiltonian_build_seconds: float
+    report_build_seconds: float
+    python_version: str
+    numpy_version: str
+    scipy_version: str
+    cosmobox_version: str | None
+    config_fingerprint: str
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("basis_build_seconds", self.basis_build_seconds),
+            ("hamiltonian_build_seconds", self.hamiltonian_build_seconds),
+            ("report_build_seconds", self.report_build_seconds),
+        ):
+            if not (math.isfinite(value) and value >= 0):
+                raise ValueError(f"{name} must be finite and >= 0, got {value}")
+
+        fingerprint = self.config_fingerprint
+        if len(fingerprint) != 64 or fingerprint != fingerprint.lower() or any(
+            c not in "0123456789abcdef" for c in fingerprint
+        ):
+            raise ValueError(f"config_fingerprint must be 64 lowercase hex characters, got {fingerprint!r}")
+        expected_fingerprint = compute_config_fingerprint(self.config)
+        if fingerprint != expected_fingerprint:
+            raise ValueError(
+                f"config_fingerprint {fingerprint!r} does not match compute_config_fingerprint(config) "
+                f"({expected_fingerprint!r}); a well-formed but wrong fingerprint is a provenance failure"
+            )
+
+        for name, value in (
+            ("python_version", self.python_version),
+            ("numpy_version", self.numpy_version),
+            ("scipy_version", self.scipy_version),
+        ):
+            if not value:
+                raise ValueError(f"{name} must be non-empty")
+        # cosmobox_version may legitimately be None (package metadata unavailable).
+
+        if self.report.lattice_name != self.config.geometry:
+            raise ValueError("report.lattice_name does not match config.geometry")
+        if self.report.n_flavors != self.config.n_flavors:
+            raise ValueError("report.n_flavors does not match config.n_flavors")
+        if self.report.spin != self.config.spin:
+            raise ValueError("report.spin does not match config.spin")
+
+        # HamiltonianParameters.h holds numpy arrays, so dataclass value
+        # equality (==) on it raises ("truth value of an array is
+        # ambiguous"). Compare canonical payloads instead: this accepts two
+        # distinct-but-equivalent HamiltonianParameters objects (the same
+        # scientific configuration) and rejects any numeric difference,
+        # which is the semantics we actually want here -- not object identity.
+        if _canonical_parameters_payload(self.report.parameters) != _canonical_parameters_payload(
+            self.config.parameters
+        ):
+            raise ValueError("report.parameters is not equivalent to config.parameters")
+        if self.report.spectrum_options != self.config.spectrum_options:
+            raise ValueError("report.spectrum_options does not match config.spectrum_options")
+        if self.report.external_charges != self.config.external_charges:
+            raise ValueError("report.external_charges does not match config.external_charges")
 
 
 # ---------------------------------------------------------------------------
