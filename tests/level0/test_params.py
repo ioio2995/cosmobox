@@ -73,3 +73,28 @@ def test_hermiticity_deviation_above_tolerance_is_rejected() -> None:
     not_quite_hermitian = np.array([[1.0, 1.0], [1.0 + deviation, 1.0]], dtype=np.complex128)
     with pytest.raises(ValueError):
         HamiltonianParameters(J=(0.0,), h=(not_quite_hermitian,), t=0.0, g_E=0.0, K=0.0)
+
+
+# ---------------------------------------------------------------------------
+# h is actually immutable: mutating the source array or params.h must not
+# be possible, and the stored dtype is always complex128.
+# ---------------------------------------------------------------------------
+
+
+def test_mutating_source_matrix_after_construction_does_not_affect_params() -> None:
+    source = _hermitian_matrix(1.0, -1.0, 0.5j)
+    params = HamiltonianParameters(J=(0.0,), h=(source,), t=0.0, g_E=0.0, K=0.0)
+    source[0, 0] = 999.0
+    assert params.h[0][0, 0] == 1.0
+
+
+def test_direct_write_to_params_h_is_rejected() -> None:
+    params = HamiltonianParameters(J=(0.0,), h=(_hermitian_matrix(1.0, -1.0, 0.5j),), t=0.0, g_E=0.0, K=0.0)
+    with pytest.raises(ValueError):
+        params.h[0][0, 1] = 42.0
+
+
+def test_stored_h_dtype_is_complex128() -> None:
+    real_valued = np.array([[1.0, 0.0], [0.0, 1.0]])  # float64, not complex
+    params = HamiltonianParameters(J=(0.0,), h=(real_valued,), t=0.0, g_E=0.0, K=0.0)
+    assert params.h[0].dtype == np.complex128

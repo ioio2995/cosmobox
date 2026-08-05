@@ -22,8 +22,48 @@ from .params import HamiltonianParameters
 
 
 def build_key_index(keys: Sequence[np.uint64]) -> dict[int, int]:
-    """Deterministic key -> row/col index, built once from the (sorted) physical basis."""
-    return {int(key): row for row, key in enumerate(keys)}
+    """Deterministic key -> row/col index, built once from the (sorted) physical basis.
+
+    Raises ValueError on a duplicate key: as in basis.py, a duplicated
+    basis entry is an invariant violation, not something to overwrite
+    silently in the index.
+    """
+    key_index: dict[int, int] = {}
+    for row, key in enumerate(keys):
+        key_int = int(key)
+        if key_int in key_index:
+            raise ValueError(
+                f"duplicate basis key {key_int:#x} at rows {key_index[key_int]} and {row}"
+            )
+        key_index[key_int] = row
+    return key_index
+
+
+def validate_key_index(keys: Sequence[np.uint64], key_index: dict[int, int]) -> None:
+    """Check that key_index is exactly the row/col index of keys -- not just any dict.
+
+    Guards against a stale index (built from a different/reordered key
+    sequence), a partial index, or one with out-of-range/duplicated rows,
+    none of which _row_for_key's lookup alone would ever catch.
+    """
+    if len(key_index) != len(keys):
+        raise ValueError(f"key_index has {len(key_index)} entries, expected {len(keys)}")
+    dim = len(keys)
+    seen_rows: set[int] = set()
+    for row, key in enumerate(keys):
+        key_int = int(key)
+        if key_int not in key_index:
+            raise ValueError(f"key {key_int:#x} (row {row}) is missing from key_index")
+        indexed_row = key_index[key_int]
+        if not (0 <= indexed_row < dim):
+            raise ValueError(f"key_index[{key_int:#x}] = {indexed_row} is out of range [0, {dim})")
+        if indexed_row != row:
+            raise ValueError(
+                f"key_index[{key_int:#x}] = {indexed_row} does not match its position {row} in keys"
+            )
+        if indexed_row in seen_rows:
+            raise ValueError(f"row {indexed_row} is assigned to more than one key in key_index")
+        seen_rows.add(indexed_row)
 
 
 def _row_for_key(key_index: dict[int, int], key: np.uint64) -> int:
@@ -55,6 +95,7 @@ def build_dot_term(
     params: HamiltonianParameters,
 ) -> sp.csr_matrix:
     """H_dot = sum_i [ J_i(n_i1-1/2)(n_i2-1/2) + sum_ab h^(i)_ab c^dagger_ia c_ib ]. M=2 only (D006)."""
+    validate_key_index(keys, key_index)
     if n_flavors != 2:
         raise ValueError(f"H_dot is only defined for n_flavors == 2 (M=2, per D006), got {n_flavors}")
     n_nodes = len(lattice.nodes)
@@ -105,9 +146,17 @@ def build_electric_term(
     n_flavors: int,
     spin: int,
     keys: Sequence[np.uint64],
+    key_index: dict[int, int],
     params: HamiltonianParameters,
 ) -> sp.csr_matrix:
-    """H_E = (g_E/2) sum_e E_e^2, diagonal."""
+    """H_E = (g_E/2) sum_e E_e^2, diagonal.
+
+    key_index is not used for any lookup here (H_E never changes the key),
+    but is still validated against keys for the same reason build_dot_term
+    validates it: catching a stale or mismatched index at the boundary of
+    every term builder, not only the ones that happen to need it today.
+    """
+    validate_key_index(keys, key_index)
     dim = len(keys)
     rows: list[int] = []
     cols: list[int] = []

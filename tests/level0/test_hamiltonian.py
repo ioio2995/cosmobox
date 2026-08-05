@@ -15,6 +15,7 @@ from cosmobox.level0.hamiltonian import (
     build_dot_term,
     build_electric_term,
     build_key_index,
+    validate_key_index,
 )
 from cosmobox.level0.lattice import build_lattice
 from cosmobox.level0.params import HamiltonianParameters
@@ -69,6 +70,78 @@ def test_row_for_key_raises_on_missing_key() -> None:
 
 
 # ---------------------------------------------------------------------------
+# keys <-> key_index invariant: duplicate keys, and any index that is not
+# exactly the row/col position of `keys`, must be rejected explicitly.
+# ---------------------------------------------------------------------------
+
+
+def test_build_key_index_rejects_duplicate_key() -> None:
+    keys = [np.uint64(1), np.uint64(2), np.uint64(1)]
+    with pytest.raises(ValueError):
+        build_key_index(keys)
+
+
+def test_build_key_index_matches_position_for_distinct_keys() -> None:
+    keys = [np.uint64(5), np.uint64(3), np.uint64(9)]
+    key_index = build_key_index(keys)
+    assert key_index == {5: 0, 3: 1, 9: 2}
+
+
+def test_validate_key_index_accepts_a_correct_index() -> None:
+    keys = [np.uint64(5), np.uint64(3), np.uint64(9)]
+    key_index = build_key_index(keys)
+    validate_key_index(keys, key_index)  # must not raise
+
+
+def test_validate_key_index_rejects_index_built_from_a_different_order() -> None:
+    keys = [np.uint64(5), np.uint64(3), np.uint64(9)]
+    shuffled_index = build_key_index([np.uint64(3), np.uint64(5), np.uint64(9)])
+    with pytest.raises(ValueError):
+        validate_key_index(keys, shuffled_index)
+
+
+def test_validate_key_index_rejects_missing_entry() -> None:
+    keys = [np.uint64(5), np.uint64(3), np.uint64(9)]
+    incomplete_index = {5: 0, 3: 1}
+    with pytest.raises(ValueError):
+        validate_key_index(keys, incomplete_index)
+
+
+def test_validate_key_index_rejects_out_of_range_row() -> None:
+    keys = [np.uint64(5), np.uint64(3)]
+    out_of_range_index = {5: 0, 3: 7}
+    with pytest.raises(ValueError):
+        validate_key_index(keys, out_of_range_index)
+
+
+def test_validate_key_index_rejects_duplicated_row() -> None:
+    keys = [np.uint64(5), np.uint64(3)]
+    duplicated_row_index = {5: 0, 3: 0}
+    with pytest.raises(ValueError):
+        validate_key_index(keys, duplicated_row_index)
+
+
+def test_build_dot_term_rejects_a_stale_key_index() -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    stale_index = {int(key): 0 for key in report.keys}  # every key mapped to row 0
+    params = _random_params(len(lattice.nodes), seed=6)
+    with pytest.raises(ValueError):
+        build_dot_term(lattice, n_flavors, spin, report.keys, stale_index, params)
+
+
+def test_build_electric_term_rejects_a_stale_key_index() -> None:
+    lattice = build_lattice("triangle")
+    n_flavors, spin = 2, 1
+    report = build_basis(lattice, n_flavors, spin)
+    stale_index = {int(key): 0 for key in report.keys}
+    params = _random_params(len(lattice.nodes), seed=7)
+    with pytest.raises(ValueError):
+        build_electric_term(lattice, n_flavors, spin, report.keys, stale_index, params)
+
+
+# ---------------------------------------------------------------------------
 # T1 -- hermiticity, term by term
 # ---------------------------------------------------------------------------
 
@@ -83,7 +156,7 @@ def test_t1_hermiticity_dot_and_electric(geometry: str) -> None:
     params = _random_params(len(lattice.nodes), seed=1)
 
     dot = build_dot_term(lattice, n_flavors, spin, report.keys, key_index, params)
-    electric = build_electric_term(lattice, n_flavors, spin, report.keys, params)
+    electric = build_electric_term(lattice, n_flavors, spin, report.keys, key_index, params)
 
     assert _hermiticity_defect(dot) < HERMITICITY_ATOL
     assert _hermiticity_defect(electric) < HERMITICITY_ATOL
@@ -139,7 +212,7 @@ def test_t3_dot_and_electric_commute_with_gauss_law_in_the_full_space() -> None:
 
     params = _random_params(n_nodes, seed=3)
     dot = build_dot_term(lattice, n_flavors, spin, all_keys, key_index, params)
-    electric = build_electric_term(lattice, n_flavors, spin, all_keys, params)
+    electric = build_electric_term(lattice, n_flavors, spin, all_keys, key_index, params)
 
     for node in lattice.nodes:
         g_values = np.empty(dim, dtype=np.complex128)
@@ -189,7 +262,7 @@ def test_t8_matrix_shape_matches_basis_dimension() -> None:
     params = _random_params(len(lattice.nodes), seed=5)
 
     dot = build_dot_term(lattice, n_flavors, spin, report.keys, key_index, params)
-    electric = build_electric_term(lattice, n_flavors, spin, report.keys, params)
+    electric = build_electric_term(lattice, n_flavors, spin, report.keys, key_index, params)
     dim = len(report.keys)
     assert dot.shape == (dim, dim)
     assert electric.shape == (dim, dim)
@@ -209,7 +282,7 @@ def test_t9_all_couplings_zero_gives_zero_matrices() -> None:
     params = HamiltonianParameters(J=(0.0, 0.0, 0.0), h=zero_h, t=0.0, g_E=0.0, K=0.0)
 
     dot = build_dot_term(lattice, n_flavors, spin, report.keys, key_index, params)
-    electric = build_electric_term(lattice, n_flavors, spin, report.keys, params)
+    electric = build_electric_term(lattice, n_flavors, spin, report.keys, key_index, params)
     assert dot.nnz == 0
     assert electric.nnz == 0
 
@@ -224,7 +297,7 @@ def test_t9_electric_only_diagonal_matches_closed_form() -> None:
     params = HamiltonianParameters(J=(0.0, 0.0, 0.0), h=zero_h, t=0.0, g_E=g_E, K=0.0)
 
     dot = build_dot_term(lattice, n_flavors, spin, report.keys, key_index, params)
-    electric = build_electric_term(lattice, n_flavors, spin, report.keys, params)
+    electric = build_electric_term(lattice, n_flavors, spin, report.keys, key_index, params)
     assert dot.nnz == 0
 
     dense = electric.toarray()
@@ -246,7 +319,7 @@ def test_t9_j_only_spectrum_matches_analytic_diagonal() -> None:
     params = HamiltonianParameters(J=J, h=zero_h, t=0.0, g_E=0.0, K=0.0)
 
     dot = build_dot_term(lattice, n_flavors, spin, report.keys, key_index, params)
-    electric = build_electric_term(lattice, n_flavors, spin, report.keys, params)
+    electric = build_electric_term(lattice, n_flavors, spin, report.keys, key_index, params)
     assert electric.nnz == 0
 
     expected_diagonal = []
