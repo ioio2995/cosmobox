@@ -4,9 +4,13 @@ Every public function validates that ``key`` is canonical for
 ``(lattice, n_flavors, spin)`` via ``encoding.validate_canonical_key``
 before doing anything else, and rejects out-of-range mode/edge indices
 explicitly. The private helpers (prefixed ``_``) assume an already-int,
-already-validated key and are only ever called after that single check, so
-a composed public call (e.g. ``transport`` delegating to ``link_raise``)
-never re-validates the same key twice.
+already-validated key and are only ever called after that single check --
+so a function that composes primitives internally (e.g. ``create``,
+``link_raise``) calls the private helpers directly, and a function that
+composes by delegating to another public function (e.g. ``transport``
+calling ``link_raise``) relies on that callee's own single validation
+rather than validating again itself. Either way, a key is validated
+exactly once per public call.
 
 No term combination, no CSR, no Hamiltonian: these are the elementary
 actions a future hamiltonian.py will call once per term.
