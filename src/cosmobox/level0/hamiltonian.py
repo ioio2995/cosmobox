@@ -1,4 +1,4 @@
-"""Sparse Hamiltonian assembly on the exact physical basis (lot 4A: H_dot + H_E only).
+"""Sparse Hamiltonian assembly on the exact physical basis (lot 4B: + H_hop).
 
 Each term is built as its own COO -> CSR matrix over an explicit,
 caller-supplied ``key_index`` (row/col position of every physical basis
@@ -6,7 +6,7 @@ key). A transition that lands on a key absent from ``key_index`` is an
 invariant violation (T2) and raises ``RuntimeError`` -- it is never
 silently dropped. Separate term constructors are kept distinct (no
 combined ``HamiltonianTerms``/``.total`` yet); that assembly is deferred to
-lot 4C once H_hop and H_B exist too.
+lot 4C once H_B exists too.
 """
 
 from __future__ import annotations
@@ -16,8 +16,9 @@ from collections.abc import Sequence
 import numpy as np
 import scipy.sparse as sp
 
+from .encoding import validate_capacity
 from .lattice import Lattice
-from .operators import create, annihilate, read_flux, read_occupation
+from .operators import annihilate, create, read_flux, read_occupation, transport, transport_dagger
 from .params import HamiltonianParameters
 
 
@@ -172,5 +173,72 @@ def build_electric_term(
             rows.append(index)
             cols.append(index)
             values.append(complex(diagonal))
+
+    return _assemble_csr(rows, cols, values, dim)
+
+
+def build_hopping_term(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    keys: Sequence[np.uint64],
+    key_index: dict[int, int],
+    params: HamiltonianParameters,
+) -> sp.csr_matrix:
+    """H_hop = -t sum_{e=(i->j),alpha} [ c^dagger_ia U_e c_ja + c^dagger_ja U_e^dagger c_ia ].
+
+    No M restriction (unlike H_dot): iterates every flavor 0..n_flavors-1
+    and every edge in lattice.edges (all physical links, independent of
+    the tree_edges/chords split, which is only a basis.py construction
+    aid). Both directions are generated explicitly from the composed
+    operator primitives -- never restored by symmetrizing the matrix.
+    """
+    validate_capacity(len(lattice.nodes), n_flavors, len(lattice.edges))
+    validate_key_index(keys, key_index)
+
+    dim = len(keys)
+    rows: list[int] = []
+    cols: list[int] = []
+    values: list[complex] = []
+
+    if params.t != 0:
+        for col, key in enumerate(keys):
+            for edge_index, edge in enumerate(lattice.edges):
+                source, target = edge.source, edge.target
+                for flavor in range(n_flavors):
+                    # Direct: c^dagger_source,flavor U_e c_target,flavor
+                    annihilated = annihilate(lattice, n_flavors, spin, key, target, flavor)
+                    if annihilated is not None:
+                        transported = transport(lattice, n_flavors, spin, annihilated.key, edge_index)
+                        if transported is not None:
+                            created = create(lattice, n_flavors, spin, transported.key, source, flavor)
+                            if created is not None:
+                                amplitude = (
+                                    -params.t * annihilated.amplitude * transported.amplitude * created.amplitude
+                                )
+                                row = _row_for_key(key_index, created.key)
+                                rows.append(row)
+                                cols.append(col)
+                                values.append(amplitude)
+
+                    # Conjugate: c^dagger_target,flavor U_e^dagger c_source,flavor
+                    annihilated_hc = annihilate(lattice, n_flavors, spin, key, source, flavor)
+                    if annihilated_hc is not None:
+                        transported_hc = transport_dagger(
+                            lattice, n_flavors, spin, annihilated_hc.key, edge_index
+                        )
+                        if transported_hc is not None:
+                            created_hc = create(lattice, n_flavors, spin, transported_hc.key, target, flavor)
+                            if created_hc is not None:
+                                amplitude_hc = (
+                                    -params.t
+                                    * annihilated_hc.amplitude
+                                    * transported_hc.amplitude
+                                    * created_hc.amplitude
+                                )
+                                row_hc = _row_for_key(key_index, created_hc.key)
+                                rows.append(row_hc)
+                                cols.append(col)
+                                values.append(amplitude_hc)
 
     return _assemble_csr(rows, cols, values, dim)
