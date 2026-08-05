@@ -54,11 +54,15 @@ Cette feature couvre :
 Cette feature ne couvre pas :
 
 - les chemins arbitraires non minimaux ;
+- l’étude systématique du secteur de jauge pur, notamment \(\langle E_e\rangle\), \(\langle E_e^2\rangle\), \(\langle W_p\rangle\) et leurs corrélations ;
+- les corrélations mixtes matière–jauge ;
 - la construction d’un opérateur de distance ;
 - l’ajustement d’un modèle géométrique ;
 - la reconstruction d’une métrique ;
 - les extrapolations en taille ou en troncature ;
 - les revendications de géométrie ou de gravité émergente.
+
+Le secteur de jauge pur et les corrélations matière–jauge feront l’objet d’une feature ultérieure dédiée.
 
 ---
 
@@ -216,6 +220,95 @@ C^{QQ}_{ii}C^{QQ}_{jj}
 
 Dans le cas contraire, la valeur sérialisée est `null`, accompagnée d’un code de raison explicite.
 
+### 5.1 Corrélateurs locaux de saveur
+
+Pour chaque nœud \(i\), on définit les générateurs locaux de saveur :
+
+\[
+T_i^a
+=
+\frac12
+\sum_{\alpha,\beta}
+c^\dagger_{i\alpha}
+(\sigma^a)_{\alpha\beta}
+c_{i\beta},
+\qquad a\in\{x,y,z\}.
+\]
+
+Ces opérateurs sont locaux et invariants de jauge.
+
+Le corrélateur saveur–saveur scalaire brut est :
+
+\[
+C^{TT,\mathrm{raw}}_{ij}(\rho)
+=
+\sum_{a=x,y,z}
+\operatorname{Tr}(\rho T_i^aT_j^a).
+\]
+
+Le corrélateur connecté est :
+
+\[
+C^{TT,\mathrm{conn}}_{ij}(\rho)
+=
+\sum_{a=x,y,z}
+\left[
+\operatorname{Tr}(\rho T_i^aT_j^a)
+-
+\operatorname{Tr}(\rho T_i^a)
+\operatorname{Tr}(\rho T_j^a)
+\right].
+\]
+
+Les deux versions doivent être conservées. Elles coïncident dans un état SU(2)-invariant pour lequel les espérances à un point s’annulent, mais cette annulation ne doit pas être supposée pour un état individuel ou un sous-secteur non invariant.
+
+### 5.2 Théorème du secteur de saveur maximale à demi-remplissage
+
+Pour \(n\) fermions et \(n_d\) sites doublement occupés, chaque double occupation forme un singulet local de saveur. Le spin total de saveur satisfait donc :
+
+\[
+T\leq\frac{n-2n_d}{2}.
+\]
+
+Par conséquent :
+
+\[
+T=\frac n2
+\quad\Longrightarrow\quad
+n_d=0.
+\]
+
+À demi-remplissage, \(n=N_{\mathrm{sites}}\), l’absence de double occupation implique également l’absence de site vide. Chaque site est alors exactement simplement occupé :
+
+\[
+n_i=1,
+\qquad
+Q_i=0.
+\]
+
+Dans tout groupe complet à demi-remplissage portant la saveur maximale \(T=n/2\), on prédit donc exactement :
+
+\[
+C^{QQ}_{ij}=0
+\]
+
+pour toutes les paires \((i,j)\), ainsi que :
+
+\[
+C^{QQ}_{ii}=0.
+\]
+
+Le coefficient \(\rho^{QQ}_{ij}\) doit alors être sérialisé comme :
+
+```text
+value = null
+reason = zero_local_charge_variance
+```
+
+Cette propriété constitue un test analytique exact. Elle ne s’applique pas à un groupe de saveur non maximale.
+
+La parité du nombre de fermions contraint également les valeurs accessibles de \(T\) : pour un nombre pair de fermions, \(T\) est entier ; pour un nombre impair, \(T\) est demi-entier.
+
 ---
 
 ## 6. Chemins orientés et transporteurs
@@ -307,48 +400,57 @@ W_P^\dagger.
 
 ### 6.4 Normalisation du transporteur en fonction de \(S\)
 
-Deux conventions doivent être distinguées.
-
-Le transporteur utilisé dans le Hamiltonien du niveau 0 est noté :
+Le niveau 0 définit déjà le transporteur par :
 
 \[
-U_e^{\mathrm H}.
-\]
-
-Le transporteur utilisé pour les comparaisons entre troncatures est noté :
-
-\[
-\mathcal U_e
+U_e^{\mathrm H}
 =
-\frac{U_e^{\mathrm H}}{\nu_S}.
+\frac{S_e^+}{\sqrt{S(S+1)}},
 \]
 
-La valeur de \(\nu_S\) doit être gelée avant toute campagne.
-
-Si le transporteur du niveau 0 est directement un opérateur d’échelle de spin, la proposition initiale est :
+et son adjoint par :
 
 \[
-\nu_S
+\left(U_e^{\mathrm H}\right)^\dagger
 =
-\sqrt{S(S+1)}.
+\frac{S_e^-}{\sqrt{S(S+1)}}.
 \]
 
-Cette convention doit être confirmée par inspection de l’implémentation exacte du niveau 0.
+La convention du niveau 1 est donc gelée à :
 
-Le manifeste de campagne doit enregistrer :
+\[
+\mathcal U_e=U_e^{\mathrm H},
+\qquad
+\nu_S=1.
+\]
 
-- la définition exacte de \(U_e^{\mathrm H}\) ;
-- la valeur de \(\nu_S\) ;
-- l’utilisation éventuelle simultanée du transporteur brut et du transporteur normalisé ;
+Aucune normalisation supplémentaire ne doit être appliquée.
+
+Les amplitudes non nulles de \(\mathcal U_e\) sont :
+
+```text
+S = 1 : {1, 1}
+S = 2 : {2/sqrt(6), 1, 1, 2/sqrt(6)}
+S = 3 : {sqrt(6)/sqrt(12), sqrt(10)/sqrt(12), 1, 1,
+         sqrt(10)/sqrt(12), sqrt(6)/sqrt(12)}
+```
+
+L’amplitude maximale vaut exactement 1 pour \(S=1,2,3\).
+
+Le manifeste doit enregistrer :
+
+- la définition \(U_e^{\mathrm H}=S_e^+/\sqrt{S(S+1)}\) ;
+- \(\nu_S=1\) ;
+- la table des amplitudes pour chaque valeur de \(S\) utilisée ;
 - la convention employée pour chaque observable sérialisée.
 
-Aucune comparaison entre valeurs de \(S\) n’est autorisée tant que cette convention n’a pas été vérifiée et gelée.
+Les variations résiduelles entre valeurs de \(S\) peuvent provenir de la distribution des flux, de la saturation aux bornes \(m=\pm S\) et de la modification des états propres. Elles ne doivent pas être interprétées comme une simple renormalisation globale du transporteur.
 
 ---
 
 ## 7. Opérateur de matière habillé
 
-Pour une source \(j\), une cible \(i\), une saveur source \(\beta\), une saveur cible \(\alpha\), et un chemin \(P:i\rightarrow j\), on considère l’opérateur candidat :
+Pour une source \(j\), une cible \(i\), une saveur source \(\beta\), une saveur cible \(\alpha\), et un chemin \(P:i\rightarrow j\), on définit :
 
 \[
 O^{\alpha\beta}_{ij}[P]
@@ -358,21 +460,39 @@ W_P
 c_{j\beta}.
 \]
 
-Avant de figer cette définition, il faut dériver explicitement sa transformation sous les générateurs de Gauss du niveau 0.
+### 7.1 Dérivation de l’invariance de jauge
 
-La convention retenue doit satisfaire :
+Pour une arête stockée \(e=(a\rightarrow b)\), le transporteur \(U_e\) augmente la divergence du champ électrique de \(+1\) en \(a\) et de \(-1\) en \(b\).
+
+Le produit ordonné le long du chemin :
 
 \[
-[G_k,O^{\alpha\beta}_{ij}[P]]
-=
-0
+P:i=v_0\rightarrow v_1\rightarrow\cdots\rightarrow v_\ell=j
+\]
+
+produit, par télescopage, une variation totale de divergence :
+
+\[
++1\text{ en }i,
+\qquad
+-1\text{ en }j,
+\qquad
+0\text{ sur les nœuds intermédiaires}.
+\]
+
+Avec les conventions de charge du niveau 0, \(c^\dagger_{i\alpha}\) augmente la charge de matière en \(i\), tandis que \(c_{j\beta}\) la diminue en \(j\). Les variations de matière et de flux se compensent donc exactement dans chaque générateur de Gauss :
+
+\[
+[G_k,O^{\alpha\beta}_{ij}[P]]=0
 \]
 
 pour tout nœud \(k\).
 
-Cette dérivation analytique doit apparaître dans la spécification ou dans un document de validation associé.
+Cette démonstration est indépendante des saveurs \(\alpha\) et \(\beta\), car la jauge U(1) est aveugle à la saveur. Elle couvre donc également les composantes hors diagonale \(\alpha\neq\beta\).
 
-Un test numérique de commutation est obligatoire, mais il ne remplace pas la dérivation.
+Le test numérique de commutation sur l’espace non projeté doit confirmer cette identité exacte.
+
+### 7.2 Corrélateur habillé
 
 Pour un état \(\rho\), le corrélateur habillé est :
 
@@ -605,6 +725,10 @@ Sinon, cet indicateur vaut `null`.
 
 La moyenne complexe ne peut jamais être utilisée seule pour conclure à une corrélation faible, car des contributions de grande amplitude peuvent s’annuler par leur phase.
 
+Dans la campagne de référence, une multiplicité non triviale de chemins minimaux n’existe que pour les paires antipodales de `ring4`, qui possèdent deux arcs minimaux de longueur 2. `triangle` et `ring5` ne fournissent qu’un chemin minimal par paire distincte. La dépendance aux chemins multiples n’a donc qu’un banc d’essai scientifique limité dans la campagne principale.
+
+`disk7` peut être ajouté comme extension conditionnelle uniquement après un comptage préalable de la base physique et une estimation pré-enregistrée du coût mémoire et du temps de calcul.
+
 ---
 
 ## 12. Normalisations des corrélateurs
@@ -656,6 +780,10 @@ Pour un opérateur \(O\) et un état \(\rho\), on peut définir :
 Cette quantité n’est définie que lorsque les deux facteurs du dénominateur dépassent le seuil gelé.
 
 La normalisation par les occupations et la normalisation par l’opérateur répondent à deux questions différentes et doivent être sérialisées séparément.
+
+Pour les comparaisons entre troncatures, \(\gamma_O\) est l’observable sans dimension primaire du verdict de robustesse. \(G^{\mathrm{occ}}\) est un diagnostic secondaire, tandis que le corrélateur brut reste toujours conservé sans recevoir de verdict binaire automatique.
+
+La normalisation \(\gamma_O\) élimine une renormalisation multiplicative globale de l’opérateur. Elle n’élimine pas nécessairement les effets de saturation aux bornes \(m=\pm S\), ni les variations dépendant de l’état de flux traversé.
 
 ### 12.4 Transformations interdites au niveau 1
 
@@ -796,7 +924,7 @@ Le groupe fondamental complet peut être comparé séparément lorsqu’il est i
 
 ## 16. Robustesse sous troncature
 
-Les quantités brutes dépendant explicitement de la convention de normalisation du lien ne reçoivent pas de verdict binaire de robustesse.
+Le verdict automatique de robustesse porte en priorité sur \(\gamma_O\). Le corrélateur \(G^{\mathrm{occ}}\) reçoit un verdict secondaire. Les quantités brutes dépendant de l’amplitude et de la structure détaillée du transporteur ne reçoivent pas de verdict binaire automatique.
 
 Pour une observable sans dimension approuvée \(x\), on compare les deux valeurs de \(S\) les plus élevées disponibles :
 
@@ -931,7 +1059,6 @@ def build_dressed_matter_operator(
     source_flavor: int,
     target_flavor: int,
     path: OrientedPath,
-    transporter_normalization: float,
 ) -> sp.csr_matrix:
     ...
 
@@ -939,6 +1066,14 @@ def build_dressed_matter_operator(
 def build_charge_operator(
     ...,
     node: int,
+) -> sp.csr_matrix:
+    ...
+
+
+def build_local_flavor_operator(
+    ...,
+    node: int,
+    component: Literal["x", "y", "z"],
 ) -> sp.csr_matrix:
     ...
 
@@ -980,12 +1115,23 @@ Géométries :
 
 ### 20.2 Contrôles de robustesse
 
+Les fenêtres spectrales sont gelées par géométrie :
+
+```text
+triangle = 16
+ring4    = 20
+ring5    = 24
+```
+
+Ces fenêtres sont utilisées pour toutes les valeurs de \(S\) de la géométrie concernée. Elles ne peuvent pas être augmentées après inspection des corrélateurs.
+
 Sous réserve du coût mesuré et des garde-fous de dimension :
 
 - `triangle` pour \(S=1,2,3\) ;
 - `ring4` pour \(S=1,2,3\) ;
 - `ring5` pour \(S=1,2\) ;
-- `ring5` pour \(S=3\) uniquement si ce point est accepté avant l’exécution.
+- `ring5` pour \(S=3\) uniquement si ce point est accepté avant l’exécution ;
+- `disk7` uniquement comme extension conditionnelle après comptage de base et estimation de coût pré-enregistrés.
 
 ### 20.3 Sélection des groupes spectraux
 
@@ -993,14 +1139,21 @@ Les analyses principales portent sur :
 
 1. le groupe fondamental complet ;
 2. le plus bas groupe excité complet disposant d’un `exact_label_match` entre valeurs de \(S\) ;
-3. le plus bas groupe complet de saveur \(T=3/2\) disposant d’un `exact_label_match` ;
-4. aucun groupe tronqué ou apparié de manière ambiguë.
+3. le plus bas groupe complet de saveur maximale \(T=n/2\), lorsqu’il est présent dans la fenêtre gelée ;
+4. pour les géométries impaires, le plus bas groupe complet \(T=3/2\) disposant d’un `exact_label_match`, lorsqu’il est distinct du groupe de saveur maximale ;
+5. aucun groupe tronqué ou apparié de manière ambiguë.
 
-La taille de la fenêtre spectrale doit être gelée avant la campagne.
+Application à la campagne :
 
-Si un groupe ciblé n’est pas complet dans la fenêtre, il est déclaré indisponible.
+```text
+triangle : T_max = 3/2 ; la cible T=3/2 est aussi la cible maximale
+ring4    : T_max = 2   ; T=3/2 est interdit par la parité
+ring5    : T_max = 5/2 ; T=3/2 est une cible supplémentaire possible
+```
 
-Il est interdit d’augmenter la fenêtre après inspection des corrélateurs afin de récupérer un résultat souhaité.
+Si un groupe ciblé n’est pas complet dans la fenêtre gelée, il est déclaré `unavailable` ou `lower_bound_only` selon le cas.
+
+Il est interdit d’augmenter la fenêtre après inspection des corrélateurs afin de récupérer un groupe ou un résultat souhaité.
 
 ---
 
@@ -1030,6 +1183,7 @@ Chaque résultat doit enregistrer :
 - la cohérence normalisée par l’opérateur ;
 - le corrélateur connecté de charge ;
 - le coefficient de charge normalisé ;
+- les corrélateurs de saveur `C_TT_raw` et `C_TT_connected` ;
 - la moyenne complexe sur les chemins ;
 - la moyenne des modules ;
 - la valeur RMS ;
@@ -1133,11 +1287,33 @@ Valider au moins un cas calculé à la main :
 - amplitude du lien ;
 - conjugaison complexe.
 
-### T13 — normalisation en \(S\)
+### T13 — convention du transporteur en \(S\)
 
-Vérifier explicitement les éléments de matrice du transporteur brut et du transporteur normalisé pour \(S=1,2,3\).
+Vérifier explicitement que le transporteur du niveau 0 est déjà :
 
-### T14 — déterminisme et reprise
+\[
+U_e=S_e^+/\sqrt{S(S+1)}
+\]
+
+et reproduire la table gelée des amplitudes pour \(S=1,2,3\), sans normalisation supplémentaire.
+
+### T14 — secteur de saveur maximale
+
+À demi-remplissage, pour tout groupe complet portant \(T=n/2\), vérifier :
+
+\[
+\max_{i,j}|C^{QQ}_{ij}|
+<
+\texttt{operator\_identity\_tolerance}.
+\]
+
+Vérifier également que \(\rho^{QQ}_{ij}\) vaut `null` avec la raison `zero_local_charge_variance`.
+
+### T15 — corrélateurs locaux de saveur
+
+Vérifier la construction de \(C^{TT,\mathrm{raw}}\) et \(C^{TT,\mathrm{conn}}\), ainsi que leur invariance de jauge et leur covariance SU(2).
+
+### T16 — déterminisme et reprise
 
 Vérifier :
 
@@ -1159,13 +1335,15 @@ Vérifier :
 - normalisation explicite en \(S\) ;
 - tests T1, T2, T5 et T13.
 
-### Lot 1B — opérateurs de matière et de charge
+### Lot 1B — opérateurs de matière, de charge et de saveur
 
 - construction exacte des opérateurs creux ;
 - opérateurs locaux de charge ;
+- générateurs locaux de saveur ;
+- corrélateurs \(C^{TT,\mathrm{raw}}\) et \(C^{TT,\mathrm{conn}}\) ;
 - fermeture dans la base physique ;
 - validation de jauge ;
-- tests T3, T4, T6 et T12.
+- tests T3, T4, T6, T12, T14 et T15.
 
 ### Lot 1C — diagnostics spectraux
 
@@ -1190,7 +1368,7 @@ Vérifier :
 - manifeste et seuils ;
 - sorties JSON et CSV ;
 - reprise et écritures atomiques ;
-- test T14 ;
+- test T16 ;
 - aucune exécution scientifique réelle.
 
 ### Lot 1F — campagne scientifique
@@ -1221,9 +1399,11 @@ Le niveau 1B est considéré comme terminé lorsque :
 10. la covariance sous automorphismes est vérifiée ;
 11. les comparaisons entre géométries utilisent des classes d’orbites et non les numéros de nœuds ;
 12. l’appariement entre valeurs de \(S\) est explicite et non fondé uniquement sur le rang énergétique ;
-13. la robustesse sous troncature est évaluée selon les seuils pré-enregistrés ;
-14. aucune définition ou seuil n’est modifié après observation des résultats ;
-15. les conclusions restent limitées à la structure relationnelle des corrélations.
+13. les corrélateurs locaux de saveur brut et connecté sont disponibles ;
+14. les zéros structurels du secteur de saveur maximale sont vérifiés ;
+15. la robustesse sous troncature est évaluée selon les seuils pré-enregistrés ;
+16. aucune définition ou seuil n’est modifié après observation des résultats ;
+17. les conclusions restent limitées à la structure relationnelle des corrélations.
 
 ---
 
@@ -1253,18 +1433,27 @@ Le niveau 1B ne peut pas établir :
 
 ## 26. Décisions restant à valider avant implémentation
 
-Les décisions suivantes doivent être explicitement validées avant le lot 1A :
+Les décisions suivantes sont gelées par la présente spécification :
 
-1. la définition exacte du transporteur du niveau 0 ;
-2. la valeur du facteur \(\nu_S\) ;
-3. la conservation éventuelle des deux versions, brute et normalisée, du corrélateur ;
-4. les seuils absolu et relatif de robustesse ;
-5. l’admissibilité de `ring5` à \(S=3\) ;
-6. la taille de la fenêtre spectrale ;
-7. le schéma JSON final et sa version ;
-8. la liste exacte des invariants de saveur sérialisés ;
-9. la liste des diagnostics non hermitiens conservés ;
-10. les règles d’agrégation par orbite d’automorphisme ;
-11. les utilitaires de campagne mutualisés ou locaux.
+- le transporteur du niveau 0 est déjà normalisé par \(\sqrt{S(S+1)}\) ;
+- \(\nu_S=1\) ;
+- l’opérateur habillé est \(c_i^\dagger W_Pc_j\) avec la convention d’orientation du §7 ;
+- \(\gamma_O\) est l’observable primaire du verdict de robustesse ;
+- \(G^{\mathrm{occ}}\) est secondaire ;
+- le corrélateur brut est conservé sans verdict automatique ;
+- les fenêtres spectrales sont `triangle=16`, `ring4=20`, `ring5=24` ;
+- les corrélateurs \(C^{TT,\mathrm{raw}}\) et \(C^{TT,\mathrm{conn}}\) appartiennent au périmètre ;
+- le secteur de jauge pur est reporté à une feature ultérieure ;
+- `disk7` est une extension conditionnelle soumise à un comptage préalable.
 
-Aucun code scientifique du niveau 1 ne doit être écrit avant validation de ces décisions.
+Restent à valider avant le lot 1A :
+
+1. les valeurs définitives de `truncation_absolute_tolerance` et `truncation_relative_tolerance` ;
+2. l’admissibilité de `ring5` à \(S=3\) selon les garde-fous de ressources ;
+3. le schéma JSON final et sa version ;
+4. la liste exacte des invariants de saveur sérialisés ;
+5. la liste des diagnostics non hermitiens conservés ;
+6. les règles d’agrégation par orbite d’automorphisme ;
+7. les utilitaires de campagne mutualisés ou locaux.
+
+Aucun code scientifique du niveau 1 ne doit être écrit avant validation de ces décisions restantes et inscription de leurs valeurs dans le manifeste pré-enregistré.
