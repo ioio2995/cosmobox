@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import csv
 import json
 from pathlib import Path
@@ -15,7 +16,7 @@ from scripts.level0_reference_campaign.grid import (
     spec_to_experiment,
     validate_unique_fingerprints,
 )
-from scripts.level0_reference_campaign.outputs import SUMMARY_CSV_FIELDS, validate_existing_run
+from scripts.level0_reference_campaign.outputs import SUMMARY_CSV_FIELDS, _summary_row, validate_existing_run
 from scripts.level0_reference_campaign.runner import run_campaign
 
 # ---------------------------------------------------------------------------
@@ -125,7 +126,7 @@ def test_validate_existing_run_rejects_correct_fingerprint_wrong_config_block(tm
     )
     is_valid, reason = validate_existing_run(path, spec, fingerprint)
     assert not is_valid
-    assert "config block" in reason
+    assert "run file is missing" in reason  # environment/timings/report also absent from this minimal fixture
 
 
 def test_validate_existing_run_accepts_a_real_run(tmp_path: Path) -> None:
@@ -138,6 +139,130 @@ def test_validate_existing_run_accepts_a_real_run(tmp_path: Path) -> None:
     is_valid, reason = validate_existing_run(run_path, spec, fingerprint)
     assert is_valid
     assert reason is None
+
+
+# ---------------------------------------------------------------------------
+# validate_existing_run: structural hardening against a truncated/altered
+# but well-fingerprinted file (bug found on review of 7b70968)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def real_run_fixture(tmp_path: Path):
+    """A genuine, fully valid 5A run JSON (parsed dict) plus its spec/path/fingerprint."""
+    specs = build_reference_campaign_specs()
+    spec = next(s for s in specs if s.experiment_id == "triangle/local_only")
+    output_dir = tmp_path / "campaign"
+    run_campaign([spec], output_dir)
+    fingerprint = compute_config_fingerprint(spec_to_experiment(spec))
+    run_path = output_dir / "runs" / f"{fingerprint}.json"
+    payload = json.loads(run_path.read_text(encoding="utf-8"))
+    return spec, fingerprint, payload, tmp_path
+
+
+def _write_and_validate(spec, fingerprint, payload, tmp_dir: Path) -> tuple[bool, str | None]:
+    path = tmp_dir / f"altered_{fingerprint}.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return validate_existing_run(path, spec, fingerprint)
+
+
+def test_validate_existing_run_accepts_the_untouched_fixture(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    is_valid, reason = _write_and_validate(spec, fingerprint, payload, tmp_dir)
+    assert (is_valid, reason) == (True, None)
+
+
+def test_validate_existing_run_rejects_missing_report(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    del payload["report"]
+    is_valid, reason = _write_and_validate(spec, fingerprint, payload, tmp_dir)
+    assert not is_valid
+    assert "report" in reason
+
+
+def test_validate_existing_run_rejects_missing_timings(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    del payload["timings"]
+    is_valid, reason = _write_and_validate(spec, fingerprint, payload, tmp_dir)
+    assert not is_valid
+    assert "timings" in reason
+
+
+def test_validate_existing_run_rejects_report_from_another_geometry(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    payload["report"]["lattice_name"] = "ring4"
+    is_valid, reason = _write_and_validate(spec, fingerprint, payload, tmp_dir)
+    assert not is_valid
+    assert "lattice_name" in reason
+
+
+def test_validate_existing_run_rejects_report_parameters_differing_from_config(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    payload["report"]["parameters"]["t"] += 1.0
+    is_valid, reason = _write_and_validate(spec, fingerprint, payload, tmp_dir)
+    assert not is_valid
+    assert "parameters" in reason
+
+
+def test_validate_existing_run_rejects_terms_without_total_entry(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    payload["report"]["terms"] = [t for t in payload["report"]["terms"] if t["name"] != "total"]
+    is_valid, reason = _write_and_validate(spec, fingerprint, payload, tmp_dir)
+    assert not is_valid
+    assert "total" in reason
+
+
+def test_validate_existing_run_rejects_inconsistent_computed_eigenvalues(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    assert payload["report"]["spectrum"]["status"] == "computed"
+    payload["report"]["spectrum"]["computed_eigenvalues"] += 1
+    is_valid, reason = _write_and_validate(spec, fingerprint, payload, tmp_dir)
+    assert not is_valid
+    assert "computed_eigenvalues" in reason
+
+
+def test_validate_existing_run_rejects_nan_timing(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    payload["timings"]["report_build_seconds"] = float("nan")
+    path = tmp_dir / f"nan_timing_{fingerprint}.json"
+    # json.dumps(allow_nan=True) default lets NaN through as invalid-JSON "NaN" literal,
+    # which json.loads() (also permissive by default) will happily read back --
+    # the point of this test is that *our* validator, not the JSON parser, must reject it.
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    is_valid, reason = validate_existing_run(path, spec, fingerprint)
+    assert not is_valid
+    assert "report_build_seconds" in reason
+
+
+def test_validate_existing_run_rejects_nan_eigenvalue(real_run_fixture) -> None:
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    assert payload["report"]["spectrum"]["eigenpairs"], "fixture must have at least one eigenpair"
+    payload["report"]["spectrum"]["eigenpairs"][0]["eigenvalue"] = float("nan")
+    path = tmp_dir / f"nan_eigenvalue_{fingerprint}.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    is_valid, reason = validate_existing_run(path, spec, fingerprint)
+    assert not is_valid
+    assert "eigenvalue" in reason
+
+
+def test_a_validated_file_can_be_summarized_without_exception(real_run_fixture) -> None:
+    from scripts.level0_reference_campaign.outputs import CampaignRunRecord
+
+    spec, fingerprint, payload, tmp_dir = real_run_fixture
+    is_valid, reason = _write_and_validate(spec, fingerprint, payload, tmp_dir)
+    assert (is_valid, reason) == (True, None)
+
+    record = CampaignRunRecord(
+        experiment_id=spec.experiment_id,
+        roles=spec.roles,
+        config_fingerprint=fingerprint,
+        run_status="skipped",
+        spectrum_status=payload["report"]["spectrum"]["status"],
+        error_message=None,
+    )
+    row = _summary_row(spec, record, payload)  # must not raise
+    assert row["spectrum_status"] == "computed"
+    assert row["ground_energy"] != ""
 
 
 # ---------------------------------------------------------------------------

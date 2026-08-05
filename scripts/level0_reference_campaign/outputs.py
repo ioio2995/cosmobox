@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import math
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -16,6 +17,8 @@ from cosmobox.level0.lattice import build_lattice
 from .grid import CampaignExperimentSpec, spec_to_experiment
 
 JSON_SCHEMA_VERSION = 1  # must track cosmobox.level0.experiments.JSON_SCHEMA_VERSION
+
+_SPECTRUM_STATUSES = ("computed", "not_computed", "failed")
 
 SUMMARY_CSV_FIELDS: tuple[str, ...] = (
     "experiment_id",
@@ -72,10 +75,177 @@ def atomic_write_text(path: Path, text: str) -> None:
     os.replace(tmp_path, path)
 
 
+class _InvalidRun(Exception):
+    """Internal control-flow exception: caught once in validate_existing_run
+    and turned into (False, str(exc)). Never escapes this module."""
+
+
+def _require(condition: bool, message: str) -> None:
+    if not condition:
+        raise _InvalidRun(message)
+
+
+def _is_finite_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _require_keys(obj: object, keys: tuple[str, ...], where: str) -> None:
+    _require(isinstance(obj, dict), f"{where} is not a JSON object")
+    for key in keys:
+        _require(key in obj, f"{where} is missing {key!r}")
+
+
+def _check_environment(environment: object) -> None:
+    _require_keys(environment, ("python_version", "numpy_version", "scipy_version", "cosmobox_version"), "environment")
+
+
+def _check_timings(timings: object) -> None:
+    _require_keys(
+        timings, ("basis_build_seconds", "hamiltonian_build_seconds", "report_build_seconds"), "timings"
+    )
+    for key in ("basis_build_seconds", "hamiltonian_build_seconds", "report_build_seconds"):
+        value = timings[key]
+        _require(_is_finite_number(value) and value >= 0, f"timings[{key!r}] is not a finite, non-negative number")
+
+
+def _check_provenance(report: dict, expected_config: dict) -> None:
+    """A run file can have the right `config` block yet an unrelated
+    `report` (e.g. copied from a different run). Cross-check the fields
+    reports.Level0Report itself guarantees match config at construction --
+    same invariant, re-checked here because this is raw JSON, not the typed
+    object that already enforced it once when the file was written."""
+    _require(report.get("lattice_name") == expected_config["geometry"], "report.lattice_name does not match config.geometry")
+    _require(report.get("n_flavors") == expected_config["n_flavors"], "report.n_flavors does not match config.n_flavors")
+    _require(report.get("spin") == expected_config["spin"], "report.spin does not match config.spin")
+    _require(
+        report.get("external_charges") == expected_config["external_charges"],
+        "report.external_charges does not match config.external_charges",
+    )
+    _require(
+        report.get("parameters") == expected_config["parameters"],
+        "report.parameters does not match config.parameters",
+    )
+    _require(
+        report.get("spectrum_options") == expected_config["spectrum_options"],
+        "report.spectrum_options does not match config.spectrum_options",
+    )
+
+
+def _check_terms(report: dict) -> None:
+    terms = report.get("terms")
+    _require(isinstance(terms, list), "report.terms is not a list")
+    total_entries = [term for term in terms if isinstance(term, dict) and term.get("name") == "total"]
+    _require(len(total_entries) == 1, "report.terms does not contain exactly one 'total' entry")
+    total_stats = total_entries[0]
+    _require(isinstance(total_stats.get("nnz"), int) and not isinstance(total_stats.get("nnz"), bool), "total.nnz is not an integer")
+    for key in ("density", "hermiticity_defect"):
+        _require(_is_finite_number(total_stats.get(key)), f"total.{key} is not a finite number")
+
+
+def _check_eigenpair(pair: object, index: int) -> None:
+    _require_keys(pair, ("eigenvalue", "residual_norm", "term_expectations"), f"eigenpair {index}")
+    _require(_is_finite_number(pair["eigenvalue"]), f"eigenpair {index} eigenvalue is not finite")
+    _require(_is_finite_number(pair["residual_norm"]), f"eigenpair {index} residual_norm is not finite")
+    expectations = pair["term_expectations"]
+    _require_keys(expectations, ("dot", "hopping", "electric", "magnetic", "total"), f"eigenpair {index} term_expectations")
+    for key in ("dot", "hopping", "electric", "magnetic", "total"):
+        _require(_is_finite_number(expectations[key]), f"eigenpair {index} term_expectations[{key!r}] is not finite")
+
+
+def _check_spectrum(report: dict) -> None:
+    spectrum = report.get("spectrum")
+    _require_keys(spectrum, ("status", "method", "computed_eigenvalues", "eigenpairs", "spectral_gap"), "report.spectrum")
+
+    status = spectrum["status"]
+    _require(status in _SPECTRUM_STATUSES, f"unexpected spectrum status {status!r}")
+
+    eigenpairs = spectrum["eigenpairs"]
+    _require(isinstance(eigenpairs, list), "spectrum.eigenpairs is not a list")
+
+    if status in ("not_computed", "failed"):
+        _require(len(eigenpairs) == 0, f"spectrum.status={status!r} but eigenpairs is not empty")
+
+    computed_eigenvalues = spectrum["computed_eigenvalues"]
+    _require(
+        isinstance(computed_eigenvalues, int) and not isinstance(computed_eigenvalues, bool),
+        "spectrum.computed_eigenvalues is not an integer",
+    )
+    _require(
+        computed_eigenvalues == len(eigenpairs),
+        "spectrum.computed_eigenvalues does not match len(eigenpairs)",
+    )
+
+    for index, pair in enumerate(eigenpairs):
+        _check_eigenpair(pair, index)
+
+    spectral_gap = spectrum["spectral_gap"]
+    if spectral_gap is not None:
+        _require(_is_finite_number(spectral_gap), "spectrum.spectral_gap is not finite")
+        _require(len(eigenpairs) >= 2, "spectrum.spectral_gap is set but fewer than 2 eigenpairs are present")
+
+
+def _check_report(report: object, expected_config: dict) -> None:
+    _require_keys(
+        report,
+        (
+            "lattice_name",
+            "n_flavors",
+            "spin",
+            "external_charges",
+            "parameters",
+            "spectrum_options",
+            "dimension",
+            "sector_count",
+            "terms",
+            "spectrum",
+        ),
+        "report",
+    )
+    _require(
+        isinstance(report["dimension"], int) and not isinstance(report["dimension"], bool),
+        "report.dimension is not an integer",
+    )
+    _require(
+        isinstance(report["sector_count"], int) and not isinstance(report["sector_count"], bool),
+        "report.sector_count is not an integer",
+    )
+    _check_provenance(report, expected_config)
+    _check_terms(report)
+    _check_spectrum(report)
+
+
+def _validate_run_payload(
+    parsed: object, spec: CampaignExperimentSpec, expected_fingerprint: str
+) -> None:
+    _require_keys(
+        parsed, ("schema_version", "config_fingerprint", "config", "environment", "timings", "report"), "run file"
+    )
+    _require(parsed["schema_version"] == JSON_SCHEMA_VERSION, f"unexpected schema_version {parsed['schema_version']!r}")
+    _require(
+        parsed["config_fingerprint"] == expected_fingerprint,
+        "config_fingerprint in file does not match the expected fingerprint",
+    )
+
+    expected_config = level0_experiment_config_to_json_dict(spec_to_experiment(spec))
+    _require(parsed["config"] == expected_config, "config block in file does not match the expected configuration")
+
+    _check_environment(parsed["environment"])
+    _check_timings(parsed["timings"])
+    _check_report(parsed["report"], expected_config)
+
+
 def validate_existing_run(
     path: Path, spec: CampaignExperimentSpec, expected_fingerprint: str
 ) -> tuple[bool, str | None]:
-    """(is_valid, reason_if_invalid). Never raises on a missing/corrupt file."""
+    """(is_valid, reason_if_invalid). Never raises on a missing/corrupt/incomplete file.
+
+    Checks the full structure a "skipped" run must have to be safely read
+    by run_campaign (report["spectrum"]["status"]) and _summary_row
+    (report["terms"]/["spectrum"]["eigenpairs"]/...) without a KeyError or
+    a NaN silently reaching the CSV -- not just that config_fingerprint and
+    the config block look right; a truncated or field-swapped file with a
+    correct fingerprint would otherwise pass and crash the campaign later.
+    """
     if not path.exists():
         return False, "no existing run file"
 
@@ -84,18 +254,10 @@ def validate_existing_run(
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return False, f"could not parse existing run file: {exc}"
 
-    if not isinstance(parsed, dict):
-        return False, "existing run file does not contain a JSON object"
-
-    if parsed.get("schema_version") != JSON_SCHEMA_VERSION:
-        return False, f"unexpected schema_version {parsed.get('schema_version')!r}"
-
-    if parsed.get("config_fingerprint") != expected_fingerprint:
-        return False, "config_fingerprint in file does not match the expected fingerprint"
-
-    expected_config = level0_experiment_config_to_json_dict(spec_to_experiment(spec))
-    if parsed.get("config") != expected_config:
-        return False, "config block in file does not match the expected configuration"
+    try:
+        _validate_run_payload(parsed, spec, expected_fingerprint)
+    except _InvalidRun as exc:
+        return False, str(exc)
 
     return True, None
 
