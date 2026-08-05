@@ -19,6 +19,7 @@ from cosmobox.level0.reports import (
     TermStatistics,
     _eigenpair_diagnostic,
     build_level0_report,
+    build_level0_report_with_eigenvectors,
 )
 
 
@@ -614,3 +615,122 @@ def test_eigenpair_diagnostic_rejects_non_finite_eigenvalue() -> None:
     psi = np.array([1.0 + 0j] + [0.0 + 0j] * (len(report.keys) - 1))
     with pytest.raises(ValueError, match="not finite"):
         _eigenpair_diagnostic(0, float("nan"), psi, terms, tolerance=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# build_level0_report_with_eigenvectors (lot 6C.1)
+# ---------------------------------------------------------------------------
+
+
+def test_with_eigenvectors_report_matches_build_level0_report_dense() -> None:
+    lattice, report, terms, params = _build("triangle")
+    report_a, eigenvectors = build_level0_report_with_eigenvectors(lattice, 2, 1, report, terms, params)
+    report_b = build_level0_report(lattice, 2, 1, report, terms, params)
+
+    assert report_a.dimension == report_b.dimension
+    assert report_a.spectrum.method == report_b.spectrum.method == "dense"
+    assert report_a.spectrum.computed_eigenvalues == report_b.spectrum.computed_eigenvalues
+    eigenvalues_a = [ep.eigenvalue for ep in report_a.spectrum.eigenpairs]
+    eigenvalues_b = [ep.eigenvalue for ep in report_b.spectrum.eigenpairs]
+    assert eigenvalues_a == pytest.approx(eigenvalues_b)
+
+
+def test_with_eigenvectors_dense_shape_matches_dimension_and_eigenpairs() -> None:
+    lattice, report, terms, params = _build("triangle")
+    report_a, eigenvectors = build_level0_report_with_eigenvectors(lattice, 2, 1, report, terms, params)
+    assert eigenvectors is not None
+    assert eigenvectors.shape == (report_a.dimension, len(report_a.spectrum.eigenpairs))
+
+
+def test_with_eigenvectors_dense_array_is_read_only() -> None:
+    lattice, report, terms, params = _build("triangle")
+    _report, eigenvectors = build_level0_report_with_eigenvectors(lattice, 2, 1, report, terms, params)
+    assert eigenvectors.flags.writeable is False
+    with pytest.raises(ValueError):
+        eigenvectors[0, 0] = 123.0
+
+
+def test_with_eigenvectors_columns_are_genuine_eigenvectors_of_h_total() -> None:
+    lattice, report, terms, params = _build("triangle")
+    result, eigenvectors = build_level0_report_with_eigenvectors(lattice, 2, 1, report, terms, params)
+    dense_total = terms.total.toarray()
+    for index, eigenpair in enumerate(result.spectrum.eigenpairs):
+        residual = dense_total @ eigenvectors[:, index] - eigenpair.eigenvalue * eigenvectors[:, index]
+        assert np.linalg.norm(residual) < 1e-8
+
+
+def test_with_eigenvectors_sparse_path_shape_and_read_only() -> None:
+    lattice, report, terms, params = _build("ring4")
+    options = SpectrumOptions(max_dense_dimension=0, n_eigenvalues=4)
+    result, eigenvectors = build_level0_report_with_eigenvectors(
+        lattice, 2, 1, report, terms, params, spectrum_options=options
+    )
+    assert result.spectrum.method == "sparse_eigsh"
+    assert eigenvectors.shape == (result.dimension, len(result.spectrum.eigenpairs))
+    assert eigenvectors.flags.writeable is False
+
+
+def test_with_eigenvectors_dimension_zero_returns_none() -> None:
+    lattice = build_lattice("triangle")
+    basis = BasisReport(
+        keys=(), sectors=(), excluded_sectors=(), mean_flux_configs_per_occupation=0.0, max_flux_configs_per_occupation=0
+    )
+    empty = _empty_csr()
+    terms = HamiltonianTerms(dot=empty, hopping=empty, electric=empty, magnetic=empty)
+    params = _params(len(lattice.nodes))
+
+    result, eigenvectors = build_level0_report_with_eigenvectors(lattice, 2, 1, basis, terms, params)
+    assert result.dimension == 0
+    assert eigenvectors is None
+
+
+def test_with_eigenvectors_dimension_one_returns_a_1x1_array() -> None:
+    lattice = build_lattice("triangle")
+    real_report = build_basis(lattice, 2, 1)
+    single_key = real_report.keys[0]
+    basis = BasisReport(
+        keys=(single_key,),
+        sectors=(SectorReport(charge_vector=(Fraction(0),) * 3, matter_multiplicity=1, n_flux_admissible=1, dimension=1),),
+        excluded_sectors=(),
+        mean_flux_configs_per_occupation=1.0,
+        max_flux_configs_per_occupation=1,
+    )
+    diagonal_value = 1.75
+    single = sp.csr_matrix(np.array([[diagonal_value]], dtype=np.complex128))
+    zero = sp.csr_matrix((1, 1), dtype=np.complex128)
+    terms = HamiltonianTerms(dot=zero, hopping=zero, electric=single, magnetic=zero)
+    params = _params(len(lattice.nodes))
+
+    result, eigenvectors = build_level0_report_with_eigenvectors(lattice, 2, 1, basis, terms, params)
+    assert result.dimension == 1
+    assert eigenvectors is not None
+    assert eigenvectors.shape == (1, 1)
+    assert eigenvectors.flags.writeable is False
+    assert eigenvectors[0, 0] == pytest.approx(1.0 + 0j)
+
+
+def test_with_eigenvectors_not_computed_returns_none() -> None:
+    lattice, report, terms, params = _build("triangle")
+    dimension = len(report.keys)
+    options = SpectrumOptions(max_dense_dimension=0, max_sparse_dimension=dimension - 1)
+    result, eigenvectors = build_level0_report_with_eigenvectors(
+        lattice, 2, 1, report, terms, params, spectrum_options=options
+    )
+    assert result.spectrum.status == "not_computed"
+    assert eigenvectors is None
+
+
+def test_with_eigenvectors_failed_returns_none() -> None:
+    lattice, report, terms, params = _build("ring4")
+    options = SpectrumOptions(max_dense_dimension=0, n_eigenvalues=3, max_iterations=1)
+    result, eigenvectors = build_level0_report_with_eigenvectors(
+        lattice, 2, 1, report, terms, params, spectrum_options=options
+    )
+    assert result.spectrum.status == "failed"
+    assert eigenvectors is None
+
+
+def test_with_eigenvectors_still_populates_degeneracy() -> None:
+    lattice, report, terms, params = _build("triangle")
+    result, eigenvectors = build_level0_report_with_eigenvectors(lattice, 2, 1, report, terms, params)
+    assert result.spectrum.degeneracy is not None

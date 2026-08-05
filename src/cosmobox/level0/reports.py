@@ -252,6 +252,15 @@ class _SpectrumComputation:
     eigenvectors: np.ndarray | None
 
 
+def _finalize_eigenvectors(eigenvectors: np.ndarray) -> np.ndarray:
+    """Write-lock a retained eigenvector array in place before it leaves the
+    spectral computation. Not a copy: nothing else holds a reference to the
+    underlying buffer once the branch that produced it returns, so marking
+    the array (or view) itself read-only is sufficient."""
+    eigenvectors.setflags(write=False)
+    return eigenvectors
+
+
 def _direct_spectrum_dimension_zero(options: SpectrumOptions) -> _SpectrumComputation:
     report = SpectrumReport(
         status="computed",
@@ -286,7 +295,7 @@ def _direct_spectrum_dimension_one(
         eigenpairs=(eigenpair,),
         spectral_gap=None,
     )
-    eigenvectors = psi.reshape(1, 1) if retain_eigenvectors else None
+    eigenvectors = _finalize_eigenvectors(psi.reshape(1, 1)) if retain_eigenvectors else None
     return _SpectrumComputation(report=report, eigenvalues=np.array([raw_eigenvalue.real]), eigenvectors=eigenvectors)
 
 
@@ -312,7 +321,7 @@ def _dense_spectrum(
     return _SpectrumComputation(
         report=report,
         eigenvalues=eigenvalues[:k],
-        eigenvectors=eigenvectors[:, :k] if retain_eigenvectors else None,
+        eigenvectors=_finalize_eigenvectors(eigenvectors[:, :k]) if retain_eigenvectors else None,
     )
 
 
@@ -359,7 +368,9 @@ def _sparse_spectrum(
         spectral_gap=_spectral_gap(eigenpairs),
     )
     return _SpectrumComputation(
-        report=report, eigenvalues=eigenvalues, eigenvectors=eigenvectors if retain_eigenvectors else None
+        report=report,
+        eigenvalues=eigenvalues,
+        eigenvectors=_finalize_eigenvectors(eigenvectors) if retain_eigenvectors else None,
     )
 
 
@@ -405,7 +416,7 @@ def _compute_spectrum(
     return _SpectrumComputation(report=report, eigenvalues=np.array([]), eigenvectors=None)
 
 
-def build_level0_report(
+def _build_level0_report_impl(
     lattice: Lattice,
     n_flavors: int,
     spin: int,
@@ -413,10 +424,15 @@ def build_level0_report(
     terms: HamiltonianTerms,
     params: HamiltonianParameters,
     *,
-    external_charges: Sequence[object] | None = None,
-    spectrum_options: SpectrumOptions | None = None,
-) -> Level0Report:
-    """Analyze an already-built (basis, terms) pair. Never constructs either."""
+    external_charges: Sequence[object] | None,
+    spectrum_options: SpectrumOptions | None,
+    retain_eigenvectors: bool,
+) -> tuple[Level0Report, np.ndarray | None]:
+    """Shared implementation for build_level0_report and
+    build_level0_report_with_eigenvectors -- identical validation and
+    Level0Report construction either way; only whether the spectral
+    computation retains its eigenvectors differs, so there is exactly one
+    diagonalization per call regardless of which public entry point is used."""
     options = spectrum_options if spectrum_options is not None else SpectrumOptions()
 
     validate_spin(spin)
@@ -461,7 +477,7 @@ def build_level0_report(
         )
     )
 
-    computation = _compute_spectrum(terms, dimension, options, term_stats, retain_eigenvectors=False)
+    computation = _compute_spectrum(terms, dimension, options, term_stats, retain_eigenvectors=retain_eigenvectors)
     spectrum = computation.report
 
     if spectrum.status == "computed" and spectrum.computed_eigenvalues >= 1:
@@ -472,7 +488,7 @@ def build_level0_report(
         )
         spectrum = replace(spectrum, degeneracy=degeneracy_report)
 
-    return Level0Report(
+    report = Level0Report(
         lattice_name=lattice.name,
         n_flavors=n_flavors,
         spin=spin,
@@ -486,4 +502,76 @@ def build_level0_report(
         spectrum=spectrum,
         spectrum_options=options,
         parameters=params,
+    )
+
+    eigenvectors = computation.eigenvectors
+    if eigenvectors is not None:
+        expected_shape = (report.dimension, len(report.spectrum.eigenpairs))
+        if eigenvectors.shape != expected_shape:
+            raise RuntimeError(
+                f"eigenvectors has shape {eigenvectors.shape}, expected {expected_shape} = "
+                "(dimension, len(spectrum.eigenpairs)) -- invariant violation in the spectral computation"
+            )
+
+    return report, eigenvectors
+
+
+def build_level0_report(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    basis: BasisReport,
+    terms: HamiltonianTerms,
+    params: HamiltonianParameters,
+    *,
+    external_charges: Sequence[object] | None = None,
+    spectrum_options: SpectrumOptions | None = None,
+) -> Level0Report:
+    """Analyze an already-built (basis, terms) pair. Never constructs either."""
+    report, _ = _build_level0_report_impl(
+        lattice,
+        n_flavors,
+        spin,
+        basis,
+        terms,
+        params,
+        external_charges=external_charges,
+        spectrum_options=spectrum_options,
+        retain_eigenvectors=False,
+    )
+    return report
+
+
+def build_level0_report_with_eigenvectors(
+    lattice: Lattice,
+    n_flavors: int,
+    spin: int,
+    basis: BasisReport,
+    terms: HamiltonianTerms,
+    params: HamiltonianParameters,
+    *,
+    external_charges: Sequence[object] | None = None,
+    spectrum_options: SpectrumOptions | None = None,
+) -> tuple[Level0Report, np.ndarray | None]:
+    """Same contract as build_level0_report (the returned Level0Report is
+    identical either way -- eigenvectors never enter it or its JSON export),
+    but also returns the eigenvectors used to compute spectrum.eigenpairs,
+    for callers (e.g. a symmetry-diagnostics campaign) that need them
+    without re-running the diagonalization.
+
+    None only when no spectrum with vectors is available: status is
+    "not_computed" or "failed", or dimension == 0 (nothing to retain).
+    Otherwise, shape is exactly (report.dimension, len(report.spectrum.eigenpairs))
+    -- including dimension == 1 -- and the array is read-only.
+    """
+    return _build_level0_report_impl(
+        lattice,
+        n_flavors,
+        spin,
+        basis,
+        terms,
+        params,
+        external_charges=external_charges,
+        spectrum_options=spectrum_options,
+        retain_eigenvectors=True,
     )
