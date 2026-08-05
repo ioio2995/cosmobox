@@ -17,6 +17,7 @@ from cosmobox.level0.reports import (
     SpectrumReport,
     TermExpectations,
     TermStatistics,
+    _eigenpair_diagnostic,
     build_level0_report,
 )
 
@@ -372,3 +373,130 @@ def test_rejects_non_positive_n_flavors() -> None:
     lattice, report, terms, params = _build("triangle")
     with pytest.raises(ValueError):
         build_level0_report(lattice, 0, 1, report, terms, params)
+
+
+# ---------------------------------------------------------------------------
+# SpectrumOptions.seed validation
+# ---------------------------------------------------------------------------
+
+
+def test_spectrum_options_rejects_negative_seed() -> None:
+    with pytest.raises(ValueError):
+        SpectrumOptions(seed=-1)
+
+
+def test_spectrum_options_rejects_bool_seed() -> None:
+    with pytest.raises(ValueError):
+        SpectrumOptions(seed=True)
+
+
+def test_spectrum_options_rejects_non_int_seed() -> None:
+    with pytest.raises(ValueError):
+        SpectrumOptions(seed=1.5)
+
+
+# ---------------------------------------------------------------------------
+# Refuse to diagonalize a non-Hermitian H_total (dense and sparse)
+# ---------------------------------------------------------------------------
+
+
+def _two_key_basis_and_non_hermitian_terms():
+    lattice = build_lattice("triangle")
+    real_report = build_basis(lattice, 2, 1)
+    two_keys = real_report.keys[:2]
+    basis = BasisReport(
+        keys=two_keys,
+        sectors=(),
+        excluded_sectors=(),
+        mean_flux_configs_per_occupation=0.0,
+        max_flux_configs_per_occupation=0,
+    )
+    zero = sp.csr_matrix((2, 2), dtype=np.complex128)
+    non_hermitian = sp.csr_matrix(np.array([[0, 1], [0, 0]], dtype=np.complex128))
+    terms = HamiltonianTerms(dot=zero, hopping=zero, electric=zero, magnetic=non_hermitian)
+    return lattice, basis, terms
+
+
+def test_dense_path_rejects_non_hermitian_total() -> None:
+    lattice, basis, terms = _two_key_basis_and_non_hermitian_terms()
+    params = _params(len(lattice.nodes))
+    options = SpectrumOptions(max_dense_dimension=10)
+    with pytest.raises(ValueError, match="not Hermitian"):
+        build_level0_report(lattice, 2, 1, basis, terms, params, spectrum_options=options)
+
+
+def test_sparse_path_rejects_non_hermitian_total() -> None:
+    lattice, basis, terms = _two_key_basis_and_non_hermitian_terms()
+    params = _params(len(lattice.nodes))
+    options = SpectrumOptions(max_dense_dimension=0, n_eigenvalues=1)
+    # non-Hermitian input must be a ValueError (consistency error), never a
+    # SpectrumReport(status="failed") produced by letting ARPACK choke on it.
+    with pytest.raises(ValueError, match="not Hermitian"):
+        build_level0_report(lattice, 2, 1, basis, terms, params, spectrum_options=options)
+
+
+# ---------------------------------------------------------------------------
+# params.J / params.h length checks (declared-provenance sanity check)
+# ---------------------------------------------------------------------------
+
+
+def test_rejects_params_j_with_wrong_length() -> None:
+    lattice, report, terms, _ = _build("triangle")
+    bad_params = HamiltonianParameters(
+        J=(0.1, 0.2), h=(_hermitian_matrix(0, 0, 0),) * 3, t=0.0, g_E=0.0, K=0.0
+    )
+    with pytest.raises(ValueError):
+        build_level0_report(lattice, 2, 1, report, terms, bad_params)
+
+
+def test_rejects_params_h_with_wrong_length() -> None:
+    lattice, report, terms, _ = _build("triangle")
+    bad_params = HamiltonianParameters(
+        J=(0.1, 0.2, 0.3), h=(_hermitian_matrix(0, 0, 0),) * 2, t=0.0, g_E=0.0, K=0.0
+    )
+    with pytest.raises(ValueError):
+        build_level0_report(lattice, 2, 1, report, terms, bad_params)
+
+
+# ---------------------------------------------------------------------------
+# _eigenpair_diagnostic invariants, exercised directly (white-box): a
+# mismatched (eigenvalue, eigenvector) pair, an inconsistent set of term
+# matrices, and non-finite inputs must all raise -- not just get caught by
+# the test suite's own external comparisons.
+# ---------------------------------------------------------------------------
+
+
+def test_eigenpair_diagnostic_rejects_eigenvalue_not_matching_total_expectation() -> None:
+    lattice, report, terms, _ = _build("triangle")
+    dense = terms.total.toarray()
+    eigenvalues, eigenvectors = np.linalg.eigh(dense)
+    psi = eigenvectors[:, 0]
+    wrong_eigenvalue = eigenvalues[0] + 10.0  # deliberately not an eigenvalue for psi
+
+    with pytest.raises(ValueError, match="does not match the eigenvalue"):
+        _eigenpair_diagnostic(0, wrong_eigenvalue, psi, terms, tolerance=1e-10)
+
+
+def test_eigenpair_diagnostic_rejects_inconsistent_term_sum() -> None:
+    class _InconsistentTerms:
+        def __init__(self, matrix2x2_zero: sp.csr_matrix, matrix2x2_nonzero: sp.csr_matrix) -> None:
+            self.dot = matrix2x2_zero
+            self.hopping = matrix2x2_zero
+            self.electric = matrix2x2_zero
+            self.magnetic = matrix2x2_zero
+            self.total = matrix2x2_nonzero  # deliberately NOT dot+hopping+electric+magnetic
+
+    zero = sp.csr_matrix((2, 2), dtype=np.complex128)
+    nonzero_total = sp.csr_matrix(np.array([[5.0, 0], [0, 5.0]], dtype=np.complex128))
+    fake_terms = _InconsistentTerms(zero, nonzero_total)
+    psi = np.array([1.0 + 0j, 0.0 + 0j])
+
+    with pytest.raises(ValueError, match="does not match"):
+        _eigenpair_diagnostic(0, 0.0, psi, fake_terms, tolerance=1e-10)
+
+
+def test_eigenpair_diagnostic_rejects_non_finite_eigenvalue() -> None:
+    lattice, report, terms, _ = _build("triangle")
+    psi = np.array([1.0 + 0j] + [0.0 + 0j] * (len(report.keys) - 1))
+    with pytest.raises(ValueError, match="not finite"):
+        _eigenpair_diagnostic(0, float("nan"), psi, terms, tolerance=1e-10)

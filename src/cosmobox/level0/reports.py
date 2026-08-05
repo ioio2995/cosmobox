@@ -61,6 +61,8 @@ class SpectrumOptions:
             raise ValueError(f"tolerance must be positive and finite, got {self.tolerance}")
         if self.max_iterations is not None and self.max_iterations <= 0:
             raise ValueError(f"max_iterations must be positive when provided, got {self.max_iterations}")
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int) or self.seed < 0:
+            raise ValueError(f"seed must be a non-negative int, got {self.seed!r}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +105,15 @@ class SpectrumReport:
 
 @dataclass(frozen=True, slots=True)
 class Level0Report:
+    """external_charges and parameters are provenance *declared* by the
+    caller, not verified against the origin of `terms`: reports.py checks
+    every basis key is physical for the declared external_charges (an
+    independent, real check), and that params.J/params.h have the right
+    length for `lattice`, but it cannot prove either object is literally
+    the one used to build `terms` -- that identity is the caller's
+    responsibility, since reports.py never (re)builds the matrices itself.
+    """
+
     lattice_name: str
     n_flavors: int
     spin: int
@@ -140,12 +151,22 @@ def _eigenpair_diagnostic(
     terms: HamiltonianTerms,
     tolerance: float,
 ) -> EigenpairDiagnostic:
+    if not math.isfinite(eigenvalue):
+        raise ValueError(f"eigenvalue at index {index} is not finite: {eigenvalue}")
+
     psi = np.asarray(eigenvector, dtype=np.complex128)
+    if not np.all(np.isfinite(psi)):
+        raise ValueError(f"eigenvector at index {index} contains non-finite entries")
+
     residual = terms.total @ psi - eigenvalue * psi
     residual_norm = float(np.linalg.norm(residual))
+    if not math.isfinite(residual_norm):
+        raise ValueError(f"residual norm at index {index} is not finite: {residual_norm}")
 
     def _expectation(name: str, matrix: sp.csr_matrix) -> float:
         value = complex(np.vdot(psi, matrix @ psi))
+        if not (math.isfinite(value.real) and math.isfinite(value.imag)):
+            raise ValueError(f"<psi|H_{name}|psi> at eigenpair {index} is not finite: {value}")
         if abs(value.imag) > tolerance:
             raise ValueError(
                 f"<psi|H_{name}|psi> has a non-negligible imaginary part {value.imag} at eigenpair {index}"
@@ -159,6 +180,26 @@ def _eigenpair_diagnostic(
         magnetic=_expectation("magnetic", terms.magnetic),
         total=_expectation("total", terms.total),
     )
+
+    # E_dot + E_hop + E_E + E_B ~= E_total ~= eigenvalue -- an invariant this
+    # module must enforce itself, not something only the test suite checks.
+    component_sum = (
+        term_expectations.dot + term_expectations.hopping + term_expectations.electric + term_expectations.magnetic
+    )
+    scale = max(1.0, abs(component_sum), abs(term_expectations.total), abs(eigenvalue))
+    allowed = tolerance * scale
+    if abs(component_sum - term_expectations.total) > allowed:
+        raise ValueError(
+            f"sum of term expectations ({component_sum}) does not match <psi|H_total|psi> "
+            f"({term_expectations.total}) at eigenpair {index}: "
+            f"|diff|={abs(component_sum - term_expectations.total)} > allowed={allowed}"
+        )
+    if abs(term_expectations.total - eigenvalue) > allowed:
+        raise ValueError(
+            f"<psi|H_total|psi> ({term_expectations.total}) does not match the eigenvalue ({eigenvalue}) "
+            f"at eigenpair {index}: |diff|={abs(term_expectations.total - eigenvalue)} > allowed={allowed}"
+        )
+
     return EigenpairDiagnostic(
         index=index,
         eigenvalue=float(eigenvalue),
@@ -171,6 +212,16 @@ def _spectral_gap(eigenpairs: tuple[EigenpairDiagnostic, ...]) -> float | None:
     if len(eigenpairs) < 2:
         return None
     return eigenpairs[1].eigenvalue - eigenpairs[0].eigenvalue
+
+
+def _require_hermitian_total(term_stats: tuple[TermStatistics, ...], options: SpectrumOptions) -> None:
+    """Refuse eigh/eigsh on a non-Hermitian H_total: a solver-input-consistency issue, not a solver failure."""
+    total_stats = term_stats[-1]  # "total" is always last, per _TERM_NAMES order
+    if total_stats.hermiticity_defect > options.tolerance:
+        raise ValueError(
+            f"H_total is not Hermitian within tolerance: defect={total_stats.hermiticity_defect}, "
+            f"tolerance={options.tolerance}"
+        )
 
 
 def _direct_spectrum_dimension_zero(options: SpectrumOptions) -> SpectrumReport:
@@ -307,6 +358,14 @@ def build_level0_report(
                 "basis and external_charges are inconsistent"
             )
 
+    # params is declared provenance (like external_charges): reports.py cannot
+    # prove it is the exact object used to build `terms`, only catch a
+    # manifest inconsistency in the shapes it does control.
+    if len(params.J) != n_nodes:
+        raise ValueError(f"params.J has {len(params.J)} entries, expected {n_nodes}")
+    if len(params.h) != n_nodes:
+        raise ValueError(f"params.h has {len(params.h)} entries, expected {n_nodes}")
+
     term_stats = tuple(
         _term_statistics(name, matrix, dimension)
         for name, matrix in zip(
@@ -319,8 +378,10 @@ def build_level0_report(
     elif dimension == 1:
         spectrum = _direct_spectrum_dimension_one(terms, options)
     elif dimension <= options.max_dense_dimension:
+        _require_hermitian_total(term_stats, options)
         spectrum = _dense_spectrum(terms, dimension, options)
     elif options.force or dimension <= options.max_sparse_dimension:
+        _require_hermitian_total(term_stats, options)
         spectrum = _sparse_spectrum(terms, dimension, options)
     else:
         spectrum = SpectrumReport(
