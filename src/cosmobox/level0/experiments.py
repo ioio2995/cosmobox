@@ -25,6 +25,7 @@ import scipy
 
 from .basis import build_basis
 from .charges import normalize_external_charges
+from .degeneracy import DegeneracyReport, SpectralLevelGroup
 from .hamiltonian import build_hamiltonian_terms, build_key_index
 from .lattice import build_lattice
 from .params import HamiltonianParameters
@@ -124,6 +125,7 @@ def _canonical_spectrum_options_payload(options: SpectrumOptions) -> dict:
         "max_iterations": options.max_iterations,
         "force": options.force,
         "seed": options.seed,
+        "degeneracy_tolerance": options.degeneracy_tolerance,
     }
 
 
@@ -299,6 +301,7 @@ def _spectrum_options_to_json(options: SpectrumOptions) -> dict:
         "max_iterations": options.max_iterations,
         "force": options.force,
         "seed": options.seed,
+        "degeneracy_tolerance": options.degeneracy_tolerance,
     }
 
 
@@ -331,6 +334,31 @@ def _eigenpair_to_json(eigenpair: EigenpairDiagnostic) -> dict:
     }
 
 
+def _spectral_level_group_to_json(group: SpectralLevelGroup) -> dict:
+    return {
+        "start_index": group.start_index,
+        "end_index_exclusive": group.end_index_exclusive,
+        "representative_energy": group.representative_energy,
+        "min_energy": group.min_energy,
+        "max_energy": group.max_energy,
+        "multiplicity_observed": group.multiplicity_observed,
+        "lower_bound_only": group.lower_bound_only,
+    }
+
+
+def _degeneracy_to_json(degeneracy: DegeneracyReport | None) -> dict | None:
+    if degeneracy is None:
+        return None
+    return {
+        "tolerance": degeneracy.tolerance,
+        "ground_multiplicity_observed": degeneracy.ground_multiplicity_observed,
+        "first_distinct_energy": degeneracy.first_distinct_energy,
+        "first_distinct_gap": degeneracy.first_distinct_gap,
+        "groups": [_spectral_level_group_to_json(group) for group in degeneracy.groups],
+        "window_truncated": degeneracy.window_truncated,
+    }
+
+
 def _spectrum_to_json(spectrum: SpectrumReport) -> dict:
     return {
         "status": spectrum.status,
@@ -341,6 +369,7 @@ def _spectrum_to_json(spectrum: SpectrumReport) -> dict:
         "reason": spectrum.reason,
         "eigenpairs": [_eigenpair_to_json(eigenpair) for eigenpair in spectrum.eigenpairs],
         "spectral_gap": spectrum.spectral_gap,
+        "degeneracy": _degeneracy_to_json(spectrum.degeneracy),
     }
 
 

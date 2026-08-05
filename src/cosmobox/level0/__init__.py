@@ -4,11 +4,13 @@ Public API surface for external use. Internal helpers (module-private,
 prefixed with an underscore -- e.g. hamiltonian._apply_plaquette,
 hamiltonian._assemble_csr, hamiltonian._row_for_key,
 hamiltonian._canonical_csr, reports._term_statistics,
-reports._eigenpair_diagnostic, experiments._canonical_config_payload) are
+reports._eigenpair_diagnostic, reports._SpectrumComputation,
+reports._compute_spectrum, experiments._canonical_config_payload) are
 intentionally not re-exported here.
 """
 
 from .basis import BasisReport, SectorReport, build_basis
+from .degeneracy import DegeneracyReport, SpectralLevelGroup, analyze_spectral_degeneracies
 from .experiments import (
     Level0Experiment,
     Level0ExperimentResult,
@@ -34,6 +36,7 @@ from .reports import (
 
 __all__ = [
     "BasisReport",
+    "DegeneracyReport",
     "EigenpairDiagnostic",
     "HamiltonianParameters",
     "HamiltonianTerms",
@@ -41,10 +44,12 @@ __all__ = [
     "Level0ExperimentResult",
     "Level0Report",
     "SectorReport",
+    "SpectralLevelGroup",
     "SpectrumOptions",
     "SpectrumReport",
     "TermExpectations",
     "TermStatistics",
+    "analyze_spectral_degeneracies",
     "build_basis",
     "build_hamiltonian_terms",
     "build_key_index",

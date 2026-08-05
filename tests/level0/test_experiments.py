@@ -236,6 +236,32 @@ def test_json_dumps_rejects_non_finite_value_via_allow_nan_false() -> None:
         json.dumps({"x": float("nan")}, allow_nan=False)
 
 
+def test_json_export_includes_degeneracy_block() -> None:
+    result = run_level0_experiment(_config("triangle"))
+    parsed = level0_experiment_result_to_json_dict(result)
+    degeneracy = parsed["report"]["spectrum"]["degeneracy"]
+    assert degeneracy is not None
+    assert degeneracy["tolerance"] == result.report.spectrum.degeneracy.tolerance
+    assert len(degeneracy["groups"]) == len(result.report.spectrum.degeneracy.groups)
+    first_group = degeneracy["groups"][0]
+    assert set(first_group) == {
+        "start_index",
+        "end_index_exclusive",
+        "representative_energy",
+        "min_energy",
+        "max_energy",
+        "multiplicity_observed",
+        "lower_bound_only",
+    }
+
+
+def test_json_export_spectrum_options_includes_degeneracy_tolerance() -> None:
+    result = run_level0_experiment(_config("triangle"))
+    parsed = level0_experiment_result_to_json_dict(result)
+    assert parsed["config"]["spectrum_options"]["degeneracy_tolerance"] == 1e-10
+    assert parsed["report"]["spectrum_options"]["degeneracy_tolerance"] == 1e-10
+
+
 # ---------------------------------------------------------------------------
 # Level0ExperimentResult.__post_init__ invariants
 # ---------------------------------------------------------------------------

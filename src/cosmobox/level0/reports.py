@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from fractions import Fraction
 
 import numpy as np
@@ -23,6 +23,7 @@ from scipy.sparse.linalg import ArpackNoConvergence, eigsh
 
 from .basis import BasisReport
 from .charges import normalize_external_charges
+from .degeneracy import DEFAULT_DEGENERACY_TOLERANCE, DegeneracyReport, analyze_spectral_degeneracies
 from .encoding import validate_capacity, validate_spin
 from .gauge import is_physical
 from .hamiltonian import HamiltonianTerms
@@ -44,6 +45,7 @@ class SpectrumOptions:
     max_iterations: int | None = None
     force: bool = False
     seed: int = FIXED_REPORT_SEED
+    degeneracy_tolerance: float = DEFAULT_DEGENERACY_TOLERANCE
 
     def __post_init__(self) -> None:
         if self.max_dense_dimension < 0:
@@ -63,6 +65,12 @@ class SpectrumOptions:
             raise ValueError(f"max_iterations must be positive when provided, got {self.max_iterations}")
         if isinstance(self.seed, bool) or not isinstance(self.seed, int) or self.seed < 0:
             raise ValueError(f"seed must be a non-negative int, got {self.seed!r}")
+        if isinstance(self.degeneracy_tolerance, bool) or not (
+            math.isfinite(self.degeneracy_tolerance) and self.degeneracy_tolerance > 0
+        ):
+            raise ValueError(
+                f"degeneracy_tolerance must be positive and finite, got {self.degeneracy_tolerance!r}"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +109,13 @@ class SpectrumReport:
     reason: str | None
     eigenpairs: tuple[EigenpairDiagnostic, ...]
     spectral_gap: float | None
+    degeneracy: DegeneracyReport | None = None
+    """None when status != "computed", or when status == "computed" with
+    zero eigenpairs (an empty Hilbert space: dimension == 0). Populated by
+    build_level0_report for every other computed spectrum -- there is
+    nothing meaningful to group with zero eigenvalues, and manufacturing an
+    empty DegeneracyReport would invent conventions (ground multiplicity,
+    first distinct gap) with no eigenvalue behind them."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,8 +239,21 @@ def _require_hermitian_total(term_stats: tuple[TermStatistics, ...], options: Sp
         )
 
 
-def _direct_spectrum_dimension_zero(options: SpectrumOptions) -> SpectrumReport:
-    return SpectrumReport(
+@dataclass(frozen=True, slots=True)
+class _SpectrumComputation:
+    """Internal only -- not exported. Carries the eigenvectors alongside the
+    public SpectrumReport for the duration of a single build_level0_report
+    call, without adding them to the report's own (JSON-serializable)
+    contract. eigenvectors is None unless retain_eigenvectors=True was
+    passed to _compute_spectrum; build_level0_report never asks for them."""
+
+    report: SpectrumReport
+    eigenvalues: np.ndarray
+    eigenvectors: np.ndarray | None
+
+
+def _direct_spectrum_dimension_zero(options: SpectrumOptions) -> _SpectrumComputation:
+    report = SpectrumReport(
         status="computed",
         method="direct",
         requested_eigenvalues=options.n_eigenvalues,
@@ -235,9 +263,12 @@ def _direct_spectrum_dimension_zero(options: SpectrumOptions) -> SpectrumReport:
         eigenpairs=(),
         spectral_gap=None,
     )
+    return _SpectrumComputation(report=report, eigenvalues=np.array([]), eigenvectors=None)
 
 
-def _direct_spectrum_dimension_one(terms: HamiltonianTerms, options: SpectrumOptions) -> SpectrumReport:
+def _direct_spectrum_dimension_one(
+    terms: HamiltonianTerms, options: SpectrumOptions, *, retain_eigenvectors: bool
+) -> _SpectrumComputation:
     raw_eigenvalue = complex(terms.total[0, 0])
     if abs(raw_eigenvalue.imag) > options.tolerance:
         raise ValueError(
@@ -245,7 +276,7 @@ def _direct_spectrum_dimension_one(terms: HamiltonianTerms, options: SpectrumOpt
         )
     psi = np.array([1.0 + 0j])
     eigenpair = _eigenpair_diagnostic(0, raw_eigenvalue.real, psi, terms, options.tolerance)
-    return SpectrumReport(
+    report = SpectrumReport(
         status="computed",
         method="direct",
         requested_eigenvalues=options.n_eigenvalues,
@@ -255,16 +286,20 @@ def _direct_spectrum_dimension_one(terms: HamiltonianTerms, options: SpectrumOpt
         eigenpairs=(eigenpair,),
         spectral_gap=None,
     )
+    eigenvectors = psi.reshape(1, 1) if retain_eigenvectors else None
+    return _SpectrumComputation(report=report, eigenvalues=np.array([raw_eigenvalue.real]), eigenvectors=eigenvectors)
 
 
-def _dense_spectrum(terms: HamiltonianTerms, dimension: int, options: SpectrumOptions) -> SpectrumReport:
+def _dense_spectrum(
+    terms: HamiltonianTerms, dimension: int, options: SpectrumOptions, *, retain_eigenvectors: bool
+) -> _SpectrumComputation:
     eigenvalues, eigenvectors = np.linalg.eigh(terms.total.toarray())
     k = min(options.n_eigenvalues, dimension)
     eigenpairs = tuple(
         _eigenpair_diagnostic(index, eigenvalues[index], eigenvectors[:, index], terms, options.tolerance)
         for index in range(k)
     )
-    return SpectrumReport(
+    report = SpectrumReport(
         status="computed",
         method="dense",
         requested_eigenvalues=options.n_eigenvalues,
@@ -274,9 +309,16 @@ def _dense_spectrum(terms: HamiltonianTerms, dimension: int, options: SpectrumOp
         eigenpairs=eigenpairs,
         spectral_gap=_spectral_gap(eigenpairs),
     )
+    return _SpectrumComputation(
+        report=report,
+        eigenvalues=eigenvalues[:k],
+        eigenvectors=eigenvectors[:, :k] if retain_eigenvectors else None,
+    )
 
 
-def _sparse_spectrum(terms: HamiltonianTerms, dimension: int, options: SpectrumOptions) -> SpectrumReport:
+def _sparse_spectrum(
+    terms: HamiltonianTerms, dimension: int, options: SpectrumOptions, *, retain_eigenvectors: bool
+) -> _SpectrumComputation:
     k = min(options.n_eigenvalues, dimension - 1)
     rng = np.random.default_rng(options.seed)
     v0 = rng.standard_normal(dimension)
@@ -287,7 +329,7 @@ def _sparse_spectrum(terms: HamiltonianTerms, dimension: int, options: SpectrumO
             terms.total, k=k, which="SA", v0=v0, tol=options.tolerance, maxiter=options.max_iterations
         )
     except ArpackNoConvergence as exc:
-        return SpectrumReport(
+        report = SpectrumReport(
             status="failed",
             method="sparse_eigsh",
             requested_eigenvalues=options.n_eigenvalues,
@@ -297,6 +339,7 @@ def _sparse_spectrum(terms: HamiltonianTerms, dimension: int, options: SpectrumO
             eigenpairs=(),
             spectral_gap=None,
         )
+        return _SpectrumComputation(report=report, eigenvalues=np.array([]), eigenvectors=None)
 
     order = np.argsort(eigenvalues)
     eigenvalues = eigenvalues[order]
@@ -305,7 +348,7 @@ def _sparse_spectrum(terms: HamiltonianTerms, dimension: int, options: SpectrumO
         _eigenpair_diagnostic(index, eigenvalues[index], eigenvectors[:, index], terms, options.tolerance)
         for index in range(len(eigenvalues))
     )
-    return SpectrumReport(
+    report = SpectrumReport(
         status="computed",
         method="sparse_eigsh",
         requested_eigenvalues=options.n_eigenvalues,
@@ -315,6 +358,51 @@ def _sparse_spectrum(terms: HamiltonianTerms, dimension: int, options: SpectrumO
         eigenpairs=eigenpairs,
         spectral_gap=_spectral_gap(eigenpairs),
     )
+    return _SpectrumComputation(
+        report=report, eigenvalues=eigenvalues, eigenvectors=eigenvectors if retain_eigenvectors else None
+    )
+
+
+def _compute_spectrum(
+    terms: HamiltonianTerms,
+    dimension: int,
+    options: SpectrumOptions,
+    term_stats: tuple[TermStatistics, ...],
+    *,
+    retain_eigenvectors: bool = False,
+) -> _SpectrumComputation:
+    """Dispatch on dimension/options to the direct/dense/sparse/not_computed
+    branch. Internal only: build_level0_report calls this with
+    retain_eigenvectors=False and uses only `.report`; a future
+    symmetry-diagnostics entry point (outside this lot) is expected to call
+    it directly with retain_eigenvectors=True to reuse the same
+    diagonalization without re-running it or serializing the eigenvectors
+    through Level0Report/JSON."""
+    if dimension == 0:
+        return _direct_spectrum_dimension_zero(options)
+    if dimension == 1:
+        return _direct_spectrum_dimension_one(terms, options, retain_eigenvectors=retain_eigenvectors)
+    if dimension <= options.max_dense_dimension:
+        _require_hermitian_total(term_stats, options)
+        return _dense_spectrum(terms, dimension, options, retain_eigenvectors=retain_eigenvectors)
+    if options.force or dimension <= options.max_sparse_dimension:
+        _require_hermitian_total(term_stats, options)
+        return _sparse_spectrum(terms, dimension, options, retain_eigenvectors=retain_eigenvectors)
+
+    report = SpectrumReport(
+        status="not_computed",
+        method=None,
+        requested_eigenvalues=options.n_eigenvalues,
+        computed_eigenvalues=0,
+        tolerance=None,
+        reason=(
+            f"dimension {dimension} exceeds max_sparse_dimension={options.max_sparse_dimension} "
+            f"(max_dense_dimension={options.max_dense_dimension}); pass force=True to override"
+        ),
+        eigenpairs=(),
+        spectral_gap=None,
+    )
+    return _SpectrumComputation(report=report, eigenvalues=np.array([]), eigenvectors=None)
 
 
 def build_level0_report(
@@ -373,30 +461,16 @@ def build_level0_report(
         )
     )
 
-    if dimension == 0:
-        spectrum = _direct_spectrum_dimension_zero(options)
-    elif dimension == 1:
-        spectrum = _direct_spectrum_dimension_one(terms, options)
-    elif dimension <= options.max_dense_dimension:
-        _require_hermitian_total(term_stats, options)
-        spectrum = _dense_spectrum(terms, dimension, options)
-    elif options.force or dimension <= options.max_sparse_dimension:
-        _require_hermitian_total(term_stats, options)
-        spectrum = _sparse_spectrum(terms, dimension, options)
-    else:
-        spectrum = SpectrumReport(
-            status="not_computed",
-            method=None,
-            requested_eigenvalues=options.n_eigenvalues,
-            computed_eigenvalues=0,
-            tolerance=None,
-            reason=(
-                f"dimension {dimension} exceeds max_sparse_dimension={options.max_sparse_dimension} "
-                f"(max_dense_dimension={options.max_dense_dimension}); pass force=True to override"
-            ),
-            eigenpairs=(),
-            spectral_gap=None,
+    computation = _compute_spectrum(terms, dimension, options, term_stats, retain_eigenvectors=False)
+    spectrum = computation.report
+
+    if spectrum.status == "computed" and spectrum.computed_eigenvalues >= 1:
+        degeneracy_report = analyze_spectral_degeneracies(
+            [pair.eigenvalue for pair in spectrum.eigenpairs],
+            dimension=dimension,
+            tolerance=options.degeneracy_tolerance,
         )
+        spectrum = replace(spectrum, degeneracy=degeneracy_report)
 
     return Level0Report(
         lattice_name=lattice.name,

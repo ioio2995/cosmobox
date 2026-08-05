@@ -396,6 +396,120 @@ def test_spectrum_options_rejects_non_int_seed() -> None:
 
 
 # ---------------------------------------------------------------------------
+# SpectrumOptions.degeneracy_tolerance validation
+# ---------------------------------------------------------------------------
+
+
+def test_spectrum_options_default_degeneracy_tolerance_is_1e_minus_10() -> None:
+    assert SpectrumOptions().degeneracy_tolerance == 1e-10
+
+
+@pytest.mark.parametrize("bad_tolerance", [0.0, -1e-10, float("inf"), float("nan"), True])
+def test_spectrum_options_rejects_bad_degeneracy_tolerance(bad_tolerance) -> None:
+    with pytest.raises(ValueError):
+        SpectrumOptions(degeneracy_tolerance=bad_tolerance)
+
+
+# ---------------------------------------------------------------------------
+# DegeneracyReport integration into SpectrumReport
+# ---------------------------------------------------------------------------
+
+
+def test_dense_path_populates_degeneracy() -> None:
+    lattice, report, terms, params = _build("triangle")
+    result = build_level0_report(lattice, 2, 1, report, terms, params)
+
+    assert result.spectrum.status == "computed"
+    degeneracy = result.spectrum.degeneracy
+    assert degeneracy is not None
+    assert degeneracy.tolerance == 1e-10
+    eigenvalues = [ep.eigenvalue for ep in result.spectrum.eigenpairs]
+    assert sum(group.multiplicity_observed for group in degeneracy.groups) == len(eigenvalues)
+    assert degeneracy.groups[0].min_energy == pytest.approx(eigenvalues[0])
+
+
+def test_sparse_path_populates_degeneracy() -> None:
+    lattice, report, terms, params = _build("ring4")
+    options = SpectrumOptions(max_dense_dimension=0, n_eigenvalues=4)
+    result = build_level0_report(lattice, 2, 1, report, terms, params, spectrum_options=options)
+
+    assert result.spectrum.method == "sparse_eigsh"
+    assert result.spectrum.degeneracy is not None
+
+
+def test_custom_degeneracy_tolerance_is_used() -> None:
+    lattice, report, terms, params = _build("triangle")
+    options = SpectrumOptions(degeneracy_tolerance=1e-3)
+    result = build_level0_report(lattice, 2, 1, report, terms, params, spectrum_options=options)
+    assert result.spectrum.degeneracy.tolerance == 1e-3
+
+
+def test_dimension_zero_degeneracy_is_none() -> None:
+    lattice = build_lattice("triangle")
+    basis = BasisReport(
+        keys=(), sectors=(), excluded_sectors=(), mean_flux_configs_per_occupation=0.0, max_flux_configs_per_occupation=0
+    )
+    empty = _empty_csr()
+    terms = HamiltonianTerms(dot=empty, hopping=empty, electric=empty, magnetic=empty)
+    params = _params(len(lattice.nodes))
+
+    result = build_level0_report(lattice, 2, 1, basis, terms, params)
+    assert result.spectrum.status == "computed"
+    assert result.spectrum.computed_eigenvalues == 0
+    assert result.spectrum.degeneracy is None
+
+
+def test_dimension_one_degeneracy_is_a_single_group() -> None:
+    lattice = build_lattice("triangle")
+    real_report = build_basis(lattice, 2, 1)
+    single_key = real_report.keys[0]
+    basis = BasisReport(
+        keys=(single_key,),
+        sectors=(SectorReport(charge_vector=(Fraction(0),) * 3, matter_multiplicity=1, n_flux_admissible=1, dimension=1),),
+        excluded_sectors=(),
+        mean_flux_configs_per_occupation=1.0,
+        max_flux_configs_per_occupation=1,
+    )
+    diagonal_value = 1.75
+    single = sp.csr_matrix(np.array([[diagonal_value]], dtype=np.complex128))
+    zero = sp.csr_matrix((1, 1), dtype=np.complex128)
+    terms = HamiltonianTerms(dot=zero, hopping=zero, electric=single, magnetic=zero)
+    params = _params(len(lattice.nodes))
+
+    result = build_level0_report(lattice, 2, 1, basis, terms, params)
+    assert result.spectrum.degeneracy is not None
+    assert len(result.spectrum.degeneracy.groups) == 1
+    assert result.spectrum.degeneracy.groups[0].representative_energy == pytest.approx(diagonal_value)
+    assert result.spectrum.degeneracy.groups[0].lower_bound_only is False  # full 1-dim space was covered
+
+
+def test_failed_spectrum_degeneracy_is_none() -> None:
+    lattice, report, terms, params = _build("ring4")
+    options = SpectrumOptions(max_dense_dimension=0, n_eigenvalues=3, max_iterations=1)
+    result = build_level0_report(lattice, 2, 1, report, terms, params, spectrum_options=options)
+    assert result.spectrum.status == "failed"
+    assert result.spectrum.degeneracy is None
+
+
+def test_not_computed_spectrum_degeneracy_is_none() -> None:
+    lattice, report, terms, params = _build("triangle")
+    dimension = len(report.keys)
+    options = SpectrumOptions(max_dense_dimension=0, max_sparse_dimension=dimension - 1)
+    result = build_level0_report(lattice, 2, 1, report, terms, params, spectrum_options=options)
+    assert result.spectrum.status == "not_computed"
+    assert result.spectrum.degeneracy is None
+
+
+def test_degeneracy_window_truncated_when_n_eigenvalues_below_dimension() -> None:
+    lattice, report, terms, params = _build("ring4")
+    dimension = len(report.keys)
+    assert dimension > 4
+    options = SpectrumOptions(n_eigenvalues=4)
+    result = build_level0_report(lattice, 2, 1, report, terms, params, spectrum_options=options)
+    assert result.spectrum.degeneracy.window_truncated is True
+
+
+# ---------------------------------------------------------------------------
 # Refuse to diagonalize a non-Hermitian H_total (dense and sparse)
 # ---------------------------------------------------------------------------
 
