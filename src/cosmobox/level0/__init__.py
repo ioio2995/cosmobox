@@ -5,8 +5,9 @@ prefixed with an underscore -- e.g. hamiltonian._apply_plaquette,
 hamiltonian._assemble_csr, hamiltonian._row_for_key,
 hamiltonian._canonical_csr, reports._term_statistics,
 reports._eigenpair_diagnostic, reports._SpectrumComputation,
-reports._compute_spectrum, experiments._canonical_config_payload) are
-intentionally not re-exported here.
+reports._compute_spectrum, experiments._canonical_config_payload,
+symmetries._one_body_flavor_operator, symmetries._row_for_key,
+symmetries._assemble_csr) are intentionally not re-exported here.
 """
 
 from .basis import BasisReport, SectorReport, build_basis
@@ -33,6 +34,13 @@ from .reports import (
     TermStatistics,
     build_level0_report,
 )
+from .symmetries import (
+    OperatorKind,
+    SymmetrySectorDiagnostic,
+    analyze_symmetry_in_subspaces,
+    build_flavor_casimir,
+    build_flavor_generators,
+)
 
 __all__ = [
     "BasisReport",
@@ -43,14 +51,19 @@ __all__ = [
     "Level0Experiment",
     "Level0ExperimentResult",
     "Level0Report",
+    "OperatorKind",
     "SectorReport",
     "SpectralLevelGroup",
     "SpectrumOptions",
     "SpectrumReport",
+    "SymmetrySectorDiagnostic",
     "TermExpectations",
     "TermStatistics",
     "analyze_spectral_degeneracies",
+    "analyze_symmetry_in_subspaces",
     "build_basis",
+    "build_flavor_casimir",
+    "build_flavor_generators",
     "build_hamiltonian_terms",
     "build_key_index",
     "build_lattice",
