@@ -171,9 +171,31 @@ La formule courte officielle de remise en conformité est :
 Applique `docs/collaboration-governance.md` et reprends au dernier jalon validé.
 ```
 
-Une autorisation de modifier, committer, pousser, créer une PR ou fusionner ne vaut que pour l’action explicitement autorisée.
+D015 est complétée et partiellement supersédée sur le traitement Git des lots d’implémentation par D016.
 
-Toute évolution de cette gouvernance exige une nouvelle décision explicite et une validation de Lionel.
+## D016 — Livraison directe des lots d’implémentation
+
+**Statut : gelé**
+
+Lorsqu’un lot d’implémentation ou un correctif est autorisé sur une branche de travail explicitement désignée, cette autorisation inclut par défaut la chaîne complète :
+
+```text
+modifier → tester → stager explicitement → committer → pousser → vérifier → rapporter
+```
+
+Claude Code pousse donc le commit du lot avant de remettre son rapport de livraison. Le rapport fournit le SHA distant et le diff vérifiable afin que ChatGPT puisse effectuer immédiatement la revue réelle du code, sans échange intermédiaire consacré uniquement à l’autorisation du commit ou du push.
+
+Cette autorisation intégrée reste strictement bornée :
+
+- seuls les fichiers du périmètre validé peuvent être inclus ;
+- le push est limité à la branche de travail désignée ;
+- tout fichier sans rapport doit rester exclu ;
+- toute divergence de périmètre ou de branche impose un arrêt avant publication ;
+- aucun force-push ou écrasement d’historique n’est autorisé ;
+- aucune PR, fusion, release ou modification normative hors périmètre n’est autorisée implicitement ;
+- le passage au lot suivant reste soumis à la revue de ChatGPT et à la validation de Lionel.
+
+Un commit poussé ou une suite de tests réussie ne vaut pas acceptation scientifique du lot.
 
 ## Questions ouvertes
 
