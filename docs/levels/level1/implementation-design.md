@@ -502,7 +502,9 @@ V06, V07, V14 et V16 doivent passer.
 
 Ne jamais apparier les groupes par rang énergétique seul.
 
-L’identité utilise les étiquettes gelées : géométrie, paramètres, complétude, T, translation, réflexion et multiplicité.
+L’identité utilise les étiquettes gelées : géométrie, paramètres (Hamiltonien identique à l’exception de S), complétude, T, translation, réflexion et multiplicité. Le rang énergétique sert uniquement à rechercher les candidats et détecter une fenêtre incomplète, jamais à prouver une identité physique.
+
+Labels de symétrie (D018) : `twice_T` (demi-entier exact, via `Tr(rho T²) ≈ T(T+1)`, résidu <= 1e-8) ; caractère restreint `chi_A = Tr(Psi† U_A Psi)` pour translation/réflexion, accepté seulement pour un générateur appartenant réellement au sous-groupe de symétrie du Hamiltonien (validé par stabilité du sous-espace + unitarité de l’opérateur restreint, tolérance 1e-8), sinon marqué `not_applicable` (jamais une valeur numérique arbitraire) ; un calcul invalide malgré un générateur applicable est marqué `unavailable`. Deux caractères correspondent si `|chi_A^(1) - chi_A^(2)| <= 1e-8 * max(1, |chi_A^(1)|, |chi_A^(2)|)`.
 
 Statuts explicites obligatoires :
 
@@ -513,6 +515,8 @@ target_group_not_in_window
 structurally_not_applicable
 ```
 
+Une multiplicité différente interdit toujours `exact_label_match`. Un groupe `partial_subspace` ne produit jamais d’`exact_label_match` normatif.
+
 ### 8.2 Verdicts fermés
 
 Primaire :
@@ -520,6 +524,10 @@ Primaire :
 ```text
 gamma_O
 ```
+
+Formule (D018) : `difference = |O_high - O_low|`, `amplitude = max(|O_high|, |O_low|)` ; `null` avec `normalization_denominator_below_floor` si `amplitude <= NORMALIZATION_FLOOR` (1e-12), sinon `gamma_O = difference / amplitude`. Verdict secondaire : `robuste` si `difference <= max(0.05, 0.15 * amplitude)`, frontière incluse.
+
+Pour un groupe `partial_subspace` : aucun verdict `robuste`/`non_robuste`, `verdict = indeterminate`, `null_reason = "truncated_spectral_group"` (distinct de `"ambiguous_cross_truncation_match"`, qui décrit l’appariement).
 
 Secondaires :
 
@@ -530,6 +538,8 @@ C_TT_conn
 flavor_singular_value_ratio
 path_phase_coherence
 ```
+
+`G_occ` reçoit la même formule `gamma_O`/verdict une fois sa valeur fournie ; son propre calcul physique reste hors périmètre de ce lot.
 
 Aucune autre observable ne reçoit de verdict automatique.
 

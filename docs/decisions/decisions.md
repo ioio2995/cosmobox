@@ -197,6 +197,49 @@ Cette autorisation intégrée reste strictement bornée :
 
 Un commit poussé ou une suite de tests réussie ne vaut pas acceptation scientifique du lot.
 
+## D018 — Formule de gamma_O et labels de symétrie inter-S du niveau 1B
+
+**Statut : gelé**
+
+Ces décisions comblent les lacunes identifiées lors de l'audit du lot 1B-6 : `docs/levels/level1/specification.md` §9 et §12 nommaient `gamma_O` et les labels de symétrie sans en donner la formule exacte.
+
+**Formule de `gamma_O`** (diagnostic primaire de robustesse, pour une observable scalaire réelle ou complexe `O` évaluée aux deux plus grandes valeurs disponibles de `S`) :
+
+```text
+difference = |O_high - O_low|
+amplitude  = max(|O_high|, |O_low|)
+
+si amplitude <= NORMALIZATION_FLOOR (1e-12) :
+    gamma_O.value = null
+    gamma_O.null_reason = "normalization_denominator_below_floor"
+sinon :
+    gamma_O = difference / amplitude
+```
+
+Le plancher sert à décider que la normalisation n'est pas physiquement interprétable ; il ne remplace jamais le dénominateur pour fabriquer une valeur artificielle. `gamma_O` est symétrique entre les deux valeurs de `S`, sans dimension, invariant sous une renormalisation multiplicative commune non nulle, et borné par 2 hors plancher.
+
+Le verdict secondaire binaire reste celui déjà gelé par D013 : `robuste` si `difference <= max(0.05, 0.15 * amplitude)`, `non_robuste` sinon ; à la frontière exacte, le verdict est `robuste`. `gamma_O` (continu) et le verdict (binaire) ne sont pas redondants et sont tous deux conservés.
+
+**`G_occ`** : la construction physique de `G_occ` (normalisation par les occupations locales) reste hors périmètre du lot 1B-6. L'infrastructure de robustesse accepte une valeur `G_occ` déjà calculée en amont et lui applique la même formule `gamma_O`/verdict qu'à tout autre scalaire de la liste fermée — elle n'invente jamais le calcul de `G_occ` lui-même.
+
+**Label de saveur `T`** : pour un groupe complet, `c_T = Tr(rho · T²)` (Casimir moyen déjà calculable via les primitives 1B-2/1B-3 existantes). Le demi-entier `T` est celui qui résout `T(T+1) ≈ c_T`, stocké sous forme exacte `twice_T: int` (`T = twice_T / 2`). Le label n'est normatif que si le résidu `δ_T = |c_T - T(T+1)| <= 1e-8` ; sinon le label est indisponible et l'appariement exact est impossible pour ce groupe.
+
+**Labels de translation et de réflexion** : pour chaque générateur de symétrie `A` appartenant réellement au sous-groupe qui laisse le Hamiltonien invariant (jamais supposé depuis le seul graphe nu, conformément au résultat V07 déjà accepté), le label normatif est le caractère restreint `chi_A = Tr(Psi† U_A Psi)` sur le multiplet complet. Il n'est accepté comme label normatif qu'après validation de la stabilité du sous-espace sous `U_A` (`||(I - Pi) U_A Psi||_F <= 1e-8`) et de l'unitarité de l'opérateur restreint (`||Psi† U_A Psi)† (Psi† U_A Psi) - I||_F <= 1e-8`). `chi_A` est invariant sous `Psi -> Psi V`.
+
+Le qualificatif « lorsqu'elle est définie » (spécification §12) s'applique **à chaque générateur individuellement**, translation et réflexion également : un générateur qui n'appartient pas au sous-groupe de symétrie du Hamiltonien effectif (par exemple la translation sous `j_break`) est marqué `not_applicable`, jamais remplacé par une valeur numérique arbitraire. Trois états distincts sont représentés pour chaque label de symétrie — `numeric` (valeur calculée et validée), `not_applicable` (générateur non symétrique à ce point), `unavailable` (générateur applicable mais calcul invalide, résidu au-dessus de la tolérance) — jamais confondus dans une simple valeur `None`.
+
+Deux caractères sont considérés égaux si `|chi_A^(1) - chi_A^(2)| <= 1e-8 * max(1, |chi_A^(1)|, |chi_A^(2)|)`.
+
+**Clé d'appariement inter-S** : géométrie, identité du Hamiltonien à l'exception de `S` (paramètres `J`, `h`, `t`, `g_E`, `K`, secteur physique, charges externes éventuelles), statut (`complete_multiplet`/`partial_subspace`), multiplicité, `twice_T`, label de translation, label de réflexion. Le rang énergétique n'entre jamais dans cette clé — il sert uniquement à rechercher les candidats et à détecter une fenêtre incomplète.
+
+L'appariement inter-S exige un Hamiltonien identique à l'exception de `S` : le point de référence `J_i=1` s'apparie uniquement avec lui-même, un cas `j_break` s'apparie uniquement avec exactement le même cas `j_break` ; comparer la référence à `j_break`, ou deux perturbations différentes entre elles, est interdit.
+
+Statuts d'appariement (déjà nommés en §12, formalisés ici) : `exact_label_match` (exactement un candidat de multiplicité et labels identiques), `ambiguous_cross_truncation_match` (plusieurs candidats, label requis indisponible d'un seul côté, ou troncature empêchant une décision), `target_group_not_in_window` (groupe attendu absent de la fenêtre), `structurally_not_applicable` (catégorie physique inexistante pour cette géométrie, ex. `ring4`/T=3/2). Une multiplicité différente interdit toujours `exact_label_match`, même si `T` ou un caractère coïncident par ailleurs. Un groupe `partial_subspace` ne produit jamais d'`exact_label_match` normatif.
+
+**Groupes tronqués et verdicts** : pour un groupe `partial_subspace`, une différence ou un `gamma_O` exploratoire peut être calculé si les deux valeurs existent, mais aucun verdict `robuste`/`non_robuste` n'est produit — `verdict = indeterminate`, `null_reason = "truncated_spectral_group"`. Cette raison décrit l'impossibilité de conclure à partir du statut du groupe lui-même, distincte de `"ambiguous_cross_truncation_match"` qui décrit l'échec du processus d'appariement ; les deux ne sont jamais fusionnées.
+
+**Types comparables** : les verdicts de robustesse ne s'appliquent qu'aux scalaires (réels ou complexes) de la liste fermée déjà gelée par D013 (`gamma_O`, `G_occ`, `rho_QQ`, `C_TT_conn`, `flavor_singular_value_ratio`, `path_phase_coherence`). Aucune métrique n'est définie sur les listes (valeurs propres, valeurs singulières), la matrice `G` complète, `flavor_frobenius_squared`, ou les statistiques d'orbite non inscrites dans cette liste.
+
 ## Questions ouvertes
 
 - organisation logicielle des utilitaires de campagne, mutualisés ou locaux ;

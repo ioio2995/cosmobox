@@ -210,6 +210,22 @@ gamma_O    : normalisation par l’amplitude de l’opérateur
 
 `gamma_O` élimine une renormalisation multiplicative globale, mais ne supprime pas nécessairement les effets de saturation m=±S ni les dépendances à l’état de flux.
 
+Formule exacte (D018), pour une observable scalaire réelle ou complexe `O` évaluée aux deux plus grandes valeurs disponibles de S :
+
+```text
+difference = |O_high - O_low|
+amplitude  = max(|O_high|, |O_low|)
+
+si amplitude <= NORMALIZATION_FLOOR (1e-12) :
+    gamma_O = null, null_reason = "normalization_denominator_below_floor"
+sinon :
+    gamma_O = difference / amplitude
+```
+
+Le plancher décide que la normalisation n’est pas physiquement interprétable ; il ne remplace jamais le dénominateur pour fabriquer une valeur artificielle. `gamma_O` est symétrique entre les deux valeurs de S, sans dimension, invariant sous une renormalisation multiplicative commune non nulle, borné par 2 hors plancher.
+
+La construction physique de `G_occ` reste hors périmètre du niveau 1B-6 : une valeur `G_occ` déjà calculée reçoit la même formule `gamma_O`/verdict que tout autre scalaire de la liste fermée, sans que son propre calcul soit spécifié ici.
+
 Aucune transformation logarithmique en distance n’est autorisée.
 
 ## 10. Diagnostics dans un sous-espace spectral
@@ -273,12 +289,20 @@ Les groupes spectraux ne sont jamais appariés par le seul rang énergétique.
 
 L’appariement utilise :
 
-- géométrie et paramètres ;
+- géométrie et paramètres (Hamiltonien identique à l’exception de S) ;
 - groupe complet ;
 - T ;
 - translation ;
 - réflexion lorsqu’elle est définie ;
 - multiplicité.
+
+Le qualificatif « lorsqu’elle est définie » (D018) s’applique à chaque générateur individuellement, translation et réflexion également : un générateur qui n’appartient pas au sous-groupe de symétrie du Hamiltonien effectif à ce point (par exemple la translation sous `j_break`, cf. V07) est marqué `not_applicable`, jamais remplacé par une valeur numérique arbitraire. Trois états sont distingués pour chaque label de symétrie — `numeric`, `not_applicable`, `unavailable` (calcul invalide) — jamais confondus dans un simple `None`.
+
+**Label T** (D018) : `c_T = Tr(rho · T²)` ; T résout `T(T+1) ≈ c_T`, stocké sous forme exacte `twice_T` (`T = twice_T / 2`), normatif seulement si `|c_T - T(T+1)| <= 1e-8`.
+
+**Labels de translation/réflexion** (D018) : caractère restreint `chi_A = Tr(Psi† U_A Psi)` sur le multiplet complet, pour chaque générateur A appartenant réellement au sous-groupe de symétrie du Hamiltonien (jamais supposé depuis le seul graphe nu). Accepté comme label normatif seulement après validation de la stabilité du sous-espace sous U_A et de l’unitarité de l’opérateur restreint (tolérance 1e-8 chacune). `chi_A` est invariant sous Psi -> Psi V. Deux caractères correspondent si `|chi_A^(1) - chi_A^(2)| <= 1e-8 * max(1, |chi_A^(1)|, |chi_A^(2)|)`.
+
+L’appariement inter-S exige un Hamiltonien identique à l’exception de S : le point de référence J_i=1 s’apparie uniquement avec lui-même, un cas `j_break` uniquement avec exactement le même cas `j_break`. Comparer la référence à `j_break`, ou deux perturbations différentes, est interdit. Une multiplicité différente interdit toujours `exact_label_match`, même si T ou un caractère coïncident par ailleurs.
 
 Les statuts autorisés sont notamment :
 
@@ -289,7 +313,7 @@ target_group_not_in_window
 structurally_not_applicable
 ```
 
-Aucun verdict n’est produit pour un appariement ambigu ou un groupe tronqué.
+Aucun verdict n’est produit pour un appariement ambigu ou un groupe tronqué. Un groupe `partial_subspace` ne produit jamais d’`exact_label_match` normatif.
 
 ## 13. Robustesse sous troncature
 
@@ -327,14 +351,19 @@ flavor_frobenius_squared
 individual_singular_values
 ```
 
-Pour une observable approuvée x, on compare les deux plus grandes valeurs de S disponibles :
+Pour une observable approuvée x, on compare les deux plus grandes valeurs de S disponibles (même formule que `gamma_O`, D018) :
 
 ```text
 D_S = |x_high - x_low|
-stable si D_S <= max(0.05, 0.15 * max(|x_high|, |x_low|))
+robuste si D_S <= max(0.05, 0.15 * max(|x_high|, |x_low|))
+non_robuste sinon
 ```
 
+À la frontière exacte, le verdict est `robuste`. `gamma_O` (continu) et le verdict binaire ne sont pas redondants et sont tous deux conservés.
+
 La différence réelle est toujours stockée. Aucun verdict n’est produit sur une phase isolée lorsque l’amplitude associée est sous le plancher numérique.
+
+Pour un groupe `partial_subspace`, une différence ou un `gamma_O` exploratoire peut être calculé si les deux valeurs existent, mais aucun verdict `robuste`/`non_robuste` n’est produit : `verdict = indeterminate`, `null_reason = "truncated_spectral_group"` — raison distincte de `"ambiguous_cross_truncation_match"` (qui décrit l’échec de l’appariement lui-même), les deux ne sont jamais fusionnées.
 
 ## 14. Campagne gelée
 

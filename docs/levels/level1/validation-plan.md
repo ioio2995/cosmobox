@@ -32,4 +32,7 @@ Ce document est normatif pour l’acceptation de l’implémentation décrite da
 - la dispersion intra-orbite au point symétrique est un défaut numérique ;
 - `rho_QQ=null` avec `zero_local_charge_variance` est le résultat attendu dans le secteur de saveur maximale à demi-remplissage ;
 - aucun test ne doit promouvoir un groupe tronqué en multiplet complet ;
-- les fenêtres du contrôle `j_break` restent 16 pour triangle et 24 pour ring5.
+- les fenêtres du contrôle `j_break` restent 16 pour triangle et 24 pour ring5 ;
+- `gamma_O = |O_high - O_low| / max(|O_high|, |O_low|)`, `null` avec `normalization_denominator_below_floor` si le dénominateur est sous `NORMALIZATION_FLOOR` (D018) ; verdict `robuste` si `|O_high - O_low| <= max(0.05, 0.15 * max(|O_high|, |O_low|))`, frontière incluse ;
+- un appariement ambigu ou un groupe `partial_subspace` ne produit jamais de verdict `robuste`/`non_robuste` (`null_reason = "truncated_spectral_group"` pour un groupe tronqué, `"ambiguous_cross_truncation_match"` pour l’appariement — jamais fusionnés) ;
+- l’appariement inter-S exige un Hamiltonien identique à l’exception de S (référence avec référence, un `j_break` avec exactement le même `j_break`, jamais l’un avec l’autre).
