@@ -25,6 +25,12 @@ from .automorphisms import (
     translation_automorphism,
     translation_unitary_automorphism,
 )
+from .diagnostics import (
+    HermitianRestrictedDiagnostics,
+    NonHermitianRestrictedDiagnostics,
+    build_hermitian_restricted_diagnostics,
+    build_non_hermitian_restricted_diagnostics,
+)
 from .flavor import (
     FlavorCorrelatorMatrix,
     build_flavor_correlator_matrix,
@@ -80,7 +86,9 @@ __all__ = [
     "FLAVOR_COMPONENTS",
     "FlavorCorrelatorMatrix",
     "GraphAutomorphism",
+    "HermitianRestrictedDiagnostics",
     "NORMALIZATION_FLOOR",
+    "NonHermitianRestrictedDiagnostics",
     "NormalizedMoment",
     "OrbitComparabilityKey",
     "OrbitElement",
@@ -96,9 +104,11 @@ __all__ = [
     "build_automorphism",
     "build_dressed_matter_matrix",
     "build_flavor_correlator_matrix",
+    "build_hermitian_restricted_diagnostics",
     "build_local_charge_operator",
     "build_local_flavor_generator",
     "build_local_flavor_generators",
+    "build_non_hermitian_restricted_diagnostics",
     "build_restricted_operator",
     "canonical_multiplet_expectation",
     "charge_correlator_connected",
