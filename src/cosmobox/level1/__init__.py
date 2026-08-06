@@ -73,6 +73,7 @@ from .matching import (
     match_spectral_group,
     symmetry_labels_match,
 )
+from .assembly import AssemblyContradiction, AssemblyReport, assemble_execution
 from .matter import apply_dressed_matter, build_dressed_matter_matrix
 from .orbits import (
     DRESSED_MATTER_OBSERVABLE_KIND,
@@ -94,6 +95,17 @@ from .restricted import (
     exploratory_partial_subspace_mean,
     extract_group_state,
 )
+from .results import (
+    OBSERVABLE_KINDS,
+    RECORD_KINDS,
+    HamiltonianIdentity,
+    OrbitResultPayload,
+    Provenance,
+    ResultRecord,
+    ScientificIdentity,
+    SpectralGroupIdentity,
+    build_orbit_result_payload,
+)
 from .robustness import (
     ABSOLUTE_ROBUSTNESS_THRESHOLD,
     INDETERMINATE,
@@ -105,17 +117,21 @@ from .robustness import (
     compute_gamma_o,
     evaluate_robustness,
 )
+from .serialization import SCHEMA_VERSION, serialize_result_record
 from .transporters import apply_transporter
 
 __all__ = [
     "ABSOLUTE_ROBUSTNESS_THRESHOLD",
     "AMBIGUOUS_CROSS_TRUNCATION_MATCH",
+    "AssemblyContradiction",
+    "AssemblyReport",
     "COMPLETE_MULTIPLET",
     "DRESSED_MATTER_OBSERVABLE_KIND",
     "EXACT_LABEL_MATCH",
     "FLAVOR_COMPONENTS",
     "FlavorCorrelatorMatrix",
     "GraphAutomorphism",
+    "HamiltonianIdentity",
     "HermitianRestrictedDiagnostics",
     "INDETERMINATE",
     "MatchOutcome",
@@ -125,15 +141,23 @@ __all__ = [
     "NUMERIC",
     "NonHermitianRestrictedDiagnostics",
     "NormalizedMoment",
+    "OBSERVABLE_KINDS",
     "OrbitComparabilityKey",
     "OrbitElement",
+    "OrbitResultPayload",
     "OrbitStatistics",
     "OrientedPath",
     "PARTIAL_SUBSPACE",
+    "Provenance",
+    "RECORD_KINDS",
     "RELATIVE_ROBUSTNESS_THRESHOLD",
     "ROBUST",
+    "ResultRecord",
     "RobustnessResult",
+    "SCHEMA_VERSION",
     "STRUCTURALLY_NOT_APPLICABLE",
+    "ScientificIdentity",
+    "SpectralGroupIdentity",
     "SpectralGroupMatchKey",
     "SpectralGroupState",
     "SymmetryLabel",
@@ -145,6 +169,7 @@ __all__ = [
     "aggregate_validated_orbit",
     "apply_dressed_matter",
     "apply_transporter",
+    "assemble_execution",
     "build_automorphism",
     "build_dressed_matter_matrix",
     "build_flavor_correlator_matrix",
@@ -153,6 +178,7 @@ __all__ = [
     "build_local_flavor_generator",
     "build_local_flavor_generators",
     "build_non_hermitian_restricted_diagnostics",
+    "build_orbit_result_payload",
     "build_restricted_operator",
     "canonical_multiplet_expectation",
     "charge_correlator_connected",
@@ -189,6 +215,7 @@ __all__ = [
     "raw_moment",
     "reflection_automorphism",
     "reflection_unitary_automorphism",
+    "serialize_result_record",
     "symmetry_labels_match",
     "symmetry_subgroup",
     "transform_oriented_path",

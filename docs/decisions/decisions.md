@@ -240,6 +240,25 @@ Statuts d'appariement (déjà nommés en §12, formalisés ici) : `exact_label_m
 
 **Types comparables** : les verdicts de robustesse ne s'appliquent qu'aux scalaires (réels ou complexes) de la liste fermée déjà gelée par D013 (`gamma_O`, `G_occ`, `rho_QQ`, `C_TT_conn`, `flavor_singular_value_ratio`, `path_phase_coherence`). Aucune métrique n'est définie sur les listes (valeurs propres, valeurs singulières), la matrice `G` complète, `flavor_frobenius_squared`, ou les statistiques d'orbite non inscrites dans cette liste.
 
+## D019 — Schéma de sortie v2 du niveau 1B (lot 1B-7)
+
+**Statut : gelé**
+
+L'audit du lot 1B-7 a établi que `schemas/level1/correlators-v1.schema.json` ne permet pas de valider fortement les résultats des lots 1B-4 à 1B-6 (`additionalProperties: true` racine, aucun champ pour le verdict, l'appariement, les statistiques d'orbite, les labels de symétrie ou les diagnostics d'opérateur restreint, `"unavailable"` absent de l'énumération `null_reason`).
+
+Décision : `correlators-v1.schema.json` **n'est pas modifié** et reste un contrat historique. Un nouveau schéma `schemas/level1/correlators-v2.schema.json` (JSON Schema Draft 2020-12) est créé :
+
+- structure racine stricte (`additionalProperties: false`) : `schema_version, repository_commit, manifest_fingerprint, campaign_id, identity, provenance, record_kind, observable_kind, payload` — plus de champ `value` polymorphe unique ;
+- `record_kind` (énumération fermée à 8 valeurs) : `raw_observable, normalized_observable, restricted_diagnostic, flavor_diagnostic, orbit_statistic, symmetry_label, matching, robustness` ;
+- `observable_kind` (énumération fermée à 16 valeurs, auditée contre le code réel des lots 1B-1 à 1B-6, jamais un nom libre) : `C_QQ_raw, C_QQ_conn, C_TT_raw, C_TT_conn, O_ij_raw` (bruts) ; `rho_QQ, G_occ, gamma_O` (normalisés, nullables selon D018) ; `raw_G, flavor_singlet, flavor_frobenius_squared, flavor_singular_values, flavor_singular_value_ratio` (diagnostics de saveur) ; `flavor_casimir_label, translation_character, reflection_character` (labels de symétrie). `path_phase_coherence` (D013) en est délibérément absent : aucun module ne le produit encore ;
+- `SymmetryLabel` sérialisé avec trois états distincts (`numeric`/`not_applicable`/`unavailable`), imposés par le schéma via `if`/`then` — `"unavailable"` n'est jamais un `null_reason` ;
+- `payload` discriminé par `record_kind` (et par `observable_kind` pour `flavor_diagnostic`) via `if`/`then`, jamais un type unique polymorphe ;
+- `MatchOutcome` : `matched_group` imposé non nul uniquement pour `exact_label_match`, imposé nul pour les trois autres statuts ;
+- `RobustnessResult` : verdict définitif ⇒ `null_reason` nul ; verdict indéterminé ⇒ `null_reason` non nul ; appariement non exact ⇒ `gamma_o`/`difference`/`amplitude` nuls ; aucun verdict définitif n'est jamais accepté pour un groupe `partial_subspace` (vérifié à la fois par Python et par construction, `robustness.py` inchangé) ;
+- la matrice `FlavorCorrelatorMatrix` est validée de forme exactement `2×2`.
+
+La campagne 1B finale utilise le schéma v2. La sérialisation (`src/cosmobox/level1/serialization.py`) ne recalcule jamais une observable, ne refait jamais un appariement, ne décide jamais d'un statut spectral et n'invente jamais de valeur manquante — elle convertit, valide et refuse toute incohérence, avec des contrôles Python explicites précédant toujours la validation JSON Schema (dernier filet de sécurité, jamais le seul contrôle). Dépendance `jsonschema>=4.18` (Draft 2020-12) ajoutée à `requirements.txt`/`pyproject.toml`.
+
 ## Questions ouvertes
 
 - organisation logicielle des utilitaires de campagne, mutualisés ou locaux ;

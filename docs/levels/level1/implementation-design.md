@@ -545,9 +545,11 @@ Aucune autre observable ne reçoit de verdict automatique.
 
 ### 8.3 Sérialisation
 
-Le modèle interne peut être plus strict que le JSON, mais toute sortie doit valider le schéma v1.
+Le modèle interne peut être plus strict que le JSON, mais toute sortie doit valider le schéma en vigueur.
 
 Une raison explicite accompagne toute valeur normative `null`.
+
+**D019 (lot 1B-7)** : `schemas/level1/correlators-v1.schema.json` est conservé comme contrat historique, non modifié ; `schemas/level1/correlators-v2.schema.json` (Draft 2020-12, strict, `additionalProperties: false` racine et objets imbriqués, `record_kind`/`observable_kind`/`payload` discriminés via `if`/`then`) est le schéma utilisé par la campagne 1B finale. Taxonomie fermée `record_kind` (8 valeurs) et `observable_kind` (16 valeurs, auditées contre le code réel des lots 1B-1 à 1B-6) — voir `src/cosmobox/level1/results.py`. Modules `results.py` (identité scientifique + modèle de résultat), `serialization.py` (conversion stricte + validation Draft 2020-12, `jsonschema>=4.18`), `assembly.py` (déduplication comptabilisée, détection de contradiction, ordre déterministe) — aucune logique scientifique nouvelle dans aucun des trois.
 
 ### 8.4 Verrou d’acceptation
 

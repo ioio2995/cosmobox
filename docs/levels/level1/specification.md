@@ -402,7 +402,9 @@ Le désordre gaussien reste autorisé par le modèle général mais est hors cam
 
 ## 15. Sorties et sérialisation
 
-Chaque résultat respecte `schemas/level1-correlators-v1.schema.json` et enregistre au minimum :
+La campagne 1B finale sérialise chaque résultat contre `schemas/level1/correlators-v2.schema.json` (D019) : structure racine `identity`/`provenance`/`record_kind`/`observable_kind`/`payload`, stricte (`additionalProperties: false` partout, y compris les objets imbriqués), sans champ `value` polymorphe unique. `schemas/level1/correlators-v1.schema.json` est conservé comme contrat historique, non utilisé par la campagne finale.
+
+Chaque résultat enregistre au minimum :
 
 - commit du dépôt et empreinte du manifeste ;
 - géométrie, S, nombre de saveurs et paramètres ;
