@@ -400,6 +400,10 @@ C_TT_conn
 
 V11, V12 et V15 doivent être démontrés au minimum sur les cas prescrits par le plan de validation.
 
+### 5.4 Généralisation multiplet (D020, lot 1B-8a)
+
+`local_observables.py` ci-dessus ne définit `C_QQ`/`rho_QQ`/`C_TT_raw`/`C_TT_conn` que sur un état pur ; les fonctions correspondantes restent inchangées. Le lot 1B-8a ajoute, dans le même fichier, `charge_correlator_raw_group`, `charge_correlator_connected_group`, `flavor_correlator_raw_group`, `flavor_correlator_connected_group` et le type `GroupMoment` (`value`, `status`), qui appliquent la même prescription à un `SpectralGroupState` dégénéré : moyenne canonique (`restricted.canonical_multiplet_expectation`) pour `complete_multiplet`, moyenne exploratoire (`restricted.exploratory_partial_subspace_mean`) pour `partial_subspace`, dispatch via un helper privé `_group_expectation` sur `group_state.is_complete`. Le corrélateur connecté de saveur soustrait composante par composante, jamais après sommation globale. `rho_QQ` réutilise `normalized_charge_correlator` sans modification, alimentée par les moments de groupe. Aucun verdict, aucune raison de nullité nouvelle, aucun appariement inter-S dans cette couche.
+
 ---
 
 ## 6. Lot 1B-3 — états, multiplets et opérateurs restreints

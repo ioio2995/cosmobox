@@ -259,6 +259,42 @@ Décision : `correlators-v1.schema.json` **n'est pas modifié** et reste un cont
 
 La campagne 1B finale utilise le schéma v2. La sérialisation (`src/cosmobox/level1/serialization.py`) ne recalcule jamais une observable, ne refait jamais un appariement, ne décide jamais d'un statut spectral et n'invente jamais de valeur manquante — elle convertit, valide et refuse toute incohérence, avec des contrôles Python explicites précédant toujours la validation JSON Schema (dernier filet de sécurité, jamais le seul contrôle). Dépendance `jsonschema>=4.18` (Draft 2020-12) ajoutée à `requirements.txt`/`pyproject.toml`.
 
+## D020 — Prescription multiplet des observables locales (lot 1B-8a)
+
+**Statut : gelé**
+
+L'audit du lot 1B-8 (préparation du runner de campagne) a révélé une lacune scientifique : `local_observables.py` (lot 1B-2) ne définit `charge_correlator_raw/connected` et `flavor_correlator_raw/connected` que sur un état pur (un unique ket normalisé), sans généralisation à un `SpectralGroupState` dégénéré. La grille de référence cible presque exclusivement des multiplets dégénérés (ex. le groupe fondamental du triangle à `S=1` a une multiplicité observée de 4), rendant ces quatre observables non calculables sans cette prescription. `flavor.build_flavor_correlator_matrix` (lot 1B-4) avait déjà résolu le même problème pour `raw_G` ; cette décision étend explicitement le même principe aux corrélateurs de charge et de saveur.
+
+**Prescription** : pour un `SpectralGroupState` de statut `complete_multiplet` et de multiplicité `m`, la moyenne canonique du groupe pour un opérateur `A` est
+
+```text
+<A>_group = Tr(Psi† A Psi) / m
+```
+
+déjà fournie par `restricted.canonical_multiplet_expectation`, jamais recalculée ni redéfinie ; `Psi Psi†` (dimension × dimension) n'est jamais construit explicitement. Pour un groupe `partial_subspace`, la seule voie autorisée est `restricted.exploratory_partial_subspace_mean` ; le résultat est exploratoire et ne reçoit aucun verdict normatif.
+
+**Corrélateurs de charge** :
+
+```text
+C_QQ_raw(i,j)  = <Q_i Q_j>_group
+C_QQ_conn(i,j) = <Q_i Q_j>_group - <Q_i>_group <Q_j>_group
+```
+
+`rho_QQ` conserve exactement la normalisation déjà gelée (`normalized_charge_correlator`, inchangée — fonction purement arithmétique, indépendante de la provenance état pur/groupe de ses trois arguments flottants), appliquée aux espérances/variances calculées avec la prescription de groupe. Aucun epsilon artificiel n'est introduit ; le plancher `NORMALIZATION_FLOOR` déjà gelé reste inchangé.
+
+**Corrélateurs de saveur locaux** :
+
+```text
+C_TT_raw(i,j)  = sum_a <T_i^a T_j^a>_group
+C_TT_conn(i,j) = sum_a ( <T_i^a T_j^a>_group - <T_i^a>_group <T_j^a>_group )
+```
+
+La soustraction du terme connecté est effectuée **composante par composante**, à l'intérieur de la somme sur `a` — jamais comme `(sum_a <T_i^a T_j^a>_group) - (sum_a <T_i^a>_group)(sum_a <T_j^a>_group)`, qui introduirait des termes croisés non définis physiquement.
+
+**API** : `src/cosmobox/level1/local_observables.py` gagne un type `GroupMoment` (`value: float`, `status: str` ∈ {`complete_multiplet`, `partial_subspace`}, sans raison de nullité ni verdict) et quatre fonctions publiques `charge_correlator_raw_group`, `charge_correlator_connected_group`, `flavor_correlator_raw_group`, `flavor_correlator_connected_group`, plus un dispatcheur privé `_group_expectation` (bascule sur `group_state.is_complete`, jamais un second contrôle de statut indépendant). Les fonctions état pur existantes restent inchangées, dans le même fichier.
+
+Cette généralisation comble une lacune nécessaire à l'exécution du manifeste 1B ; elle ne modifie aucune formule ni aucun seuil déjà gelé, ne calcule aucun verdict de robustesse, et n'introduit aucun appariement inter-S. `G_occ` reste hors périmètre (D018).
+
 ## Questions ouvertes
 
 - organisation logicielle des utilitaires de campagne, mutualisés ou locaux ;

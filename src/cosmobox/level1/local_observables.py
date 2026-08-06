@@ -30,6 +30,14 @@ from cosmobox.level0.lattice import Lattice
 
 from .matter import build_dressed_matter_matrix
 from .paths import make_oriented_path
+from .restricted import (
+    COMPLETE_MULTIPLET,
+    IMAGINARY_PART_TOLERANCE,
+    PARTIAL_SUBSPACE,
+    SpectralGroupState,
+    canonical_multiplet_expectation,
+    exploratory_partial_subspace_mean,
+)
 
 NORMALIZATION_FLOOR = 1e-12
 EXPECTATION_TOLERANCE = 1e-10
@@ -308,3 +316,125 @@ def normalized_charge_correlator(
         return NormalizedMoment(value=None, null_reason="zero_local_charge_variance")
 
     return NormalizedMoment(value=connected_ij / math.sqrt(variance_i * variance_j), null_reason=None)
+
+
+# ---------------------------------------------------------------------------
+# Multiplet generalization (Level1B lot 1B-8a, docs/decisions/decisions.md
+# D020). The functions above are pure-state only and are unchanged by this
+# section: for a degenerate spectral group, <A> is not a single ket's
+# expectation value but the canonical mixed-state trace (complete_multiplet)
+# or the exploratory partial-window mean (partial_subspace), already
+# defined generically by restricted.canonical_multiplet_expectation /
+# exploratory_partial_subspace_mean and already used the same way by
+# flavor.build_flavor_correlator_matrix for raw_G. This section extends the
+# identical prescription to the charge/flavor two-site correlators, which
+# had no multiplet-generalized producer until now.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class GroupMoment:
+    """A scalar moment computed from a SpectralGroupState's own canonical
+    (complete_multiplet) or exploratory (partial_subspace) prescription.
+    status is carried alongside value, never left implicit, so a
+    partial-group result can never be silently mistaken for a canonical
+    complete-multiplet average downstream -- the same pattern
+    FlavorCorrelatorMatrix already established for raw_G. Carries no null
+    reason and no verdict: this is a value-and-provenance-status pair
+    only, not a normative judgment."""
+
+    value: float
+    status: str
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.value):
+            raise ValueError(f"value must be finite, got {self.value}")
+        if self.status not in (COMPLETE_MULTIPLET, PARTIAL_SUBSPACE):
+            raise ValueError(
+                f"status must be one of ({COMPLETE_MULTIPLET!r}, {PARTIAL_SUBSPACE!r}), got {self.status!r}"
+            )
+
+
+def _group_expectation(
+    operator: sp.csr_matrix, group_state: SpectralGroupState, *, tolerance: float = IMAGINARY_PART_TOLERANCE
+) -> float:
+    """<A>_group: canonical_multiplet_expectation for a complete_multiplet
+    group_state, exploratory_partial_subspace_mean for a partial_subspace
+    one -- dispatched on group_state.is_complete, never a second,
+    independently-maintained status check. hermitian=True always: every
+    operator this is called with (Q_i, T_i^a, and a product of two such
+    operators, same site or different) is Hermitian -- different-site
+    charge/flavor generators are particle-number-conserving bilinears and
+    therefore commute, so their product is Hermitian too, the same
+    assumption already relied on by the pure-state functions above.
+    Neither this function nor its callers ever construct Psi Psi^dagger or
+    read group_state.psi directly: group_state is passed through opaquely
+    to restricted.py, which alone routes through Psi^dagger (.) Psi."""
+    expectation = canonical_multiplet_expectation if group_state.is_complete else exploratory_partial_subspace_mean
+    return expectation(operator, group_state, hermitian=True, tolerance=tolerance)
+
+
+def charge_correlator_raw_group(
+    charge_i: sp.csr_matrix,
+    charge_j: sp.csr_matrix,
+    group_state: SpectralGroupState,
+    *,
+    tolerance: float = IMAGINARY_PART_TOLERANCE,
+) -> GroupMoment:
+    """<Q_i Q_j>_group. i == j is allowed and expected (group-level variance)."""
+    value = _group_expectation(local_charge_product(charge_i, charge_j), group_state, tolerance=tolerance)
+    return GroupMoment(value=value, status=group_state.status)
+
+
+def charge_correlator_connected_group(
+    charge_i: sp.csr_matrix,
+    charge_j: sp.csr_matrix,
+    group_state: SpectralGroupState,
+    *,
+    tolerance: float = IMAGINARY_PART_TOLERANCE,
+) -> GroupMoment:
+    """<Q_i Q_j>_group - <Q_i>_group <Q_j>_group. i == j is allowed and
+    required for the group-level rho_QQ denominator (see
+    normalized_charge_correlator, called by the caller with this
+    function's .value as connected_ij/variance_i/variance_j -- not
+    duplicated here, per D020)."""
+    raw = _group_expectation(local_charge_product(charge_i, charge_j), group_state, tolerance=tolerance)
+    expectation_i = _group_expectation(charge_i, group_state, tolerance=tolerance)
+    expectation_j = _group_expectation(charge_j, group_state, tolerance=tolerance)
+    return GroupMoment(value=raw - expectation_i * expectation_j, status=group_state.status)
+
+
+def flavor_correlator_raw_group(
+    generators_i: dict[str, sp.csr_matrix],
+    generators_j: dict[str, sp.csr_matrix],
+    group_state: SpectralGroupState,
+    *,
+    tolerance: float = IMAGINARY_PART_TOLERANCE,
+) -> GroupMoment:
+    """sum_a <T_i^a T_j^a>_group. i == j is allowed."""
+    value = _group_expectation(local_flavor_dot_product(generators_i, generators_j), group_state, tolerance=tolerance)
+    return GroupMoment(value=value, status=group_state.status)
+
+
+def flavor_correlator_connected_group(
+    generators_i: dict[str, sp.csr_matrix],
+    generators_j: dict[str, sp.csr_matrix],
+    group_state: SpectralGroupState,
+    *,
+    tolerance: float = IMAGINARY_PART_TOLERANCE,
+) -> GroupMoment:
+    """sum_a (<T_i^a T_j^a>_group - <T_i^a>_group <T_j^a>_group).
+
+    The subtraction is performed INSIDE the sum over components a, exactly
+    like flavor_correlator_connected above -- never as
+    (sum_a <T_i^a T_j^a>_group) - (sum_a <T_i^a>_group)(sum_a <T_j^a>_group),
+    which would introduce undefined cross-component terms."""
+    total = 0.0
+    for component in FLAVOR_COMPONENTS:
+        raw_component = _group_expectation(
+            (generators_i[component] @ generators_j[component]).tocsr(), group_state, tolerance=tolerance
+        )
+        expectation_i = _group_expectation(generators_i[component], group_state, tolerance=tolerance)
+        expectation_j = _group_expectation(generators_j[component], group_state, tolerance=tolerance)
+        total += raw_component - expectation_i * expectation_j
+    return GroupMoment(value=total, status=group_state.status)

@@ -123,6 +123,8 @@ C_TT_raw(i,j)  = sum_a <T_i^a T_j^a>
 C_TT_conn(i,j) = sum_a [<T_i^a T_j^a> - <T_i^a><T_j^a>]
 ```
 
+**Généralisation multiplet (D020)** : `<.>` ci-dessus est l'espérance sur un état pur (`local_observables.charge_correlator_raw/connected`, `flavor_correlator_raw/connected`, inchangées). Pour un groupe spectral dégénéré (`SpectralGroupState`), `<.>_group` remplace `<.>` par la moyenne canonique du §4 (`complete_multiplet`, via `restricted.canonical_multiplet_expectation`) ou la moyenne exploratoire (`partial_subspace`, via `restricted.exploratory_partial_subspace_mean`) : `charge_correlator_raw_group`, `charge_correlator_connected_group`, `flavor_correlator_raw_group`, `flavor_correlator_connected_group`. La soustraction du terme connecté de saveur est effectuée composante par composante, jamais après sommation globale. `rho_QQ` conserve exactement la même formule de normalisation, appliquée aux espérances/variances de groupe.
+
 ### Théorème du secteur de saveur maximale
 
 Pour n fermions et n_d doubles occupations :
