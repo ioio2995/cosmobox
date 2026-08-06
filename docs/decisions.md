@@ -148,6 +148,33 @@ Les règles suivantes sont notamment gelées :
 
 Toute évolution de ces règles exige une nouvelle décision explicite.
 
+## D015 — Gouvernance des échanges et des responsabilités
+
+**Statut : gelé**
+
+La charte `docs/collaboration-governance.md` définit le protocole obligatoire de collaboration entre Lionel ORCIL, ChatGPT, Claude Code et, exceptionnellement, Claude Fable.
+
+Les responsabilités sont gelées ainsi :
+
+- Lionel supervise, arbitre et autorise les jalons et actions Git ;
+- ChatGPT est responsable de la cohérence scientifique et conceptuelle ;
+- Claude Code est responsable de l’ingénierie et de l’implémentation ;
+- Claude Fable intervient uniquement comme audit externe exceptionnel sur demande explicite de Lionel.
+
+Chaque lot suit la séquence : cadrage scientifique, audit préalable, revue conceptuelle, autorisation, implémentation, rapport de livraison et validation.
+
+Toute nouvelle mission destinée à Claude Code doit commencer par la lecture de `docs/collaboration-governance.md` et `docs/documentation-governance.md`, puis utiliser le format standard défini par la charte.
+
+La formule courte officielle de remise en conformité est :
+
+```text
+Applique `docs/collaboration-governance.md` et reprends au dernier jalon validé.
+```
+
+Une autorisation de modifier, committer, pousser, créer une PR ou fusionner ne vaut que pour l’action explicitement autorisée.
+
+Toute évolution de cette gouvernance exige une nouvelle décision explicite et une validation de Lionel.
+
 ## Questions ouvertes
 
 - organisation logicielle des utilitaires de campagne, mutualisés ou locaux ;
