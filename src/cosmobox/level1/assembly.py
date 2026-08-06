@@ -18,10 +18,22 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from .serialization import validate_document
+
+_METADATA_FIELDS = ("schema_version", "repository_commit", "manifest_fingerprint", "campaign_id")
+
 
 class AssemblyContradiction(ValueError):
     """Two documents share the same scientific identity but differ in
     payload or provenance. Assembly never resolves this silently."""
+
+
+class AssemblyMetadataMismatch(ValueError):
+    """Documents in the same execution must share identical run metadata
+    (schema_version, repository_commit, manifest_fingerprint, campaign_id).
+    A mismatch means these documents do not belong to the same execution
+    and must never be silently assembled -- and never deduplicated --
+    together, even if their scientific identity happens to coincide."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,12 +112,43 @@ def _sort_key(document: dict) -> tuple:
     )
 
 
+def _check_metadata_homogeneity(documents: Sequence[dict]) -> None:
+    reference = {field: documents[0][field] for field in _METADATA_FIELDS}
+    for document in documents[1:]:
+        for field in _METADATA_FIELDS:
+            if document[field] != reference[field]:
+                raise AssemblyMetadataMismatch(
+                    f"document metadata diverges on {field!r}: {reference[field]!r} != {document[field]!r} "
+                    "-- documents from different executions/commits/manifests are never assembled together"
+                )
+
+
 def assemble_execution(documents: Sequence[dict]) -> tuple[tuple[dict, ...], AssemblyReport]:
     """Deduplicate and deterministically order an execution's already-
-    serialized documents. Raises AssemblyContradiction if two documents
-    share a scientific identity but differ in payload or provenance."""
+    serialized documents. Every document is independently validated
+    against the v2 schema first (assemble_execution does not merely trust
+    that its input came from serialize_result_record) -- any structural
+    problem, including one that would otherwise surface as a bare
+    KeyError while extracting keys below, is reported as an explicit
+    ValueError instead. Raises AssemblyMetadataMismatch if documents
+    disagree on run metadata (schema_version/repository_commit/
+    manifest_fingerprint/campaign_id), and AssemblyContradiction if two
+    documents share a scientific identity but differ in payload or
+    provenance."""
     if not documents:
         raise ValueError("documents must be non-empty")
+
+    for index, document in enumerate(documents):
+        if not isinstance(document, dict):
+            raise ValueError(f"documents[{index}] must be a dict, got {type(document)}")
+        try:
+            validate_document(document)
+        except ValueError:
+            raise
+        except Exception as error:  # pragma: no cover -- defense against any non-ValueError schema-library failure
+            raise ValueError(f"documents[{index}] failed structural validation: {error}") from error
+
+    _check_metadata_homogeneity(documents)
 
     kept: dict[tuple, dict] = {}
     duplicate_count = 0

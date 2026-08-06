@@ -73,7 +73,7 @@ from .matching import (
     match_spectral_group,
     symmetry_labels_match,
 )
-from .assembly import AssemblyContradiction, AssemblyReport, assemble_execution
+from .assembly import AssemblyContradiction, AssemblyMetadataMismatch, AssemblyReport, assemble_execution
 from .matter import apply_dressed_matter, build_dressed_matter_matrix
 from .orbits import (
     DRESSED_MATTER_OBSERVABLE_KIND,
@@ -105,6 +105,7 @@ from .results import (
     ScientificIdentity,
     SpectralGroupIdentity,
     build_orbit_result_payload,
+    build_result_record,
 )
 from .robustness import (
     ABSOLUTE_ROBUSTNESS_THRESHOLD,
@@ -117,13 +118,14 @@ from .robustness import (
     compute_gamma_o,
     evaluate_robustness,
 )
-from .serialization import SCHEMA_VERSION, serialize_result_record
+from .serialization import SCHEMA_VERSION, serialize_result_record, validate_document
 from .transporters import apply_transporter
 
 __all__ = [
     "ABSOLUTE_ROBUSTNESS_THRESHOLD",
     "AMBIGUOUS_CROSS_TRUNCATION_MATCH",
     "AssemblyContradiction",
+    "AssemblyMetadataMismatch",
     "AssemblyReport",
     "COMPLETE_MULTIPLET",
     "DRESSED_MATTER_OBSERVABLE_KIND",
@@ -180,6 +182,7 @@ __all__ = [
     "build_non_hermitian_restricted_diagnostics",
     "build_orbit_result_payload",
     "build_restricted_operator",
+    "build_result_record",
     "canonical_multiplet_expectation",
     "charge_correlator_connected",
     "charge_correlator_raw",
@@ -221,5 +224,6 @@ __all__ = [
     "transform_oriented_path",
     "translation_automorphism",
     "translation_unitary_automorphism",
+    "validate_document",
     "validate_orbit_covariance",
 ]

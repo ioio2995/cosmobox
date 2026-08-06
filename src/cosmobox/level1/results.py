@@ -35,10 +35,10 @@ from dataclasses import dataclass
 from .diagnostics import HermitianRestrictedDiagnostics, NonHermitianRestrictedDiagnostics
 from .flavor import FlavorCorrelatorMatrix
 from .local_observables import NormalizedMoment
-from .matching import MatchOutcome, SymmetryLabel
+from .matching import EXACT_LABEL_MATCH, MatchOutcome, SymmetryLabel
 from .orbits import OrbitComparabilityKey, OrbitStatistics, ValidatedOrbit, aggregate_validated_orbit
 from .restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE
-from .robustness import RobustnessResult
+from .robustness import INDETERMINATE, RobustnessResult
 
 # ---------------------------------------------------------------------------
 # Closed enumerations, audited against the actual lot 1B-1..1B-6 code
@@ -255,6 +255,34 @@ def _expected_payload_types(record_kind: str, observable_kind: str) -> tuple[typ
     return _PAYLOAD_TYPES_BY_RECORD_KIND[record_kind]
 
 
+def _payload_spectral_status(payload: object) -> str | None:
+    """The spectral status embedded in `payload` itself, if any -- None
+    for payload types that carry no status of their own (a bare float/
+    complex/tuple, a SymmetryLabel, a MatchOutcome with no matched_group).
+    Used to cross-check every payload-embedded status against
+    identity.spectral_group.status, so a mismatched status can never
+    slip through silently."""
+    if isinstance(payload, (FlavorCorrelatorMatrix, HermitianRestrictedDiagnostics, NonHermitianRestrictedDiagnostics)):
+        return payload.status
+    if isinstance(payload, OrbitResultPayload):
+        return payload.comparability_key.status
+    if isinstance(payload, MatchOutcome) and payload.matched_group is not None:
+        return payload.matched_group.status
+    return None
+
+
+def _derive_source(payload: object) -> tuple[str, str]:
+    """source_type/source_module are ALWAYS derived from type(payload)
+    itself -- Python's own type system, not a hand-maintained table that
+    could silently drift out of sync as new observable_kinds are added.
+    This is the strongest available guarantee that provenance cannot lie
+    about a payload's origin: for a bare float/complex/tuple payload,
+    source_module is honestly "builtins" (Python's built-in numeric types
+    carry no richer origin tag) -- a deliberately modest but truthful
+    value, not an invented one."""
+    return type(payload).__name__, type(payload).__module__
+
+
 @dataclass(frozen=True, slots=True)
 class ResultRecord:
     """A single Level1 scientific result, ready for serialization.py to
@@ -302,6 +330,40 @@ class ResultRecord:
                 f"must be an instance of {expected_types}, got {type(self.payload)}"
             )
 
+        # Provenance must be derived, never freely supplied: source_type/
+        # source_module are checked against type(payload) itself (the one
+        # value a caller cannot lie about), and spectral_status against
+        # identity.spectral_group.status -- even a direct ResultRecord(...)
+        # construction cannot claim a payload came from a different
+        # type/module, or that the group's status was something else.
+        expected_source_type, expected_source_module = _derive_source(self.payload)
+        if self.provenance.source_type != expected_source_type:
+            raise ValueError(
+                f"provenance.source_type ({self.provenance.source_type!r}) does not match type(payload).__name__ "
+                f"({expected_source_type!r}) -- provenance must be derived, never freely supplied"
+            )
+        if self.provenance.source_module != expected_source_module:
+            raise ValueError(
+                f"provenance.source_module ({self.provenance.source_module!r}) does not match "
+                f"type(payload).__module__ ({expected_source_module!r}) -- provenance must be derived, "
+                "never freely supplied"
+            )
+        if self.provenance.spectral_status != self.identity.spectral_group.status:
+            raise ValueError(
+                f"provenance.spectral_status ({self.provenance.spectral_status!r}) does not match "
+                f"identity.spectral_group.status ({self.identity.spectral_group.status!r})"
+            )
+
+        # Every payload type that carries its own spectral status must
+        # agree with identity.spectral_group.status -- never two
+        # different, silently-diverging opinions about the same group.
+        payload_status = _payload_spectral_status(self.payload)
+        if payload_status is not None and payload_status != self.identity.spectral_group.status:
+            raise ValueError(
+                f"payload's own spectral status ({payload_status!r}) does not match "
+                f"identity.spectral_group.status ({self.identity.spectral_group.status!r})"
+            )
+
         # Cross-object guard rail: a RobustnessResult's own __post_init__
         # cannot see the group's status (it is a separate object), so a
         # definitive verdict attached to a partial_subspace identity would
@@ -309,8 +371,81 @@ class ResultRecord:
         # "aucun verdict definitif pour partial_subspace" contract,
         # enforced here where both objects are visible together.
         if self.record_kind == "robustness" and self.identity.spectral_group.status == PARTIAL_SUBSPACE:
-            if self.payload.verdict != "indeterminate":
+            if self.payload.verdict != INDETERMINATE:
                 raise ValueError(
                     "a robustness record whose spectral_group.status is 'partial_subspace' must carry an "
                     f"'indeterminate' verdict, got {self.payload.verdict!r}"
                 )
+
+        # A "matching" record with status == exact_label_match may never
+        # carry a partial_subspace matched_group, even if MatchOutcome
+        # itself would structurally allow constructing one by hand
+        # (matching.py's own type does not know this semantic rule) --
+        # truncation can never be promoted to a normative exact match.
+        if self.record_kind == "matching" and self.payload.status == EXACT_LABEL_MATCH:
+            if self.payload.matched_group.status != COMPLETE_MULTIPLET:
+                raise ValueError(
+                    "a 'matching' record with status='exact_label_match' must have "
+                    f"matched_group.status == {COMPLETE_MULTIPLET!r}, got {self.payload.matched_group.status!r} "
+                    "-- a partial_subspace group can never produce a normative exact match"
+                )
+
+        # Orbit-specific cross-checks between the payload's own
+        # comparability_key and the record's identity/observable_kind.
+        # hamiltonian_identity is deliberately NOT cross-checked: it is an
+        # arbitrary caller-supplied Hashable (matching.py/orbits.py) with
+        # no canonical format shared with identity.hamiltonian
+        # (a structured HamiltonianIdentity) today -- this specific
+        # cross-check is not performed and not guaranteed by this lot.
+        if self.record_kind == "orbit_statistic":
+            key = self.payload.comparability_key
+            if key.observable_kind != self.observable_kind:
+                raise ValueError(
+                    f"payload.comparability_key.observable_kind ({key.observable_kind!r}) does not match "
+                    f"the record's own observable_kind ({self.observable_kind!r})"
+                )
+            if key.normalization != self.identity.normalization:
+                raise ValueError(
+                    f"payload.comparability_key.normalization ({key.normalization!r}) does not match "
+                    f"identity.normalization ({self.identity.normalization!r})"
+                )
+            if key.flavor_component != self.identity.flavor_component:
+                raise ValueError(
+                    f"payload.comparability_key.flavor_component ({key.flavor_component!r}) does not match "
+                    f"identity.flavor_component ({self.identity.flavor_component!r})"
+                )
+
+
+def build_result_record(
+    identity: ScientificIdentity,
+    record_kind: str,
+    observable_kind: str,
+    payload: object,
+    *,
+    match_status: str | None = None,
+    covariance_validated: bool | None = None,
+) -> ResultRecord:
+    """The recommended way to construct a ResultRecord. source_type/
+    source_module are derived mechanically from type(payload), and
+    spectral_status is derived from identity.spectral_group.status --
+    only match_status and covariance_validated remain caller-supplied,
+    because they are genuinely external facts already validated upstream
+    (by matching.match_spectral_group / orbits.validate_orbit_covariance),
+    not something derivable from payload/identity alone. Direct
+    ResultRecord(...) construction remains possible (results.py's public
+    types are all directly constructible, matching the project's
+    established pattern), but its own __post_init__ independently
+    re-derives and checks source_type/source_module/spectral_status, so
+    it cannot be used to smuggle a lying provenance past this factory.
+    """
+    source_type, source_module = _derive_source(payload)
+    provenance = Provenance(
+        spectral_status=identity.spectral_group.status,
+        source_type=source_type,
+        source_module=source_module,
+        match_status=match_status,
+        covariance_validated=covariance_validated,
+    )
+    return ResultRecord(
+        identity=identity, provenance=provenance, record_kind=record_kind, observable_kind=observable_kind, payload=payload
+    )

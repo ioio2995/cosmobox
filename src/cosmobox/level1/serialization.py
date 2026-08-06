@@ -94,8 +94,17 @@ def _json_safe_hashable(value: object) -> object:
     is intentionally unconstrained upstream (matching.py/orbits.py), so
     only the safe, actually-used subset (str/int/float/bool/None/tuple,
     recursively) is accepted here -- anything else fails loudly rather
-    than being silently stringified."""
-    if value is None or isinstance(value, (str, int, float, bool)):
+    than being silently stringified. A float is additionally required to
+    be finite: NaN/Inf would otherwise slip through this function (JSON
+    itself has no representation for them) and only be caught, much less
+    clearly, by schema validation downstream -- or not at all, since the
+    schema's untyped {} for these two fields does not constrain them.
+    """
+    if value is None or isinstance(value, (str, int, bool)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError(f"cannot represent non-finite float {value!r} as a JSON-safe value")
         return value
     if isinstance(value, tuple):
         return [_json_safe_hashable(item) for item in value]
@@ -292,8 +301,24 @@ def _payload_json(record: ResultRecord) -> object:
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Entry points
 # ---------------------------------------------------------------------------
+
+
+def validate_document(document: dict) -> None:
+    """Validate an already-built document dict against the v2 schema.
+    Shared by serialize_result_record's own final check and by
+    assembly.py, so schema-loading/validation logic exists in exactly
+    one place. Raises ValueError (never lets a jsonschema exception type
+    leak to callers that only expect ValueError) with every violation
+    listed, not just the first one.
+    """
+    if not isinstance(document, dict):
+        raise ValueError(f"document must be a dict, got {type(document)}")
+    errors = sorted(_validator().iter_errors(document), key=lambda error: list(error.path))
+    if errors:
+        messages = "; ".join(f"{list(error.path)}: {error.message}" for error in errors)
+        raise ValueError(f"document does not validate against {SCHEMA_VERSION}: {messages}")
 
 
 def serialize_result_record(
@@ -303,14 +328,13 @@ def serialize_result_record(
     manifest_fingerprint: str,
     campaign_id: str,
 ) -> dict:
-    """The only public entry point. Converts `record` (already fully
-    validated by results.ResultRecord's own __post_init__) into a
-    JSON-compatible dict, applies the closed per-observable_kind
-    null_reason checks above, and validates the result against
-    correlators-v2.schema.json -- the schema is the final safety net,
-    not the only check. Raises ValueError before ever reaching the
-    schema if a domain-level invariant this schema cannot express is
-    violated.
+    """The main entry point. Converts `record` (already fully validated
+    by results.ResultRecord's own __post_init__) into a JSON-compatible
+    dict, applies the closed per-observable_kind null_reason checks
+    above, and validates the result against correlators-v2.schema.json
+    via validate_document -- the schema is the final safety net, not the
+    only check. Raises ValueError before ever reaching the schema if a
+    domain-level invariant this schema cannot express is violated.
     """
     if not isinstance(record, ResultRecord):
         raise ValueError(f"record must be a ResultRecord, got {type(record)}")
@@ -333,9 +357,5 @@ def serialize_result_record(
         "payload": _payload_json(record),
     }
 
-    errors = sorted(_validator().iter_errors(document), key=lambda error: list(error.path))
-    if errors:
-        messages = "; ".join(f"{list(error.path)}: {error.message}" for error in errors)
-        raise ValueError(f"serialized record does not validate against {SCHEMA_VERSION}: {messages}")
-
+    validate_document(document)
     return document

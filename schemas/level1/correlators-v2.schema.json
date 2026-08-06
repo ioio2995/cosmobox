@@ -108,6 +108,86 @@
     {
       "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "robustness"}}},
       "then": {"properties": {"payload": {"$ref": "#/$defs/robustnessResult"}}}
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "raw_observable"}}},
+      "then": {"properties": {"observable_kind": {"enum": ["C_QQ_raw", "C_QQ_conn", "C_TT_raw", "C_TT_conn", "O_ij_raw"]}}}
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "normalized_observable"}}},
+      "then": {"properties": {"observable_kind": {"enum": ["rho_QQ", "G_occ", "gamma_O"]}}}
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "restricted_diagnostic"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {
+            "enum": [
+              "C_QQ_raw", "C_QQ_conn", "C_TT_raw", "C_TT_conn", "O_ij_raw",
+              "rho_QQ", "G_occ", "gamma_O",
+              "raw_G", "flavor_singlet", "flavor_frobenius_squared", "flavor_singular_values", "flavor_singular_value_ratio"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "flavor_diagnostic"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {
+            "enum": ["raw_G", "flavor_singlet", "flavor_frobenius_squared", "flavor_singular_values", "flavor_singular_value_ratio"]
+          }
+        }
+      }
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "orbit_statistic"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {
+            "enum": [
+              "C_QQ_raw", "C_QQ_conn", "C_TT_raw", "C_TT_conn", "O_ij_raw",
+              "rho_QQ", "G_occ", "gamma_O",
+              "raw_G", "flavor_singlet", "flavor_frobenius_squared", "flavor_singular_values", "flavor_singular_value_ratio"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "symmetry_label"}}},
+      "then": {"properties": {"observable_kind": {"enum": ["flavor_casimir_label", "translation_character", "reflection_character"]}}}
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "matching"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {
+            "enum": [
+              "C_QQ_raw", "C_QQ_conn", "C_TT_raw", "C_TT_conn", "O_ij_raw",
+              "rho_QQ", "G_occ", "gamma_O",
+              "raw_G", "flavor_singlet", "flavor_frobenius_squared", "flavor_singular_values", "flavor_singular_value_ratio",
+              "flavor_casimir_label", "translation_character", "reflection_character"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "robustness"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {
+            "enum": [
+              "C_QQ_raw", "C_QQ_conn", "C_TT_raw", "C_TT_conn", "O_ij_raw",
+              "rho_QQ", "G_occ", "gamma_O",
+              "raw_G", "flavor_singlet", "flavor_frobenius_squared", "flavor_singular_values", "flavor_singular_value_ratio",
+              "flavor_casimir_label", "translation_character", "reflection_character"
+            ]
+          }
+        }
+      }
     }
   ],
   "$defs": {
