@@ -39,6 +39,8 @@ from cosmobox.level0.symmetries import build_reflection_operator, build_translat
 from .paths import OrientedPath
 from .transporters import _validate_steps_against_lattice
 
+UNITARITY_TOLERANCE = 1e-8
+
 # ---------------------------------------------------------------------------
 # Combinatorial automorphisms
 # ---------------------------------------------------------------------------
@@ -229,6 +231,12 @@ def transform_oriented_path(lattice: Lattice, automorphism: GraphAutomorphism, p
             f"automorphism.lattice_signature ({automorphism.lattice_signature!r}) does not match "
             f"lattice.name ({lattice.name!r})"
         )
+    expected_edge_endpoints = tuple((edge.source, edge.target) for edge in lattice.edges)
+    if automorphism.edge_endpoints != expected_edge_endpoints:
+        raise ValueError(
+            f"automorphism.edge_endpoints does not match lattice.edges for {lattice.name!r} -- "
+            "the automorphism was not built from this exact lattice, even though lattice_signature matched"
+        )
     _validate_steps_against_lattice(lattice, path)
 
     new_nodes = tuple(automorphism.site_permutation[node] for node in path.nodes)
@@ -267,11 +275,44 @@ class UnitaryAutomorphism:
     """A GraphAutomorphism paired with its Level0 unitary operator U_A,
     built from the SAME site_permutation. `label` identifies the
     generator lineage (e.g. "identity", "translation", "reflection", or a
-    composed label for group-closure elements)."""
+    composed label for group-closure elements).
+
+    This is a public, directly-constructible type (compose_unitary_
+    automorphisms and the individual builders below are convenience
+    paths, not the only way to construct one), so __post_init__ owns the
+    invariants a unitary operator must satisfy on its own: square,
+    nonzero dimension, finite data, and U^dagger U ~= I. The exact
+    correspondence between `automorphism`'s combinatorial permutation and
+    what `unitary` actually does on the physical basis is a SEPARATE,
+    stronger claim, established by V06's covariance identity test, not by
+    this constructor -- a manifestly non-unitary or malformed matrix is
+    rejected regardless.
+    """
 
     label: str
     automorphism: GraphAutomorphism
     unitary: sp.csr_matrix
+
+    def __post_init__(self) -> None:
+        unitary = sp.csr_matrix(self.unitary, dtype=np.complex128)
+        if unitary.shape[0] != unitary.shape[1]:
+            raise ValueError(f"unitary must be square, got shape {unitary.shape}")
+        dimension = unitary.shape[0]
+        if dimension == 0:
+            raise ValueError("unitary must have nonzero dimension")
+        if not np.all(np.isfinite(unitary.data)):
+            raise ValueError("unitary contains non-finite values")
+
+        product = (unitary.conj().T @ unitary).tocsr()
+        difference = (product - sp.identity(dimension, format="csr", dtype=np.complex128)).tocsr()
+        difference.eliminate_zeros()
+        defect = float(np.sqrt(np.sum(np.abs(difference.data) ** 2))) if difference.nnz else 0.0
+        if defect > UNITARITY_TOLERANCE:
+            raise ValueError(
+                f"unitary is not unitary: ||U^dagger U - I||_F = {defect} (tolerance {UNITARITY_TOLERANCE})"
+            )
+
+        object.__setattr__(self, "unitary", unitary.copy())
 
 
 def identity_unitary_automorphism(lattice: Lattice, keys: Sequence[np.uint64]) -> UnitaryAutomorphism:

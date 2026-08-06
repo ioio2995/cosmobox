@@ -10,6 +10,7 @@ from cosmobox.level0.lattice import build_lattice
 from cosmobox.level0.params import HamiltonianParameters
 from cosmobox.level1.automorphisms import (
     GraphAutomorphism,
+    UnitaryAutomorphism,
     build_automorphism,
     compose,
     compose_unitary_automorphisms,
@@ -181,6 +182,23 @@ def test_transform_oriented_path_rejects_mismatched_lattice_signature() -> None:
     path = make_oriented_path(triangle, (0, 1))
     with pytest.raises(ValueError, match="lattice_signature"):
         transform_oriented_path(triangle, automorphism, path)
+
+
+def test_transform_oriented_path_rejects_edge_endpoints_diverging_from_the_lattice() -> None:
+    # Same lattice_signature as ring4, a structurally valid permutation --
+    # but edge_endpoints actually come from triangle. lattice_signature
+    # alone is not enough; edge_endpoints must match lattice.edges exactly.
+    ring4 = build_lattice("ring4")
+    triangle = build_lattice("triangle")
+    triangle_translation = translation_automorphism(triangle)
+    forged = GraphAutomorphism(
+        lattice_signature=ring4.name,
+        site_permutation=triangle_translation.site_permutation,
+        edge_endpoints=triangle_translation.edge_endpoints,
+    )
+    path = make_oriented_path(ring4, (0, 1))
+    with pytest.raises(ValueError, match="edge_endpoints"):
+        transform_oriented_path(ring4, forged, path)
 
 
 def test_transform_oriented_path_maps_source_destination_and_preserves_length() -> None:
@@ -371,3 +389,45 @@ def test_generate_closed_unitary_subgroup_matches_combinatorial_closure_size() -
     closed = generate_closed_unitary_subgroup([translation, reflection])
     combinatorial_closed = generate_closed_subgroup([translation.automorphism, reflection.automorphism])
     assert len(closed) == len(combinatorial_closed) == 6
+
+
+# ---------------------------------------------------------------------------
+# UnitaryAutomorphism -- defensive __post_init__
+# ---------------------------------------------------------------------------
+
+
+def test_unitary_automorphism_rejects_non_square_matrix() -> None:
+    automorphism = identity_automorphism(build_lattice("triangle"))
+    matrix = sp.csr_matrix(np.zeros((2, 3), dtype=np.complex128))
+    with pytest.raises(ValueError, match="square"):
+        UnitaryAutomorphism(label="broken", automorphism=automorphism, unitary=matrix)
+
+
+def test_unitary_automorphism_rejects_zero_dimension() -> None:
+    automorphism = identity_automorphism(build_lattice("triangle"))
+    matrix = sp.csr_matrix((0, 0), dtype=np.complex128)
+    with pytest.raises(ValueError, match="nonzero dimension"):
+        UnitaryAutomorphism(label="broken", automorphism=automorphism, unitary=matrix)
+
+
+def test_unitary_automorphism_rejects_non_finite_data() -> None:
+    automorphism = identity_automorphism(build_lattice("triangle"))
+    matrix = sp.csr_matrix(np.eye(2, dtype=np.complex128))
+    matrix.data[0] = np.nan
+    with pytest.raises(ValueError, match="non-finite"):
+        UnitaryAutomorphism(label="broken", automorphism=automorphism, unitary=matrix)
+
+
+def test_unitary_automorphism_rejects_non_unitary_matrix() -> None:
+    automorphism = identity_automorphism(build_lattice("triangle"))
+    matrix = sp.csr_matrix(np.diag([2.0, 1.0]).astype(np.complex128))
+    with pytest.raises(ValueError, match="not unitary"):
+        UnitaryAutomorphism(label="broken", automorphism=automorphism, unitary=matrix)
+
+
+def test_unitary_automorphism_accepts_a_genuine_unitary_and_stores_an_independent_copy() -> None:
+    automorphism = identity_automorphism(build_lattice("triangle"))
+    source = sp.identity(3, format="csr", dtype=np.complex128)
+    unitary_automorphism = UnitaryAutomorphism(label="identity", automorphism=automorphism, unitary=source)
+    source.data[0] = 999.0  # mutate the source after construction
+    assert unitary_automorphism.unitary[0, 0] == 1.0  # unaffected -- copied, not shared

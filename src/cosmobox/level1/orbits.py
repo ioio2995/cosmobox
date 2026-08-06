@@ -7,7 +7,12 @@ type, not by caller discipline: aggregate_validated_orbit only accepts a
 ValidatedOrbit, and the only way to construct one is
 validate_orbit_covariance, which re-derives and checks the V06/V07
 covariance identity U_A O_ij[P] U_A^dagger == O_{A(i)A(j)}[A(P)] for every
-automorphism in the subgroup before bundling any values.
+automorphism in the subgroup before bundling any values -- and, per the
+1B-4 review fix, COMPUTES those values itself (via
+canonical_multiplet_expectation / exploratory_partial_subspace_mean on
+each automorphism's own image_operator) rather than accepting them from
+the caller. There is no parameter through which a caller can inject an
+OrbitElement.value unrelated to the verified operator identity.
 
 "Aucune moyenne entre catégories incompatibles" is enforced by
 OrbitComparabilityKey: every element entering an orbit must carry an
@@ -30,6 +35,7 @@ from cosmobox.level0.lattice import Lattice
 from .automorphisms import UnitaryAutomorphism, transform_oriented_path
 from .matter import build_dressed_matter_matrix
 from .paths import OrientedPath
+from .restricted import SpectralGroupState, canonical_multiplet_expectation, exploratory_partial_subspace_mean
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,35 +86,40 @@ def validate_orbit_covariance(
     keys: Sequence[np.uint64],
     key_index: dict[int, int],
     subgroup: Sequence[UnitaryAutomorphism],
+    group_state: SpectralGroupState,
     base_path: OrientedPath,
     alpha: int,
     beta: int,
-    elements: Sequence[OrbitElement],
+    key: OrbitComparabilityKey,
     *,
     tolerance: float = 1e-10,
 ) -> ValidatedOrbit:
-    """Verify, for every automorphism A in `subgroup`,
-    U_A @ O_ij^{alpha,beta}[base_path] @ U_A^dagger
-        == O_{A(i)A(j)}^{alpha,beta}[A(base_path)]
-    (the V06/V07 covariance identity, re-derived here rather than assumed
-    from a prior check elsewhere), and that every element of `elements`
-    shares the same OrbitComparabilityKey. elements[k] must correspond to
-    subgroup[k]'s transformed path/pair. Raises ValueError on either
-    failure -- this is the only way to obtain a ValidatedOrbit.
-    """
-    if not elements:
-        raise ValueError("an orbit must contain at least one element")
-    if len(elements) != len(subgroup):
-        raise ValueError(
-            f"elements ({len(elements)}) must correspond 1:1 with subgroup ({len(subgroup)}) automorphisms"
-        )
+    """For every automorphism A in `subgroup`: transform base_path, build
+    the image operator O_{A(i)A(j)}^{alpha,beta}[A(base_path)], verify
+    U_A @ O_ij^{alpha,beta}[base_path] @ U_A^dagger == image_operator (the
+    V06/V07 covariance identity), and ONLY THEN compute that element's
+    value from image_operator itself (canonical_multiplet_expectation for
+    a complete_multiplet group_state, exploratory_partial_subspace_mean
+    for a partial_subspace one) -- there is no parameter through which a
+    caller can supply an OrbitElement.value directly, so every value in
+    the returned ValidatedOrbit is provably the one belonging to its own
+    subgroup element's verified image_operator, not an arbitrary number
+    merely tagged with a matching key.
 
-    reference_key = elements[0].key
-    for element in elements[1:]:
-        if element.key != reference_key:
-            raise ValueError(f"orbit elements do not share a comparability key: {element.key} != {reference_key}")
+    `key` carries the shared OrbitComparabilityKey identifying this orbit
+    (family, path length, spectral group, status, observable kind,
+    normalization, flavor component, Hamiltonian identity) -- it is
+    metadata, not a value, and is attached identically to every produced
+    element. Raises ValueError if the covariance identity fails for any
+    automorphism -- this is the only way to obtain a ValidatedOrbit.
+    """
+    if not subgroup:
+        raise ValueError("an orbit must contain at least one subgroup element")
+
+    expectation = canonical_multiplet_expectation if group_state.is_complete else exploratory_partial_subspace_mean
 
     base_operator = build_dressed_matter_matrix(lattice, n_flavors, spin, keys, key_index, base_path, alpha, beta)
+    elements: list[OrbitElement] = []
     for automorphism in subgroup:
         transformed_path = transform_oriented_path(lattice, automorphism.automorphism, base_path)
         image_operator = build_dressed_matter_matrix(
@@ -124,7 +135,10 @@ def validate_orbit_covariance(
                 f"||U_A O U_A^dagger - O[A(P)]||_F = {defect} (tolerance {tolerance})"
             )
 
-    return ValidatedOrbit(key=reference_key, elements=tuple(elements))
+        value = expectation(image_operator, group_state, hermitian=False)
+        elements.append(OrbitElement(key, value))
+
+    return ValidatedOrbit(key=key, elements=tuple(elements))
 
 
 def aggregate_validated_orbit(orbit: ValidatedOrbit) -> OrbitStatistics:

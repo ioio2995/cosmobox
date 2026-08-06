@@ -133,22 +133,25 @@ def test_orbit_pipeline_on_ring4_antipodal_pair_gives_near_zero_covariance_defec
     reflection = reflection_unitary_automorphism(lattice, N_FLAVORS, 1, report.keys, key_index)
     subgroup = [identity, reflection]
 
+    # Independent reference values, computed OUTSIDE the pipeline, to check
+    # against what validate_orbit_covariance computes internally.
     operator_at_base = build_dressed_matter_matrix(lattice, N_FLAVORS, 1, report.keys, key_index, base_path, alpha, beta)
-    value_at_base = canonical_multiplet_expectation(operator_at_base, state, hermitian=False)
-
+    reference_value_at_base = canonical_multiplet_expectation(operator_at_base, state, hermitian=False)
     transformed_path = transform_oriented_path(lattice, reflection.automorphism, base_path)
     assert transformed_path == transformed_path_reference
     operator_at_transformed = build_dressed_matter_matrix(
         lattice, N_FLAVORS, 1, report.keys, key_index, transformed_path, alpha, beta
     )
-    value_at_transformed = canonical_multiplet_expectation(operator_at_transformed, state, hermitian=False)
+    reference_value_at_transformed = canonical_multiplet_expectation(operator_at_transformed, state, hermitian=False)
 
     key = _base_key(orbit_family="ring4_antipodal_j1", path_length=2, spectral_group_key=(0, group.start_index, group.end_index_exclusive))
-    elements = [OrbitElement(key, value_at_base), OrbitElement(key, value_at_transformed)]
-
     validated = validate_orbit_covariance(
-        lattice, N_FLAVORS, 1, report.keys, key_index, subgroup, base_path, alpha, beta, elements, tolerance=1e-10
+        lattice, N_FLAVORS, 1, report.keys, key_index, subgroup, state, base_path, alpha, beta, key, tolerance=1e-10
     )
+
+    assert validated.elements[0].value == pytest.approx(reference_value_at_base)
+    assert validated.elements[1].value == pytest.approx(reference_value_at_transformed)
+
     stats = aggregate_validated_orbit(validated)
 
     # U_A commutes with H at J_i=1, so U_A maps this complete group's
@@ -159,51 +162,57 @@ def test_orbit_pipeline_on_ring4_antipodal_pair_gives_near_zero_covariance_defec
     assert stats.orbit_max_pairwise_spread < 1e-8
 
 
-def test_validate_orbit_covariance_rejects_mismatched_comparability_keys() -> None:
+def test_validate_orbit_covariance_has_no_parameter_to_inject_a_value() -> None:
+    # The old signature accepted `elements: Sequence[OrbitElement]`, letting
+    # a caller place an arbitrary value in a ValidatedOrbit as long as the
+    # keys matched and the (unrelated) operator covariance check passed.
+    # That parameter no longer exists -- confirm the new signature rejects
+    # it outright, rather than silently ignoring it.
     lattice, report, key_index, level0_report, eigenvectors = _diagonalize_ring4()
-
+    group = next(g for g in level0_report.spectrum.degeneracy.groups if not g.lower_bound_only)
+    state = extract_group_state(eigenvectors, group)
     base_path = minimal_paths(lattice, 0, 2)[0]
     identity = identity_unitary_automorphism(lattice, report.keys)
     reflection = reflection_unitary_automorphism(lattice, N_FLAVORS, 1, report.keys, key_index)
 
-    elements = [
-        OrbitElement(_base_key(path_length=2), complex(0.1)),
-        OrbitElement(_base_key(path_length=3), complex(0.1)),  # mismatched path_length
-    ]
-    with pytest.raises(ValueError, match="comparability key"):
+    forged_elements = [OrbitElement(_base_key(), complex(999.0)), OrbitElement(_base_key(), complex(999.0))]
+    with pytest.raises(TypeError):
         validate_orbit_covariance(
-            lattice, N_FLAVORS, 1, report.keys, key_index, [identity, reflection], base_path, 0, 1, elements, tolerance=1e-10
+            lattice,
+            N_FLAVORS,
+            1,
+            report.keys,
+            key_index,
+            [identity, reflection],
+            state,
+            base_path,
+            0,
+            1,
+            _base_key(),
+            elements=forged_elements,  # type: ignore[call-arg]
+            tolerance=1e-10,
         )
 
 
-def test_validate_orbit_covariance_rejects_element_count_mismatch() -> None:
+def test_validate_orbit_covariance_rejects_empty_subgroup() -> None:
     lattice, report, key_index, level0_report, eigenvectors = _diagonalize_ring4()
+    group = next(g for g in level0_report.spectrum.degeneracy.groups if not g.lower_bound_only)
+    state = extract_group_state(eigenvectors, group)
     base_path = minimal_paths(lattice, 0, 2)[0]
-    identity = identity_unitary_automorphism(lattice, report.keys)
-    reflection = reflection_unitary_automorphism(lattice, N_FLAVORS, 1, report.keys, key_index)
-
-    elements = [OrbitElement(_base_key(), complex(0.1))]  # only 1, but subgroup has 2
-    with pytest.raises(ValueError, match="correspond 1:1"):
+    with pytest.raises(ValueError, match="at least one subgroup element"):
         validate_orbit_covariance(
-            lattice, N_FLAVORS, 1, report.keys, key_index, [identity, reflection], base_path, 0, 1, elements, tolerance=1e-10
+            lattice, N_FLAVORS, 1, report.keys, key_index, [], state, base_path, 0, 1, _base_key(), tolerance=1e-10
         )
-
-
-def test_validate_orbit_covariance_rejects_empty_elements() -> None:
-    lattice, report, key_index, level0_report, eigenvectors = _diagonalize_ring4()
-    base_path = minimal_paths(lattice, 0, 2)[0]
-    with pytest.raises(ValueError, match="at least one element"):
-        validate_orbit_covariance(lattice, N_FLAVORS, 1, report.keys, key_index, [], base_path, 0, 1, [], tolerance=1e-10)
 
 
 def test_validate_orbit_covariance_detects_a_genuine_covariance_violation() -> None:
-    # Deliberately mismatch subgroup and base_path/alpha/beta by pairing a
-    # reflection generator with a path that reflection does NOT map onto
-    # itself in a way consistent with a fabricated "identity-like" element
-    # value -- simplest genuine violation: supply a subgroup unitary that is
-    # NOT the automorphism's real U_A (swap identity's and reflection's
-    # unitaries) so the identity check fails.
+    # Supply a subgroup unitary that is NOT the automorphism's real U_A
+    # (swap identity's and reflection's unitaries) so the identity check
+    # fails -- and, since values are now computed internally, there is no
+    # way for a forged value to mask this.
     lattice, report, key_index, level0_report, eigenvectors = _diagonalize_ring4()
+    group = next(g for g in level0_report.spectrum.degeneracy.groups if not g.lower_bound_only)
+    state = extract_group_state(eigenvectors, group)
     base_path = minimal_paths(lattice, 0, 2)[0]
     identity = identity_unitary_automorphism(lattice, report.keys)
     reflection = reflection_unitary_automorphism(lattice, N_FLAVORS, 1, report.keys, key_index)
@@ -211,10 +220,20 @@ def test_validate_orbit_covariance_detects_a_genuine_covariance_violation() -> N
     from cosmobox.level1.automorphisms import UnitaryAutomorphism
 
     broken_identity = UnitaryAutomorphism(label="identity", automorphism=identity.automorphism, unitary=reflection.unitary)
-    elements = [OrbitElement(_base_key(), complex(0.1)), OrbitElement(_base_key(), complex(0.1))]
     with pytest.raises(ValueError, match="covariance identity failed"):
         validate_orbit_covariance(
-            lattice, N_FLAVORS, 1, report.keys, key_index, [broken_identity, reflection], base_path, 0, 1, elements, tolerance=1e-10
+            lattice,
+            N_FLAVORS,
+            1,
+            report.keys,
+            key_index,
+            [broken_identity, reflection],
+            state,
+            base_path,
+            0,
+            1,
+            _base_key(),
+            tolerance=1e-10,
         )
 
 
