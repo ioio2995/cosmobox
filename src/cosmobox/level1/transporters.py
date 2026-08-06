@@ -24,20 +24,36 @@ from .paths import OrientedPath
 
 
 def _validate_steps_against_lattice(lattice: Lattice, path: OrientedPath) -> None:
-    """Reject any step whose sense is not exactly +1/-1, or whose
-    edge_index is out of range for THIS lattice.
+    """Reject a path that is not genuinely consistent with THIS lattice.
 
     OrientedPath.__post_init__ already rejects a bad sense or a negative
-    edge_index unconditionally (lattice-independent), so those branches
-    are unreachable through a normally constructed path -- kept here
-    anyway as an explicit, self-contained guard: apply_transporter must
-    never silently treat a malformed sense (e.g. 0 or 2) as "reversed"
-    just because it happens to differ from +1, and must never let a
-    corrupted or hand-assembled path (e.g. via object.__setattr__ on a
-    frozen instance) through unchecked. The upper bound on edge_index is
-    genuinely lattice-dependent and can only be checked here.
+    edge_index unconditionally (lattice-independent) -- those branches are
+    unreachable through a normally constructed path, kept here anyway as
+    an explicit, self-contained guard (apply_transporter must never
+    silently treat a malformed sense as "reversed" just because it
+    differs from +1, and must never let a corrupted or hand-assembled
+    path through unchecked). Everything else here is genuinely
+    lattice-dependent and can only be checked with a specific lattice in
+    hand:
+
+    - every node in path.nodes is within [0, len(lattice.nodes)) ;
+    - every edge_index is within [0, len(lattice.edges)) ;
+    - the edge at edge_index actually connects path.nodes[index] to
+      path.nodes[index + 1] (in either order) -- a structurally valid but
+      unrelated edge_index/sense pair is not enough ;
+    - sense matches that edge's actual orientation relative to the step's
+      direction of travel, not just any value in {+1, -1}.
     """
+    n_nodes = len(lattice.nodes)
     n_edges = len(lattice.edges)
+
+    for node_position, node in enumerate(path.nodes):
+        if not (0 <= node < n_nodes):
+            raise ValueError(
+                f"path node at position {node_position} is {node}, out of range "
+                f"[0, {n_nodes}) for lattice {lattice.name!r}"
+            )
+
     for index, (edge_index, sense) in enumerate(path.steps):
         if sense not in (1, -1):
             raise ValueError(f"path step {index} has sense={sense!r}, expected +1 or -1")
@@ -45,6 +61,25 @@ def _validate_steps_against_lattice(lattice: Lattice, path: OrientedPath) -> Non
             raise ValueError(
                 f"path step {index} references edge_index={edge_index}, out of range "
                 f"[0, {n_edges}) for lattice {lattice.name!r}"
+            )
+
+        edge = lattice.edges[edge_index]
+        expected_u, expected_v = path.nodes[index], path.nodes[index + 1]
+        if (edge.source, edge.target) == (expected_u, expected_v):
+            expected_sense = 1
+        elif (edge.source, edge.target) == (expected_v, expected_u):
+            expected_sense = -1
+        else:
+            raise ValueError(
+                f"path step {index} references edge_index={edge_index} "
+                f"(Edge({edge.source}, {edge.target})), which does not connect nodes "
+                f"{expected_u} and {expected_v}"
+            )
+        if sense != expected_sense:
+            raise ValueError(
+                f"path step {index} has sense={sense}, but edge_index={edge_index} "
+                f"(Edge({edge.source}, {edge.target})) between nodes {expected_u} and {expected_v} "
+                f"requires sense={expected_sense}"
             )
 
 

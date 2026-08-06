@@ -172,3 +172,46 @@ def test_apply_transporter_rejects_malformed_sense_bypassing_construction() -> N
     object.__setattr__(path, "steps", ((0, 2),))
     with pytest.raises(ValueError, match="sense"):
         apply_transporter(lattice, N_FLAVORS, SPIN, key, path)
+
+
+# ---------------------------------------------------------------------------
+# Genuine node<->edge<->sense consistency: a structurally valid
+# (edge_index, sense) pair is not enough if it doesn't actually match the
+# path's own node sequence.
+# ---------------------------------------------------------------------------
+
+
+def test_apply_transporter_rejects_edge_not_connecting_the_claimed_nodes() -> None:
+    # Right step count, in-range edge_index and valid sense, but edge 1
+    # (Edge(1, 2)) does not connect nodes 0 and 1.
+    lattice = build_lattice("triangle")
+    key = _key(lattice)
+    path = OrientedPath(nodes=(0, 1), steps=((1, 1),))
+    with pytest.raises(ValueError, match="does not connect"):
+        apply_transporter(lattice, N_FLAVORS, SPIN, key, path)
+
+
+def test_apply_transporter_rejects_sense_inconsistent_with_nodes() -> None:
+    # Edge 0 (Edge(0, 1)) does connect nodes 0 and 1, but travelling from
+    # 0 to 1 follows the stored orientation (sense should be +1, not -1).
+    lattice = build_lattice("triangle")
+    key = _key(lattice)
+    path = OrientedPath(nodes=(0, 1), steps=((0, -1),))
+    with pytest.raises(ValueError, match="requires sense"):
+        apply_transporter(lattice, N_FLAVORS, SPIN, key, path)
+
+
+def test_apply_transporter_rejects_negative_node() -> None:
+    lattice = build_lattice("triangle")
+    key = _key(lattice)
+    path = OrientedPath(nodes=(-1, 0), steps=((0, 1),))
+    with pytest.raises(ValueError, match="out of range"):
+        apply_transporter(lattice, N_FLAVORS, SPIN, key, path)
+
+
+def test_apply_transporter_rejects_node_at_n_nodes() -> None:
+    lattice = build_lattice("triangle")  # 3 nodes: valid indices are 0, 1, 2
+    key = _key(lattice)
+    path = OrientedPath(nodes=(0, 3), steps=((0, 1),))
+    with pytest.raises(ValueError, match="out of range"):
+        apply_transporter(lattice, N_FLAVORS, SPIN, key, path)
