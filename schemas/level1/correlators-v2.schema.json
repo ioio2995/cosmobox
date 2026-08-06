@@ -179,12 +179,8 @@
       "then": {
         "properties": {
           "observable_kind": {
-            "enum": [
-              "C_QQ_raw", "C_QQ_conn", "C_TT_raw", "C_TT_conn", "O_ij_raw",
-              "rho_QQ", "G_occ", "gamma_O",
-              "raw_G", "flavor_singlet", "flavor_frobenius_squared", "flavor_singular_values", "flavor_singular_value_ratio",
-              "flavor_casimir_label", "translation_character", "reflection_character"
-            ]
+            "description": "D013/D018's closed list of observables that may ever receive a robustness verdict. path_phase_coherence is ALSO frozen by D013 as a secondary robustness observable but is deliberately absent here: no level1 module computes it yet.",
+            "enum": ["gamma_O", "G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"]
           }
         }
       }

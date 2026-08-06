@@ -458,3 +458,84 @@ def test_orbit_comparability_key_with_non_finite_hashable_is_rejected_end_to_end
     record = build_result_record(identity, "orbit_statistic", "O_ij_raw", payload)
     with pytest.raises(ValueError, match="finite"):
         serialize_result_record(record, repository_commit=REPO_COMMIT, manifest_fingerprint="fp", campaign_id="c1")
+
+
+# ---------------------------------------------------------------------------
+# ROBUSTNESS_OBSERVABLE_KINDS -- schema enforces the SAME closed list,
+# tested via manually-constructed JSON documents (no ResultRecord at all).
+# path_phase_coherence stays frozen by D013 as a secondary robustness
+# observable, but is absent from this enum until a module computes it.
+# ---------------------------------------------------------------------------
+
+
+def _manual_robustness_document(observable_kind: str) -> dict:
+    return {
+        "schema_version": "level1-correlators-v2",
+        "repository_commit": REPO_COMMIT,
+        "manifest_fingerprint": "fp",
+        "campaign_id": "c1",
+        "identity": {
+            "geometry": "triangle",
+            "spin": 2,
+            "n_flavors": 2,
+            "hamiltonian": {"J": [1.0], "h_is_zero": True, "t": 1.0, "g_E": 1.0, "K": 1.0},
+            "sector": "default",
+            "spectral_group": {"status": "complete_multiplet", "multiplicity": 2, "twice_T": 1},
+            "path": None,
+            "flavor_component": None,
+            "normalization": None,
+        },
+        "provenance": {
+            "spectral_status": "complete_multiplet",
+            "source_type": "RobustnessResult",
+            "source_module": "cosmobox.level1.robustness",
+            "match_status": None,
+            "covariance_validated": None,
+        },
+        "record_kind": "robustness",
+        "observable_kind": observable_kind,
+        "payload": {
+            "verdict": "robust",
+            "null_reason": None,
+            "gamma_o": {"value": 0.01, "null_reason": None},
+            "difference": 0.01,
+            "amplitude": 1.0,
+        },
+    }
+
+
+@pytest.mark.parametrize("observable_kind", ["gamma_O", "G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"])
+def test_schema_accepts_manually_built_robustness_document_for_each_allowed_pair(observable_kind: str) -> None:
+    document = _manual_robustness_document(observable_kind)
+    errors = list(_validator().iter_errors(document))
+    assert errors == [], f"expected robustness/{observable_kind!r} to validate, got {errors}"
+
+
+@pytest.mark.parametrize(
+    "observable_kind",
+    [
+        "C_QQ_raw",
+        "C_QQ_conn",
+        "C_TT_raw",
+        "O_ij_raw",
+        "raw_G",
+        "flavor_singular_values",
+        "flavor_casimir_label",
+        "translation_character",
+    ],
+)
+def test_schema_rejects_manually_built_robustness_document_for_each_forbidden_pair(observable_kind: str) -> None:
+    document = _manual_robustness_document(observable_kind)
+    errors = list(_validator().iter_errors(document))
+    assert errors, f"expected robustness/{observable_kind!r} to be rejected by the schema"
+
+
+def test_schema_robustness_enum_excludes_path_phase_coherence() -> None:
+    schema = _load_schema()
+    for entry in schema["allOf"]:
+        if entry["if"]["properties"]["record_kind"]["const"] == "robustness" and "observable_kind" in entry["then"]["properties"]:
+            enum = entry["then"]["properties"]["observable_kind"]["enum"]
+            assert "path_phase_coherence" not in enum
+            assert set(enum) == {"gamma_O", "G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"}
+            return
+    pytest.fail("no robustness observable_kind enum block found in the schema")

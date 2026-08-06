@@ -98,6 +98,7 @@ from .restricted import (
 from .results import (
     OBSERVABLE_KINDS,
     RECORD_KINDS,
+    ROBUSTNESS_OBSERVABLE_KINDS,
     HamiltonianIdentity,
     OrbitResultPayload,
     Provenance,
@@ -154,6 +155,7 @@ __all__ = [
     "RECORD_KINDS",
     "RELATIVE_ROBUSTNESS_THRESHOLD",
     "ROBUST",
+    "ROBUSTNESS_OBSERVABLE_KINDS",
     "ResultRecord",
     "RobustnessResult",
     "SCHEMA_VERSION",

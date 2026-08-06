@@ -49,6 +49,16 @@ NORMALIZED_OBSERVABLE_KINDS = ("rho_QQ", "G_occ", "gamma_O")
 FLAVOR_DIAGNOSTIC_KINDS = ("raw_G", "flavor_singlet", "flavor_frobenius_squared", "flavor_singular_values", "flavor_singular_value_ratio")
 SYMMETRY_LABEL_KINDS = ("flavor_casimir_label", "translation_character", "reflection_character")
 
+# D013/D018's own closed list of observables that ever receive an
+# automatic binary robustness verdict: gamma_O (primary), G_occ, rho_QQ,
+# C_TT_conn, flavor_singular_value_ratio (secondary). path_phase_coherence
+# is ALSO frozen by D013 as a secondary robustness observable, but is
+# deliberately NOT included here: no level1 module computes it yet, and
+# this enumeration only ever lists observable_kinds a real function
+# actually produces (see the module docstring). Add it here the day a
+# module implements it -- not before.
+ROBUSTNESS_OBSERVABLE_KINDS = ("gamma_O", "G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio")
+
 OBSERVABLE_KINDS = RAW_OBSERVABLE_KINDS + NORMALIZED_OBSERVABLE_KINDS + FLAVOR_DIAGNOSTIC_KINDS + SYMMETRY_LABEL_KINDS
 
 RECORD_KINDS = (
@@ -72,7 +82,11 @@ _ALLOWED_OBSERVABLE_KINDS_BY_RECORD_KIND: dict[str, frozenset[str]] = {
     "orbit_statistic": _BASE_OBSERVABLE_KINDS,
     "symmetry_label": frozenset(SYMMETRY_LABEL_KINDS),
     "matching": _BASE_OBSERVABLE_KINDS | frozenset(SYMMETRY_LABEL_KINDS),
-    "robustness": _BASE_OBSERVABLE_KINDS | frozenset(SYMMETRY_LABEL_KINDS),
+    # Narrower than "matching" deliberately: D013/D018 close the list of
+    # observables that may ever receive a robust/non_robust/indeterminate
+    # verdict, unlike matching (which may legitimately be checked for any
+    # observable one wants to investigate for S-dependence, verdict or not).
+    "robustness": frozenset(ROBUSTNESS_OBSERVABLE_KINDS),
 }
 
 _FLAVOR_DIAGNOSTIC_PAYLOAD_TYPES: dict[str, tuple[type, ...]] = {

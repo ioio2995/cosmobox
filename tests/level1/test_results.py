@@ -397,3 +397,46 @@ def test_result_record_orbit_statistic_rejects_flavor_component_mismatch() -> No
     identity = _matching_orbit_identity(flavor_component="alpha1_beta0")
     with pytest.raises(ValueError, match="flavor_component"):
         build_result_record(identity, "orbit_statistic", "O_ij_raw", payload)
+
+
+# ---------------------------------------------------------------------------
+# ROBUSTNESS_OBSERVABLE_KINDS -- D013/D018's closed robustness-verdict list
+# ---------------------------------------------------------------------------
+
+
+def _robustness_payload() -> RobustnessResult:
+    return RobustnessResult(verdict=ROBUST, null_reason=None, gamma_o=NormalizedMoment(0.01, None), difference=0.01, amplitude=1.0)
+
+
+@pytest.mark.parametrize("observable_kind", ["gamma_O", "G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"])
+def test_robustness_accepts_every_closed_list_observable_kind(observable_kind: str) -> None:
+    record = build_result_record(_identity(), "robustness", observable_kind, _robustness_payload())
+    assert record.observable_kind == observable_kind
+
+
+@pytest.mark.parametrize(
+    "observable_kind",
+    [
+        "C_QQ_raw",
+        "C_QQ_conn",
+        "C_TT_raw",
+        "O_ij_raw",
+        "raw_G",
+        "flavor_singular_values",
+        "flavor_casimir_label",
+        "translation_character",
+    ],
+)
+def test_robustness_rejects_observable_kind_outside_the_closed_list(observable_kind: str) -> None:
+    with pytest.raises(ValueError, match="observable_kind"):
+        build_result_record(_identity(), "robustness", observable_kind, _robustness_payload())
+
+
+def test_robustness_observable_kinds_constant_excludes_path_phase_coherence() -> None:
+    # path_phase_coherence is frozen by D013 as a secondary robustness
+    # observable, but no level1 module computes it yet -- it must stay
+    # absent from the effective enum until one does.
+    from cosmobox.level1.results import ROBUSTNESS_OBSERVABLE_KINDS
+
+    assert "path_phase_coherence" not in ROBUSTNESS_OBSERVABLE_KINDS
+    assert set(ROBUSTNESS_OBSERVABLE_KINDS) == {"gamma_O", "G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"}
