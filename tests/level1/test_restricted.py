@@ -91,6 +91,52 @@ def test_spectral_group_state_is_complete_reflects_status() -> None:
     assert SpectralGroupState(psi=psi, status=PARTIAL_SUBSPACE).is_complete is False
 
 
+def test_spectral_group_state_rejects_nan() -> None:
+    psi = np.eye(2, dtype=np.complex128)
+    psi[0, 0] = np.nan
+    with pytest.raises(ValueError, match="non-finite"):
+        SpectralGroupState(psi=psi, status=COMPLETE_MULTIPLET)
+
+
+def test_spectral_group_state_rejects_inf() -> None:
+    psi = np.eye(2, dtype=np.complex128)
+    psi[0, 0] = np.inf
+    with pytest.raises(ValueError, match="non-finite"):
+        SpectralGroupState(psi=psi, status=COMPLETE_MULTIPLET)
+
+
+def test_spectral_group_state_rejects_unnormalized_column() -> None:
+    psi = np.eye(2, dtype=np.complex128)
+    psi[0, 0] = 2.0  # column [2, 0] has norm 2, not 1
+    with pytest.raises(ValueError, match="orthonormal"):
+        SpectralGroupState(psi=psi, status=COMPLETE_MULTIPLET)
+
+
+def test_spectral_group_state_rejects_non_orthogonal_columns() -> None:
+    psi = np.array([[1.0, 1.0], [0.0, 0.0]], dtype=np.complex128)  # both columns are [1, 0]
+    with pytest.raises(ValueError, match="orthonormal"):
+        SpectralGroupState(psi=psi, status=COMPLETE_MULTIPLET)
+
+
+def test_spectral_group_state_copies_source_array_independently() -> None:
+    source = np.eye(2, dtype=np.complex128)
+    state = SpectralGroupState(psi=source, status=COMPLETE_MULTIPLET)
+    source[0, 0] = 999.0  # mutate the source after construction
+    assert state.psi[0, 0] == 1.0  # unaffected -- __post_init__ copied, not viewed
+
+
+def test_spectral_group_state_psi_is_read_only() -> None:
+    state = SpectralGroupState(psi=np.eye(2, dtype=np.complex128), status=COMPLETE_MULTIPLET)
+    with pytest.raises(ValueError, match="read-only"):
+        state.psi[0, 0] = 5.0
+
+
+def test_spectral_group_state_converts_real_array_to_complex128() -> None:
+    real_psi = np.eye(2, dtype=np.float64)
+    state = SpectralGroupState(psi=real_psi, status=COMPLETE_MULTIPLET)
+    assert state.psi.dtype == np.complex128
+
+
 # ---------------------------------------------------------------------------
 # extract_group_state
 # ---------------------------------------------------------------------------
@@ -231,6 +277,38 @@ def test_build_restricted_operator_never_larger_than_multiplicity_squared() -> N
     state = SpectralGroupState(psi=psi, status=COMPLETE_MULTIPLET)
     o_rest = build_restricted_operator(operator, state)
     assert o_rest.shape == (multiplicity, multiplicity)
+
+
+def test_build_restricted_operator_rejects_non_finite_operator_data() -> None:
+    operator = sp.csr_matrix(np.eye(2, dtype=np.complex128))
+    operator.data[0] = np.nan
+    state = SpectralGroupState(psi=np.eye(2, dtype=np.complex128), status=COMPLETE_MULTIPLET)
+    with pytest.raises(ValueError, match="operator.data"):
+        build_restricted_operator(operator, state)
+
+
+def test_build_restricted_operator_defense_in_depth_rejects_non_finite_psi_bypassing_readonly() -> None:
+    # SpectralGroupState.psi is read-only, but numpy's writeable flag can be
+    # reverted with setflags(write=True) -- the same bypass-and-prove pattern
+    # already used by transporters.py's tests against OrientedPath's own
+    # frozen-dataclass guarantee. This proves build_restricted_operator's own
+    # finite check is real defense in depth, not dead code shadowed by
+    # SpectralGroupState's constructor-time guarantee.
+    operator = sp.csr_matrix(np.eye(2, dtype=np.complex128))
+    state = SpectralGroupState(psi=np.eye(2, dtype=np.complex128), status=COMPLETE_MULTIPLET)
+    state.psi.setflags(write=True)
+    state.psi[0, 0] = np.nan
+    with pytest.raises(ValueError, match="non-finite"):
+        build_restricted_operator(operator, state)
+
+
+def test_build_restricted_operator_defense_in_depth_rejects_non_orthonormal_psi_bypassing_readonly() -> None:
+    operator = sp.csr_matrix(np.eye(2, dtype=np.complex128))
+    state = SpectralGroupState(psi=np.eye(2, dtype=np.complex128), status=COMPLETE_MULTIPLET)
+    state.psi.setflags(write=True)
+    state.psi[0, 1] = 5.0  # breaks orthonormality without introducing non-finite values
+    with pytest.raises(ValueError, match="orthonormal"):
+        build_restricted_operator(operator, state)
 
 
 # ---------------------------------------------------------------------------

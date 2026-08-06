@@ -73,18 +73,42 @@ class SpectralGroupState:
     multiplicity is deliberately not stored as an independent field --
     it is always psi.shape[1] (the `multiplicity` property below), so it
     cannot diverge from the array it describes.
+
+    This is a public type and is directly constructible (not only via
+    extract_group_state below) -- so every invariant psi must satisfy is
+    enforced here, in __post_init__, not merely by extract_group_state's
+    own construction path: finite values, orthonormal columns, an
+    independent complex128 copy (never a view onto the caller's array,
+    and never sharing dtype/mutability with it), and a definitively
+    non-writeable buffer (object.__setattr__ is required to install the
+    controlled copy, since the dataclass is frozen).
     """
 
     psi: np.ndarray
     status: str
 
     def __post_init__(self) -> None:
-        if self.psi.ndim != 2:
-            raise ValueError(f"psi must be 2-D, got shape {self.psi.shape}")
-        if self.psi.shape[1] == 0:
+        psi = np.asarray(self.psi, dtype=np.complex128)
+        if psi.ndim != 2:
+            raise ValueError(f"psi must be 2-D, got shape {psi.shape}")
+        if psi.shape[1] == 0:
             raise ValueError("psi must have at least one column (non-empty group)")
         if self.status not in _VALID_STATUSES:
             raise ValueError(f"status must be one of {_VALID_STATUSES}, got {self.status!r}")
+        if not np.all(np.isfinite(psi)):
+            raise ValueError("psi contains non-finite values")
+
+        gram = psi.conj().T @ psi
+        orthonormality_defect = float(np.max(np.abs(gram - np.eye(gram.shape[0]))))
+        if orthonormality_defect > ORTHONORMALITY_TOLERANCE:
+            raise ValueError(
+                f"psi is not orthonormal: max|Psi^dagger Psi - I| = {orthonormality_defect} "
+                f"(tolerance {ORTHONORMALITY_TOLERANCE})"
+            )
+
+        psi = np.array(psi, copy=True)  # independent of self.psi's original buffer, whatever it was
+        psi.setflags(write=False)
+        object.__setattr__(self, "psi", psi)
 
     @property
     def multiplicity(self) -> int:
@@ -95,20 +119,16 @@ class SpectralGroupState:
         return self.status == COMPLETE_MULTIPLET
 
 
-def extract_group_state(
-    eigenvectors: np.ndarray,
-    group: SpectralLevelGroup,
-    *,
-    orthonormality_tolerance: float = ORTHONORMALITY_TOLERANCE,
-) -> SpectralGroupState:
+def extract_group_state(eigenvectors: np.ndarray, group: SpectralLevelGroup) -> SpectralGroupState:
     """Slice Psi for one spectral group out of a full eigenvector matrix.
 
     status is derived from group.lower_bound_only -- it is never a
-    parameter the caller can override. A numpy slice of a read-only array
-    is itself read-only, but that is an implementation detail this
-    function does not rely on: psi is explicitly copied and then marked
-    non-writeable with setflags(write=False), so the returned state is
-    independent of, and cannot be corrupted by, the caller's own buffer.
+    parameter the caller can override. The finite-values, orthonormality,
+    independent-copy, and read-only guarantees are all enforced by
+    SpectralGroupState.__post_init__ itself (not duplicated here): this
+    function is responsible only for the parts that require `group` and
+    `eigenvectors` together -- index bounds and the multiplicity_observed
+    cross-check -- before delegating construction.
     """
     if eigenvectors.ndim != 2:
         raise ValueError(f"eigenvectors must be 2-D, got shape {eigenvectors.shape}")
@@ -124,19 +144,6 @@ def extract_group_state(
             f"extracted {psi.shape[1]} columns but group.multiplicity_observed is "
             f"{group.multiplicity_observed}"
         )
-    if not np.all(np.isfinite(psi)):
-        raise ValueError("psi contains non-finite values")
-
-    gram = psi.conj().T @ psi
-    orthonormality_defect = float(np.max(np.abs(gram - np.eye(gram.shape[0]))))
-    if orthonormality_defect > orthonormality_tolerance:
-        raise ValueError(
-            f"psi is not orthonormal: max|Psi^dagger Psi - I| = {orthonormality_defect} "
-            f"(tolerance {orthonormality_tolerance})"
-        )
-
-    psi = np.array(psi, copy=True)
-    psi.setflags(write=False)
 
     status = PARTIAL_SUBSPACE if group.lower_bound_only else COMPLETE_MULTIPLET
     return SpectralGroupState(psi=psi, status=status)
@@ -149,7 +156,16 @@ def extract_group_state(
 
 def build_restricted_operator(operator: sp.spmatrix, group_state: SpectralGroupState) -> np.ndarray:
     """O_rest = Psi^dagger O Psi, a (multiplicity, multiplicity) dense
-    matrix. Never constructs Psi Psi^dagger (dimension x dimension)."""
+    matrix. Never constructs Psi Psi^dagger (dimension x dimension).
+
+    group_state.psi is already guaranteed finite and orthonormal by
+    SpectralGroupState.__post_init__, and read-only -- but numpy's
+    writeable flag can be reverted by a caller with array.setflags
+    (write=True), same as OrientedPath's frozen dataclass can be bypassed
+    with object.__setattr__ (see transporters.py's own bypass tests). The
+    finite/orthonormal checks below are defense in depth against exactly
+    that, not redundant restatements of an unbypassable guarantee.
+    """
     if operator.shape[0] != operator.shape[1]:
         raise ValueError(f"operator must be square, got shape {operator.shape}")
     dimension = operator.shape[0]
@@ -157,8 +173,20 @@ def build_restricted_operator(operator: sp.spmatrix, group_state: SpectralGroupS
     psi = group_state.psi
     if psi.shape[0] != dimension:
         raise ValueError(f"operator has dimension {dimension} but group_state.psi has {psi.shape[0]} rows")
+
     if not np.all(np.isfinite(psi)):
         raise ValueError("group_state.psi contains non-finite values")
+
+    gram = psi.conj().T @ psi
+    orthonormality_defect = float(np.max(np.abs(gram - np.eye(gram.shape[0]))))
+    if orthonormality_defect > ORTHONORMALITY_TOLERANCE:
+        raise ValueError(
+            f"group_state.psi is not orthonormal: max|Psi^dagger Psi - I| = {orthonormality_defect} "
+            f"(tolerance {ORTHONORMALITY_TOLERANCE})"
+        )
+
+    if not np.all(np.isfinite(operator.data)):
+        raise ValueError("operator.data contains non-finite values")
 
     operator_psi = operator @ psi
     if not np.all(np.isfinite(operator_psi)):
