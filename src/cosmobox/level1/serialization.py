@@ -164,6 +164,9 @@ def _provenance_payload(provenance: Provenance) -> dict:
         "source_module": provenance.source_module,
         "match_status": provenance.match_status,
         "covariance_validated": provenance.covariance_validated,
+        "scientific_seed": provenance.scientific_seed,
+        "solver_seed": provenance.solver_seed,
+        "validation_rotation_seed": provenance.validation_rotation_seed,
     }
 
 

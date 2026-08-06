@@ -28,12 +28,23 @@ from cosmobox.level1.results import (
     ScientificIdentity,
     SpectralGroupIdentity,
     build_orbit_result_payload,
-    build_result_record,
 )
+from cosmobox.level1.results import build_result_record as _build_result_record_impl
 from cosmobox.level1.robustness import INDETERMINATE, ROBUST, RobustnessResult
 from cosmobox.level1.serialization import SCHEMA_VERSION, _load_schema, serialize_result_record
 
 REPO_COMMIT = "a" * 40
+_TEST_SCIENTIFIC_SEED = 1001
+_TEST_SOLVER_SEED = 2002
+
+
+def build_result_record(*args, **kwargs):
+    """Shadows cosmobox.level1.results.build_result_record with fixed
+    default seeds -- see tests/level1/test_results.py's own copy of this
+    wrapper for the rationale."""
+    kwargs.setdefault("scientific_seed", _TEST_SCIENTIFIC_SEED)
+    kwargs.setdefault("solver_seed", _TEST_SOLVER_SEED)
+    return _build_result_record_impl(*args, **kwargs)
 
 
 def _hamiltonian(**overrides) -> HamiltonianIdentity:
@@ -491,6 +502,9 @@ def _manual_robustness_document(observable_kind: str) -> dict:
             "source_module": "cosmobox.level1.robustness",
             "match_status": None,
             "covariance_validated": None,
+            "scientific_seed": 1001,
+            "solver_seed": 2002,
+            "validation_rotation_seed": None,
         },
         "record_kind": "robustness",
         "observable_kind": observable_kind,
@@ -539,3 +553,51 @@ def test_schema_robustness_enum_excludes_path_phase_coherence() -> None:
             assert set(enum) == {"gamma_O", "G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"}
             return
     pytest.fail("no robustness observable_kind enum block found in the schema")
+
+
+# ---------------------------------------------------------------------------
+# provenance.scientific_seed / solver_seed / validation_rotation_seed
+# (Level1B lot 1B-8) -- required at the schema level too, not just Python.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("missing_key", ["scientific_seed", "solver_seed", "validation_rotation_seed"])
+def test_schema_rejects_provenance_missing_seed_key(missing_key: str) -> None:
+    document = _manual_robustness_document("gamma_O")
+    del document["provenance"][missing_key]
+    errors = list(_validator().iter_errors(document))
+    assert errors, f"expected a missing provenance.{missing_key} to be rejected by the schema"
+
+
+@pytest.mark.parametrize("key,bad_value", [("scientific_seed", -1), ("solver_seed", -1), ("validation_rotation_seed", -1)])
+def test_schema_rejects_provenance_negative_seed(key: str, bad_value: int) -> None:
+    document = _manual_robustness_document("gamma_O")
+    document["provenance"][key] = bad_value
+    errors = list(_validator().iter_errors(document))
+    assert errors, f"expected provenance.{key}={bad_value} to be rejected by the schema"
+
+
+def test_schema_accepts_provenance_with_non_null_validation_rotation_seed() -> None:
+    document = _manual_robustness_document("gamma_O")
+    document["provenance"]["validation_rotation_seed"] = 7
+    errors = list(_validator().iter_errors(document))
+    assert errors == []
+
+
+def test_schema_rejects_provenance_missing_scientific_or_solver_seed_but_null_is_rejected_too() -> None:
+    document = _manual_robustness_document("gamma_O")
+    document["provenance"]["scientific_seed"] = None
+    errors = list(_validator().iter_errors(document))
+    assert errors, "scientific_seed must be an integer, never null"
+
+
+def test_serialize_result_record_includes_seed_fields() -> None:
+    record = build_result_record(
+        _identity(), "raw_observable", "C_QQ_raw", 0.5, scientific_seed=5, solver_seed=6, validation_rotation_seed=7
+    )
+    document = serialize_result_record(record, repository_commit=REPO_COMMIT, manifest_fingerprint="fp", campaign_id="c1")
+    assert document["provenance"]["scientific_seed"] == 5
+    assert document["provenance"]["solver_seed"] == 6
+    assert document["provenance"]["validation_rotation_seed"] == 7
+    errors = list(_validator().iter_errors(document))
+    assert errors == []

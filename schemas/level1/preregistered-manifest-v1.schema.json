@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1-preregistered-manifest-v1.schema.json",
+  "title": "Cosmobox Level 1B preregistered campaign manifest (machine-readable)",
+  "description": "Normative machine-readable transcription of experiments/level1/preregistered-manifest.md (D019-adjacent, lot 1B-8). The Markdown remains the human-readable document; this JSON is what code loads, validates, and fingerprints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "campaign_id",
+    "schema_version",
+    "branch",
+    "n_flavors",
+    "external_charges_all_zero",
+    "hamiltonian_cases",
+    "grid",
+    "sectors",
+    "target_groups",
+    "observables",
+    "robustness",
+    "resource_guardrails",
+    "degeneracy_tolerance",
+    "pair_selection"
+  ],
+  "properties": {
+    "manifest_version": {"const": "level1b-reference-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "schema_version": {"const": "level1-correlators-v2"},
+    "branch": {"type": "string", "minLength": 1},
+    "n_flavors": {"const": 2},
+    "external_charges_all_zero": {"const": true},
+    "hamiltonian_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/hamiltonianCase"}
+    },
+    "grid": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/gridPoint"}
+    },
+    "sectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "target_groups": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {"$ref": "#/$defs/targetGroup"}
+      }
+    },
+    "observables": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "robustness": {"$ref": "#/$defs/robustness"},
+    "resource_guardrails": {"$ref": "#/$defs/resourceGuardrails"},
+    "degeneracy_tolerance": {"type": "number", "exclusiveMinimum": 0},
+    "pair_selection": {"enum": ["all_unordered_pairs"]}
+  },
+  "$defs": {
+    "hamiltonianCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hamiltonian_case_id", "J_uniform", "J_override", "h_is_zero", "t", "g_E", "K"],
+      "properties": {
+        "hamiltonian_case_id": {"type": "string", "minLength": 1},
+        "J_uniform": {"type": "number"},
+        "J_override": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["node_index", "value"],
+              "properties": {
+                "node_index": {"type": "integer", "minimum": 0},
+                "value": {"type": "number"}
+              }
+            }
+          ]
+        },
+        "h_is_zero": {"const": true},
+        "t": {"type": "number"},
+        "g_E": {"type": "number"},
+        "K": {"type": "number"}
+      }
+    },
+    "gridPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry", "spin", "physical_dimension", "spectral_window", "hamiltonian_case_ids"],
+      "properties": {
+        "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+        "spin": {"type": "integer", "minimum": 1},
+        "physical_dimension": {"type": "integer", "minimum": 1},
+        "spectral_window": {"type": "integer", "minimum": 1},
+        "hamiltonian_case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "targetGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_id", "selection_kind", "target_twice_T", "selection_within_label"],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "selection_kind": {"enum": ["fundamental", "first_excited", "flavor_label", "structurally_not_applicable"]},
+        "target_twice_T": {"type": ["integer", "null"], "minimum": 0},
+        "selection_within_label": {"enum": ["lowest_representative_energy", null]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"selection_kind": {"const": "flavor_label"}}, "required": ["selection_kind"]},
+          "then": {
+            "required": ["target_twice_T", "selection_within_label"],
+            "properties": {"target_twice_T": {"type": "integer"}, "selection_within_label": {"const": "lowest_representative_energy"}}
+          }
+        },
+        {
+          "if": {"properties": {"selection_kind": {"enum": ["fundamental", "first_excited"]}}, "required": ["selection_kind"]},
+          "then": {"properties": {"target_twice_T": {"type": "null"}, "selection_within_label": {"const": null}}}
+        }
+      ]
+    },
+    "robustness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "absolute_tolerance", "relative_tolerance", "normalization_floor"],
+      "properties": {
+        "primary": {"const": "gamma_O"},
+        "secondary": {
+          "type": "array",
+          "items": {"enum": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"]},
+          "uniqueItems": true
+        },
+        "absolute_tolerance": {"const": 0.05},
+        "relative_tolerance": {"const": 0.15},
+        "normalization_floor": {"const": 1e-12}
+      }
+    },
+    "resourceGuardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_dense_dimension", "max_sparse_dimension"],
+      "properties": {
+        "max_dense_dimension": {"const": 2000},
+        "max_sparse_dimension": {"const": 200000}
+      }
+    }
+  }
+}

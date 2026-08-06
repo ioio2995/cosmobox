@@ -254,13 +254,25 @@
     },
     "provenance": {
       "type": "object",
-      "required": ["spectral_status", "source_type", "source_module", "match_status", "covariance_validated"],
+      "required": [
+        "spectral_status",
+        "source_type",
+        "source_module",
+        "match_status",
+        "covariance_validated",
+        "scientific_seed",
+        "solver_seed",
+        "validation_rotation_seed"
+      ],
       "properties": {
         "spectral_status": {"$ref": "#/$defs/spectralStatus"},
         "source_type": {"type": "string", "minLength": 1},
         "source_module": {"type": "string", "minLength": 1},
         "match_status": {"oneOf": [{"$ref": "#/$defs/matchStatus"}, {"type": "null"}]},
-        "covariance_validated": {"type": ["boolean", "null"]}
+        "covariance_validated": {"type": ["boolean", "null"]},
+        "scientific_seed": {"type": "integer", "minimum": 0},
+        "solver_seed": {"type": "integer", "minimum": 0},
+        "validation_rotation_seed": {"type": ["integer", "null"], "minimum": 0}
       },
       "additionalProperties": false
     },

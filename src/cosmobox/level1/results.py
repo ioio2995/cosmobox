@@ -191,13 +191,25 @@ class Provenance:
     type and module actually produced the payload (an audit trail, not a
     scientific claim); match_status/covariance_validated are copied from
     an existing MatchOutcome/ValidatedOrbit when one exists upstream of
-    this record, None when not applicable."""
+    this record, None when not applicable.
+
+    scientific_seed/solver_seed/validation_rotation_seed record the
+    per-case seeds actually used to produce this result (Level1B lot
+    1B-8, docs/decisions/decisions.md). scientific_seed and solver_seed
+    are the two seeds every campaign execution derives per case (see
+    experiments/level1/planning.py's derive_case_seed) and are always
+    non-negative ints here; validation_rotation_seed is a non-negative
+    int only when a randomized validation step was actually replayed to
+    produce this record, None otherwise -- never a placeholder value."""
 
     spectral_status: str
     source_type: str
     source_module: str
     match_status: str | None
     covariance_validated: bool | None
+    scientific_seed: int
+    solver_seed: int
+    validation_rotation_seed: int | None
 
     def __post_init__(self) -> None:
         if self.spectral_status not in (COMPLETE_MULTIPLET, PARTIAL_SUBSPACE):
@@ -209,6 +221,18 @@ class Provenance:
             raise ValueError("source_type must be non-empty")
         if not self.source_module:
             raise ValueError("source_module must be non-empty")
+        for name, value in (("scientific_seed", self.scientific_seed), ("solver_seed", self.solver_seed)):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{name} must be a non-negative int, got {value!r}")
+        if self.validation_rotation_seed is not None and (
+            isinstance(self.validation_rotation_seed, bool)
+            or not isinstance(self.validation_rotation_seed, int)
+            or self.validation_rotation_seed < 0
+        ):
+            raise ValueError(
+                f"validation_rotation_seed must be None or a non-negative int, "
+                f"got {self.validation_rotation_seed!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -436,16 +460,21 @@ def build_result_record(
     observable_kind: str,
     payload: object,
     *,
+    scientific_seed: int,
+    solver_seed: int,
+    validation_rotation_seed: int | None = None,
     match_status: str | None = None,
     covariance_validated: bool | None = None,
 ) -> ResultRecord:
     """The recommended way to construct a ResultRecord. source_type/
     source_module are derived mechanically from type(payload), and
     spectral_status is derived from identity.spectral_group.status --
-    only match_status and covariance_validated remain caller-supplied,
-    because they are genuinely external facts already validated upstream
-    (by matching.match_spectral_group / orbits.validate_orbit_covariance),
-    not something derivable from payload/identity alone. Direct
+    only match_status, covariance_validated, and the three seed fields
+    remain caller-supplied, because they are genuinely external facts
+    already established upstream (by matching.match_spectral_group /
+    orbits.validate_orbit_covariance / the campaign's own per-case seed
+    derivation, experiments/level1/planning.py's derive_case_seed), not
+    something derivable from payload/identity alone. Direct
     ResultRecord(...) construction remains possible (results.py's public
     types are all directly constructible, matching the project's
     established pattern), but its own __post_init__ independently
@@ -459,6 +488,9 @@ def build_result_record(
         source_module=source_module,
         match_status=match_status,
         covariance_validated=covariance_validated,
+        scientific_seed=scientific_seed,
+        solver_seed=solver_seed,
+        validation_rotation_seed=validation_rotation_seed,
     )
     return ResultRecord(
         identity=identity, provenance=provenance, record_kind=record_kind, observable_kind=observable_kind, payload=payload

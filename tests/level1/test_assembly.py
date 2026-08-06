@@ -4,10 +4,20 @@ import pytest
 
 from cosmobox.level1.assembly import AssemblyContradiction, AssemblyMetadataMismatch, AssemblyReport, assemble_execution
 from cosmobox.level1.restricted import COMPLETE_MULTIPLET
-from cosmobox.level1.results import HamiltonianIdentity, ScientificIdentity, SpectralGroupIdentity, build_result_record
+from cosmobox.level1.results import HamiltonianIdentity, ScientificIdentity, SpectralGroupIdentity
+from cosmobox.level1.results import build_result_record as _build_result_record_impl
 from cosmobox.level1.serialization import serialize_result_record
 
 REPO_COMMIT = "b" * 40
+
+
+def build_result_record(*args, **kwargs):
+    """Shadows cosmobox.level1.results.build_result_record with fixed
+    default seeds -- see tests/level1/test_results.py's own copy of this
+    wrapper for the rationale."""
+    kwargs.setdefault("scientific_seed", 1001)
+    kwargs.setdefault("solver_seed", 2002)
+    return _build_result_record_impl(*args, **kwargs)
 
 
 def _document(

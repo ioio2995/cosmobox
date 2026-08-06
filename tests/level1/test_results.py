@@ -22,9 +22,23 @@ from cosmobox.level1.results import (
     ScientificIdentity,
     SpectralGroupIdentity,
     build_orbit_result_payload,
-    build_result_record,
 )
+from cosmobox.level1.results import build_result_record as _build_result_record_impl
 from cosmobox.level1.robustness import INDETERMINATE, ROBUST, RobustnessResult
+
+_TEST_SCIENTIFIC_SEED = 1_001
+_TEST_SOLVER_SEED = 2_002
+
+
+def build_result_record(*args, **kwargs):
+    """Shadows cosmobox.level1.results.build_result_record with fixed
+    default seeds for tests that are not themselves about seed
+    provenance -- mirrors _derived_provenance's own default-injection
+    role below, so the ~60 existing call sites below need no per-call
+    edit for a field unrelated to what each of them actually tests."""
+    kwargs.setdefault("scientific_seed", _TEST_SCIENTIFIC_SEED)
+    kwargs.setdefault("solver_seed", _TEST_SOLVER_SEED)
+    return _build_result_record_impl(*args, **kwargs)
 
 
 def _hamiltonian(**overrides) -> HamiltonianIdentity:
@@ -71,6 +85,9 @@ def _derived_provenance(payload: object, *, spectral_status: str = COMPLETE_MULT
         source_module=type(payload).__module__,
         match_status=None,
         covariance_validated=None,
+        scientific_seed=_TEST_SCIENTIFIC_SEED,
+        solver_seed=_TEST_SOLVER_SEED,
+        validation_rotation_seed=None,
     )
     defaults.update(overrides)
     return Provenance(**defaults)
@@ -118,12 +135,102 @@ def test_scientific_identity_rejects_empty_path() -> None:
 
 def test_provenance_rejects_invalid_spectral_status() -> None:
     with pytest.raises(ValueError, match="spectral_status"):
-        Provenance(spectral_status="degenerate", source_type="float", source_module="builtins", match_status=None, covariance_validated=None)
+        Provenance(
+            spectral_status="degenerate",
+            source_type="float",
+            source_module="builtins",
+            match_status=None,
+            covariance_validated=None,
+            scientific_seed=_TEST_SCIENTIFIC_SEED,
+            solver_seed=_TEST_SOLVER_SEED,
+            validation_rotation_seed=None,
+        )
 
 
 def test_provenance_rejects_empty_source_type() -> None:
     with pytest.raises(ValueError, match="source_type"):
-        Provenance(spectral_status=COMPLETE_MULTIPLET, source_type="", source_module="builtins", match_status=None, covariance_validated=None)
+        Provenance(
+            spectral_status=COMPLETE_MULTIPLET,
+            source_type="",
+            source_module="builtins",
+            match_status=None,
+            covariance_validated=None,
+            scientific_seed=_TEST_SCIENTIFIC_SEED,
+            solver_seed=_TEST_SOLVER_SEED,
+            validation_rotation_seed=None,
+        )
+
+
+@pytest.mark.parametrize("scientific_seed,solver_seed", [(-1, 0), (0, -1), (True, 0), (0, True), (1.5, 0)])
+def test_provenance_rejects_invalid_scientific_or_solver_seed(scientific_seed, solver_seed) -> None:
+    with pytest.raises(ValueError):
+        Provenance(
+            spectral_status=COMPLETE_MULTIPLET,
+            source_type="float",
+            source_module="builtins",
+            match_status=None,
+            covariance_validated=None,
+            scientific_seed=scientific_seed,
+            solver_seed=solver_seed,
+            validation_rotation_seed=None,
+        )
+
+
+def test_provenance_accepts_none_validation_rotation_seed() -> None:
+    provenance = Provenance(
+        spectral_status=COMPLETE_MULTIPLET,
+        source_type="float",
+        source_module="builtins",
+        match_status=None,
+        covariance_validated=None,
+        scientific_seed=0,
+        solver_seed=0,
+        validation_rotation_seed=None,
+    )
+    assert provenance.validation_rotation_seed is None
+
+
+def test_provenance_accepts_non_negative_validation_rotation_seed() -> None:
+    provenance = Provenance(
+        spectral_status=COMPLETE_MULTIPLET,
+        source_type="float",
+        source_module="builtins",
+        match_status=None,
+        covariance_validated=None,
+        scientific_seed=0,
+        solver_seed=0,
+        validation_rotation_seed=7,
+    )
+    assert provenance.validation_rotation_seed == 7
+
+
+@pytest.mark.parametrize("validation_rotation_seed", [-1, True])
+def test_provenance_rejects_invalid_validation_rotation_seed(validation_rotation_seed) -> None:
+    with pytest.raises(ValueError, match="validation_rotation_seed"):
+        Provenance(
+            spectral_status=COMPLETE_MULTIPLET,
+            source_type="float",
+            source_module="builtins",
+            match_status=None,
+            covariance_validated=None,
+            scientific_seed=0,
+            solver_seed=0,
+            validation_rotation_seed=validation_rotation_seed,
+        )
+
+
+def test_build_result_record_stores_supplied_seeds() -> None:
+    record = _build_result_record_impl(
+        _identity(), "raw_observable", "C_QQ_raw", 0.5, scientific_seed=11, solver_seed=22, validation_rotation_seed=33
+    )
+    assert record.provenance.scientific_seed == 11
+    assert record.provenance.solver_seed == 22
+    assert record.provenance.validation_rotation_seed == 33
+
+
+def test_build_result_record_defaults_validation_rotation_seed_to_none() -> None:
+    record = _build_result_record_impl(_identity(), "raw_observable", "C_QQ_raw", 0.5, scientific_seed=11, solver_seed=22)
+    assert record.provenance.validation_rotation_seed is None
 
 
 # ---------------------------------------------------------------------------
