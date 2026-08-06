@@ -295,6 +295,26 @@ La soustraction du terme connecté est effectuée **composante par composante**,
 
 Cette généralisation comble une lacune nécessaire à l'exécution du manifeste 1B ; elle ne modifie aucune formule ni aucun seuil déjà gelé, ne calcule aucun verdict de robustesse, et n'introduit aucun appariement inter-S. `G_occ` reste hors périmètre (D018).
 
+## D021 — Infrastructure de campagne corrigée : statut du manifeste, seed racine, paires ordonnées, taxonomie des productions, exigences normatives des cibles (lot 1B-8, correctif)
+
+**Statut : gelé**
+
+Cette décision corrige et complète le lot d'infrastructure 1B-8 (`experiments/level1/{manifest,planning,target_selection}.py`) sur cinq points, sans toucher au runner (toujours suspendu), à D020, ni à aucune formule scientifique.
+
+**Statut normatif du manifeste** : `experiments/level1/preregistered-manifest-v1.json` est la transcription machine-readable **normative** de la campagne. `experiments/level1/preregistered-manifest.md` est un document humain explicatif, jamais lui-même chargé, validé ou exécuté. Toute divergence entre les deux bloque l'exécution — elle doit être résolue en corrigeant le JSON (et si nécessaire le Markdown), jamais en préférant silencieusement l'un des deux.
+
+**Empreinte et seed racine** : le manifeste porte désormais un champ racine `scientific_seed` (entier non-négatif), inclus dans `manifest_fingerprint` au même titre que tout autre champ du document validé (`compute_manifest_fingerprint` fingerprinte le document entier, sans liste d'exclusion — voir D019/lot 1B-8 initial). `build_campaign_plan(manifest)` ne reçoit plus de `root_seed` libre : le seed racine est exclusivement `manifest.scientific_seed`. Les seeds par cas restent dérivés par SHA-256 depuis (seed racine, `case_id` canonique du cas, rôle du seed) — jamais `hash()`.
+
+**Paires ordonnées** : `pair_selection` vaut `"all_ordered_distinct_pairs"` (et non `"all_unordered_pairs"`, une règle non prescrite par le manifeste humain et donc invalide). La campagne produit une identité pour chaque paire ordonnée `(i,j)`, `i != j` — `(i,j)` et `(j,i)` sont deux éléments distincts du plan (`planning.build_ordered_pairs`), même si une observable prouvée symétrique peut être optimisée en interne côté exécution ; le plan lui-même ne fusionne jamais les deux ordres.
+
+**Taxonomie des productions** : le manifeste remplace la liste plate d'observables par `productions`, structurée en cinq catégories : `single_case_observables` (C_QQ_raw, rho_QQ, C_TT_raw, C_TT_conn, raw_G et ses 4 dérivés — mono-cas, D020), `single_case_diagnostics` (diagnostics restreints hermitien/non-hermitien de O_ij), `path_statistics` (statistiques structurelles de chemins minimaux), `orbit_statistics` (exactement `orbit_mean`, `orbit_max_pairwise_spread`, `orbit_covariance_defect`), et `inter_s_observables` (`gamma_O` primaire, les verdicts de robustesse, `G_occ`/`rho_QQ`/`C_TT_conn`/`flavor_singular_value_ratio`/`path_phase_coherence` en secondaires — `G_occ` et `path_phase_coherence` explicitement marqués `unproduced` : préenregistrés par D013/D018 mais sans aucun producteur physique implémenté). `gamma_O` n'apparaît plus jamais dans une catégorie mono-cas.
+
+**Sélection par label de saveur** : `_select_flavor_label` met désormais en commun TOUS les candidats partageant `target_twice_T` (complets et partiels), classés uniquement par `representative_energy` ; un candidat partiel de plus basse énergie n'est jamais écarté au profit d'un candidat complet de plus haute énergie. Une égalité dans `degeneracy_tolerance` entre candidats — complets, partiels, ou mélangés — retourne `ambiguous`, jamais départagée par ordre d'itération. Le statut réel du candidat sélectionné (`complete_multiplet`/`partial_subspace`) est toujours propagé sans promotion.
+
+**Exigences normatives des cibles** : `TargetGroupSpec` porte désormais `required_spectral_status` (`complete_multiplet` pour toute catégorie sauf `structurally_not_applicable`, qui porte `null`) et `requires_inter_s_exact_match` (`true` uniquement pour `first_excited`, transcrit du manifeste humain — « premier groupe excité complet avec `exact_label_match` »). `TargetSelectionOutcome` porte `selected_group_status` et `meets_normative_requirements`, distinguant explicitement groupe identifié / cible normative satisfaite / groupe identifié mais exploratoire (partiel) / ambigu / absent / structurellement non applicable — sans jamais prétendre produire `exact_label_match` : ce contrôle reste exclusivement de la responsabilité de l'étape d'appariement inter-S (`matching.py`), hors périmètre de la sélection mono-cas.
+
+Hors périmètre de cette décision : le runner de campagne, `local_observables.py`/D020, le niveau 0, le calcul physique de `G_occ`, l'appariement inter-S, toute exécution de campagne.
+
 ## Questions ouvertes
 
 - organisation logicielle des utilitaires de campagne, mutualisés ou locaux ;

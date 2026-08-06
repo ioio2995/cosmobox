@@ -8,10 +8,11 @@ observable computation, and launches nothing: it only builds frozen,
 self-verifying case descriptions and derives their seeds. Execution lives
 in scripts/level1b_campaign/.
 
-Per-case seeds are derived from a root seed, the case's own canonical
-case_id, and a seed role, via SHA-256 -- never Python's built-in hash()
-(unstable across processes/versions, unsuitable for reproducible
-provenance).
+Per-case seeds are derived from the manifest's own root seed
+(manifest.scientific_seed -- part of the fingerprinted manifest, never a
+free parameter supplied outside it), the case's own canonical case_id,
+and a seed role, via SHA-256 -- never Python's built-in hash() (unstable
+across processes/versions, unsuitable for reproducible provenance).
 """
 
 from __future__ import annotations
@@ -55,6 +56,25 @@ def _canonical_hamiltonian_parameters_payload(parameters: HamiltonianParameters)
     }
 
 
+def build_ordered_pairs(n_nodes: int) -> tuple[tuple[int, int], ...]:
+    """All ordered pairs (i, j) with i != j -- the campaign's
+    pair_selection == "all_ordered_distinct_pairs" policy. (i, j) and
+    (j, i) are always two distinct elements of this plan: the dressed
+    matter operator O_ij[P] is generally not equal to O_ji[P] (a
+    different creation/annihilation site pair, generally a different
+    path), so collapsing them would silently drop half the requested
+    identities. A caller MAY internally skip recomputing a value it can
+    prove symmetric (e.g. a provably-symmetric raw moment), but that is
+    an optimization on top of this plan, never a change to the plan
+    itself -- this function always returns both orderings.
+
+    Deterministic order: i ascending, then j ascending (i != j), so
+    (0, 1) always precedes (1, 0)."""
+    if isinstance(n_nodes, bool) or not isinstance(n_nodes, int) or n_nodes < 0:
+        raise ValueError(f"n_nodes must be a non-negative int, got {n_nodes!r}")
+    return tuple((i, j) for i in range(n_nodes) for j in range(n_nodes) if i != j)
+
+
 @dataclass(frozen=True, slots=True)
 class CampaignCaseSpec:
     """A single, frozen, self-verifying campaign case. case_id is
@@ -74,6 +94,7 @@ class CampaignCaseSpec:
     physical_dimension: int
     spectrum_options: SpectrumOptions
     target_groups: tuple[TargetGroupSpec, ...]
+    ordered_pairs: tuple[tuple[int, int], ...]
     scientific_seed: int
     solver_seed: int
     validation_rotation_seed: int | None
@@ -105,6 +126,13 @@ class CampaignCaseSpec:
             raise ValueError(
                 f"validation_rotation_seed must be None or a non-negative int, "
                 f"got {self.validation_rotation_seed!r}"
+            )
+        n_nodes = len(self.hamiltonian_parameters.J)
+        expected_pairs = build_ordered_pairs(n_nodes)
+        if self.ordered_pairs != expected_pairs:
+            raise ValueError(
+                f"ordered_pairs does not match build_ordered_pairs({n_nodes}) for this case's own "
+                "hamiltonian_parameters.J length -- a well-formed but wrong pair plan is a provenance failure"
             )
 
 
@@ -197,13 +225,16 @@ def _build_spectrum_options(manifest: Manifest, grid_point: GridPointSpec, solve
     )
 
 
-def build_campaign_plan(manifest: Manifest, *, root_seed: int) -> tuple[CampaignCaseSpec, ...]:
+def build_campaign_plan(manifest: Manifest) -> tuple[CampaignCaseSpec, ...]:
     """Deterministic, pure plan: one CampaignCaseSpec per (grid point,
     Hamiltonian case, sector), in the manifest's own grid/sectors order.
     Builds objects and derives seeds only -- never diagonalizes, matches,
-    or computes an observable."""
-    if isinstance(root_seed, bool) or not isinstance(root_seed, int) or root_seed < 0:
-        raise ValueError(f"root_seed must be a non-negative int, got {root_seed!r}")
+    or computes an observable.
+
+    The root seed for every derived per-case seed is manifest.
+    scientific_seed -- part of the fingerprinted manifest itself, never a
+    free parameter a caller could vary independently of the manifest."""
+    root_seed = manifest.scientific_seed
 
     hamiltonian_cases_by_id = {case.hamiltonian_case_id: case for case in manifest.hamiltonian_cases}
     lattice_node_counts: dict[str, int] = {}
@@ -242,6 +273,7 @@ def build_campaign_plan(manifest: Manifest, *, root_seed: int) -> tuple[Campaign
                         physical_dimension=grid_point.physical_dimension,
                         spectrum_options=_build_spectrum_options(manifest, grid_point, solver_seed),
                         target_groups=target_groups,
+                        ordered_pairs=build_ordered_pairs(n_nodes),
                         scientific_seed=scientific_seed,
                         solver_seed=solver_seed,
                         # No module in this codebase replays a randomized

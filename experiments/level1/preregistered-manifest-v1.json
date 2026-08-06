@@ -5,6 +5,7 @@
   "branch": "research/level1-correlators",
   "n_flavors": 2,
   "external_charges_all_zero": true,
+  "scientific_seed": 20260805,
   "hamiltonian_cases": [
     {
       "hamiltonian_case_id": "reference",
@@ -39,36 +40,131 @@
   "sectors": ["default"],
   "target_groups": {
     "triangle": [
-      {"target_id": "fundamental", "selection_kind": "fundamental", "target_twice_T": null, "selection_within_label": null},
-      {"target_id": "first_excited", "selection_kind": "first_excited", "target_twice_T": null, "selection_within_label": null},
-      {"target_id": "T_max", "selection_kind": "flavor_label", "target_twice_T": 3, "selection_within_label": "lowest_representative_energy"}
+      {
+        "target_id": "fundamental",
+        "selection_kind": "fundamental",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "first_excited",
+        "selection_kind": "first_excited",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": true
+      },
+      {
+        "target_id": "T_max",
+        "selection_kind": "flavor_label",
+        "target_twice_T": 3,
+        "selection_within_label": "lowest_representative_energy",
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      }
     ],
     "ring4": [
-      {"target_id": "fundamental", "selection_kind": "fundamental", "target_twice_T": null, "selection_within_label": null},
-      {"target_id": "first_excited", "selection_kind": "first_excited", "target_twice_T": null, "selection_within_label": null},
-      {"target_id": "T_max", "selection_kind": "flavor_label", "target_twice_T": 4, "selection_within_label": "lowest_representative_energy"},
-      {"target_id": "T_3_2", "selection_kind": "structurally_not_applicable", "target_twice_T": 3, "selection_within_label": null}
+      {
+        "target_id": "fundamental",
+        "selection_kind": "fundamental",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "first_excited",
+        "selection_kind": "first_excited",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": true
+      },
+      {
+        "target_id": "T_max",
+        "selection_kind": "flavor_label",
+        "target_twice_T": 4,
+        "selection_within_label": "lowest_representative_energy",
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "T_3_2",
+        "selection_kind": "structurally_not_applicable",
+        "target_twice_T": 3,
+        "selection_within_label": null,
+        "required_spectral_status": null,
+        "requires_inter_s_exact_match": false
+      }
     ],
     "ring5": [
-      {"target_id": "fundamental", "selection_kind": "fundamental", "target_twice_T": null, "selection_within_label": null},
-      {"target_id": "first_excited", "selection_kind": "first_excited", "target_twice_T": null, "selection_within_label": null},
-      {"target_id": "T_max", "selection_kind": "flavor_label", "target_twice_T": 5, "selection_within_label": "lowest_representative_energy"},
-      {"target_id": "T_3_2", "selection_kind": "flavor_label", "target_twice_T": 3, "selection_within_label": "lowest_representative_energy"}
+      {
+        "target_id": "fundamental",
+        "selection_kind": "fundamental",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "first_excited",
+        "selection_kind": "first_excited",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": true
+      },
+      {
+        "target_id": "T_max",
+        "selection_kind": "flavor_label",
+        "target_twice_T": 5,
+        "selection_within_label": "lowest_representative_energy",
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "T_3_2",
+        "selection_kind": "flavor_label",
+        "target_twice_T": 3,
+        "selection_within_label": "lowest_representative_energy",
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      }
     ]
   },
-  "observables": [
-    "C_QQ_raw",
-    "rho_QQ",
-    "C_TT_raw",
-    "C_TT_conn",
-    "raw_G",
-    "flavor_singlet",
-    "flavor_frobenius_squared",
-    "flavor_singular_values",
-    "flavor_singular_value_ratio",
-    "G_occ",
-    "gamma_O"
-  ],
+  "productions": {
+    "single_case_observables": [
+      "C_QQ_raw",
+      "rho_QQ",
+      "C_TT_raw",
+      "C_TT_conn",
+      "raw_G",
+      "flavor_singlet",
+      "flavor_frobenius_squared",
+      "flavor_singular_values",
+      "flavor_singular_value_ratio"
+    ],
+    "single_case_diagnostics": [
+      "hermitian_restricted_diagnostic",
+      "non_hermitian_restricted_diagnostic"
+    ],
+    "path_statistics": [
+      "minimal_path_count"
+    ],
+    "orbit_statistics": [
+      "orbit_mean",
+      "orbit_max_pairwise_spread",
+      "orbit_covariance_defect"
+    ],
+    "inter_s_observables": {
+      "primary": "gamma_O",
+      "secondary": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence"],
+      "robustness_verdicts_included": true,
+      "unproduced": ["G_occ", "path_phase_coherence"]
+    }
+  },
   "robustness": {
     "primary": "gamma_O",
     "secondary": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"],
@@ -81,5 +177,5 @@
     "max_sparse_dimension": 200000
   },
   "degeneracy_tolerance": 1e-10,
-  "pair_selection": "all_unordered_pairs"
+  "pair_selection": "all_ordered_distinct_pairs"
 }

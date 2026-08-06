@@ -568,8 +568,10 @@ V13 et les tests contractuels du schéma doivent passer avant l’orchestration 
 Exécuter exactement le manifeste :
 
 ```text
-experiments/LEVEL1B-preregistered-manifest.md
+experiments/level1/preregistered-manifest-v1.json
 ```
+
+(`experiments/level1/preregistered-manifest.md` en est le document humain explicatif ; `experiments/LEVEL1B-preregistered-manifest.md` est un chemin supersédé, non normatif.)
 
 Aucune extension adaptative après lecture des corrélateurs.
 
@@ -587,6 +589,24 @@ Aucune extension adaptative après lecture des corrélateurs.
 ### 9.3 Verrou d’acceptation
 
 V17 et V18 doivent passer avant toute exécution scientifique officielle.
+
+### 9.4 Infrastructure de planification (D021, lot 1B-8, correctif)
+
+**Statut normatif** : `experiments/level1/preregistered-manifest-v1.json` (validé Draft 2020-12 contre `schemas/level1/preregistered-manifest-v1.schema.json`) est la transcription normative. Le Markdown est explicatif uniquement. Toute divergence bloque l'exécution.
+
+**Empreinte** (`experiments/level1/manifest.py:compute_manifest_fingerprint`) : SHA-256 de `json.dumps(manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False)` appliqué au document entier déjà validé — aucun champ exclu, y compris le nouveau `scientific_seed` racine (aucun champ purement opérationnel comme un répertoire de sortie ou une date n'existe dans le manifeste).
+
+**Seed racine et dérivation** : `manifest.scientific_seed` (entier non-négatif, dans le manifeste, donc dans l'empreinte) est l'unique source du seed racine — `planning.build_campaign_plan(manifest)` ne reçoit plus de `root_seed` libre. `planning.derive_case_seed(root_seed, case_id, role)` dérive chaque seed par cas via SHA-256 (`hashlib.sha256`, jamais `hash()`).
+
+**Modèle de cas** (`planning.CampaignCaseSpec`) : auto-vérifiant (`case_id` recalculé et comparé en `__post_init__`), porte désormais `ordered_pairs` (`planning.build_ordered_pairs(n_nodes)`, toutes les paires `(i,j)`, `i != j`, les deux ordres présents et distincts) en plus des paramètres du Hamiltonien, du secteur, des options de diagonalisation, des groupes cibles demandés et des trois seeds.
+
+**Sélection des groupes cibles** (`target_selection.py`) : `fundamental`/`first_excited` par rang, `flavor_label` par `twice_T` (jamais par rang) avec mise en commun de tous les candidats complets ET partiels avant classement par énergie représentative — un partiel de plus basse énergie n'est jamais écarté au profit d'un complet de plus haute énergie. `TargetSelectionOutcome` porte `selected_group_status` et `meets_normative_requirements` (comparaison au `required_spectral_status` du `TargetGroupSpec` cible, jamais à une exigence d'appariement inter-S).
+
+**Politique complet/partiel** : `complete_multiplet`/`partial_subspace` toujours propagés depuis le groupe réellement sélectionné, jamais promus. `required_spectral_status` (`complete_multiplet` pour toute catégorie sauf `structurally_not_applicable`) et `requires_inter_s_exact_match` (`true` uniquement pour `first_excited`) encodent la politique du manifeste humain sans jamais prétendre produire un `exact_label_match` — réservé à l'étape d'appariement inter-S, hors périmètre de ce module.
+
+**Garde-fous dimensionnels** : uniquement `resource_guardrails.max_dense_dimension`/`max_sparse_dimension` (2000/200000), déjà gelés par le niveau 0 ; aucun seuil mémoire/temps inventé.
+
+**Séparation mono-cas / inter-S** : `productions` (manifeste) distingue `single_case_observables`/`single_case_diagnostics`/`path_statistics`/`orbit_statistics` (un seul cas diagonalisé) de `inter_s_observables` (`gamma_O` primaire, verdicts de robustesse, `G_occ`/`path_phase_coherence` marqués `unproduced` faute de producteur physique) — `gamma_O` n'est jamais listé parmi les observables mono-cas.
 
 ---
 

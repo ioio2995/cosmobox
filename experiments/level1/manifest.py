@@ -1,12 +1,14 @@
 """Machine-readable Level1B preregistered campaign manifest. Level1B lot
 1B-8 (docs/decisions/decisions.md D019-adjacent operational decision).
 
-experiments/level1/preregistered-manifest.md remains the human-readable
-normative document. experiments/level1/preregistered-manifest-v1.json is
-the machine-readable, schema-validated transcription this module loads
-and exposes as frozen typed objects -- any ambiguity discovered between
-the two while transcribing is documented in the accompanying delivery
-report, not silently resolved here.
+experiments/level1/preregistered-manifest-v1.json is the normative
+machine-readable transcription of the campaign. experiments/level1/
+preregistered-manifest.md is a human-readable explanatory document only
+-- it is never itself loaded, validated, or executed against. Any
+divergence between the two blocks execution: the JSON is what this
+module loads and exposes as frozen typed objects, and any ambiguity
+discovered while transcribing it from the Markdown is documented in the
+accompanying delivery report, not silently resolved here.
 
 This module performs no scientific computation: it loads, validates
 (Draft 2020-12, schemas/level1/preregistered-manifest-v1.schema.json),
@@ -38,6 +40,34 @@ STRUCTURALLY_NOT_APPLICABLE = "structurally_not_applicable"
 SELECTION_KINDS = (FUNDAMENTAL, FIRST_EXCITED, FLAVOR_LABEL, STRUCTURALLY_NOT_APPLICABLE)
 
 LOWEST_REPRESENTATIVE_ENERGY = "lowest_representative_energy"
+
+COMPLETE_MULTIPLET = "complete_multiplet"
+PARTIAL_SUBSPACE = "partial_subspace"
+
+ALL_ORDERED_DISTINCT_PAIRS = "all_ordered_distinct_pairs"
+
+_INTER_S_SECONDARY_OBSERVABLES = ("G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence")
+_INTER_S_UNPRODUCED_OBSERVABLES = ("G_occ", "path_phase_coherence")
+_ORBIT_STATISTICS_FIELDS = ("orbit_mean", "orbit_max_pairwise_spread", "orbit_covariance_defect")
+
+# The single-case/inter-S normative policy transcribed from
+# experiments/level1/preregistered-manifest.md's "Groupes spectraux
+# ciblés" section: every category except structurally_not_applicable
+# requires a complete_multiplet group; only first_excited additionally
+# requires matching.EXACT_LABEL_MATCH at the (out-of-scope-here) inter-S
+# step -- never claimed by a single-case selection.
+_REQUIRED_SPECTRAL_STATUS_BY_SELECTION_KIND = {
+    FUNDAMENTAL: COMPLETE_MULTIPLET,
+    FIRST_EXCITED: COMPLETE_MULTIPLET,
+    FLAVOR_LABEL: COMPLETE_MULTIPLET,
+    STRUCTURALLY_NOT_APPLICABLE: None,
+}
+_REQUIRES_INTER_S_EXACT_MATCH_BY_SELECTION_KIND = {
+    FUNDAMENTAL: False,
+    FIRST_EXCITED: True,
+    FLAVOR_LABEL: False,
+    STRUCTURALLY_NOT_APPLICABLE: False,
+}
 
 
 def _validate_finite_real(value: object, name: str) -> None:
@@ -110,12 +140,23 @@ class TargetGroupSpec:
     non-negative int) and selection_within_label=="lowest_representative_
     energy"; selection_kind in (fundamental, first_excited) requires both
     None -- exactly preregistered-manifest-v1.schema.json's targetGroup
-    if/then, re-checked here so this type is safe to construct directly."""
+    if/then, re-checked here so this type is safe to construct directly.
+
+    required_spectral_status and requires_inter_s_exact_match encode the
+    normative policy transcribed from the human manifest's own "Groupes
+    spectraux ciblés" section (complete_multiplet for every category
+    except structurally_not_applicable; the inter-S exact-match
+    requirement only for first_excited) -- both cross-checked here
+    against selection_kind, exactly like target_twice_T/
+    selection_within_label above, never left to whoever authored the
+    manifest JSON to get right unchecked."""
 
     target_id: str
     selection_kind: str
     target_twice_T: int | None
     selection_within_label: str | None
+    required_spectral_status: str | None
+    requires_inter_s_exact_match: bool
 
     def __post_init__(self) -> None:
         if not self.target_id:
@@ -144,6 +185,27 @@ class TargetGroupSpec:
                     "selection_within_label to both be None"
                 )
 
+        if self.required_spectral_status is not None and self.required_spectral_status != COMPLETE_MULTIPLET:
+            raise ValueError(
+                f"required_spectral_status must be None or {COMPLETE_MULTIPLET!r}, got {self.required_spectral_status!r}"
+            )
+        if not isinstance(self.requires_inter_s_exact_match, bool):
+            raise ValueError(
+                f"requires_inter_s_exact_match must be a bool, got {type(self.requires_inter_s_exact_match)}"
+            )
+        expected_required_status = _REQUIRED_SPECTRAL_STATUS_BY_SELECTION_KIND[self.selection_kind]
+        if self.required_spectral_status != expected_required_status:
+            raise ValueError(
+                f"selection_kind=={self.selection_kind!r} requires required_spectral_status=={expected_required_status!r}, "
+                f"got {self.required_spectral_status!r}"
+            )
+        expected_exact_match = _REQUIRES_INTER_S_EXACT_MATCH_BY_SELECTION_KIND[self.selection_kind]
+        if self.requires_inter_s_exact_match != expected_exact_match:
+            raise ValueError(
+                f"selection_kind=={self.selection_kind!r} requires requires_inter_s_exact_match=={expected_exact_match!r}, "
+                f"got {self.requires_inter_s_exact_match!r}"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class RobustnessSpec:
@@ -170,6 +232,70 @@ class RobustnessSpec:
             or not (math.isfinite(self.normalization_floor) and self.normalization_floor > 0)
         ):
             raise ValueError(f"normalization_floor must be a finite number > 0, got {self.normalization_floor!r}")
+
+
+@dataclass(frozen=True, slots=True)
+class InterSObservablesSpec:
+    """gamma_O and its comparison partners are inherently inter-S (they
+    compare two diagonalized cases at different spin), never a single-case
+    quantity -- kept structurally separate from ProductionsSpec's other
+    three fields, which are all single-case. `unproduced` names inter-S
+    observables that are pre-registered (frozen by D013/D018) but have no
+    physical producer implemented anywhere yet (G_occ, path_phase_coherence)
+    -- a single-case runner must never claim to compute them."""
+
+    primary: str
+    secondary: tuple[str, ...]
+    robustness_verdicts_included: bool
+    unproduced: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if self.primary != "gamma_O":
+            raise ValueError(f"primary must be 'gamma_O', got {self.primary!r}")
+        if len(self.secondary) != len(set(self.secondary)):
+            raise ValueError(f"secondary must be unique, got {self.secondary}")
+        unknown_secondary = [name for name in self.secondary if name not in _INTER_S_SECONDARY_OBSERVABLES]
+        if unknown_secondary:
+            raise ValueError(f"secondary contains unknown observable(s) {unknown_secondary}")
+        if self.robustness_verdicts_included is not True:
+            raise ValueError(f"robustness_verdicts_included must be True, got {self.robustness_verdicts_included!r}")
+        if len(self.unproduced) != len(set(self.unproduced)):
+            raise ValueError(f"unproduced must be unique, got {self.unproduced}")
+        unknown_unproduced = [name for name in self.unproduced if name not in _INTER_S_UNPRODUCED_OBSERVABLES]
+        if unknown_unproduced:
+            raise ValueError(f"unproduced contains unknown observable(s) {unknown_unproduced}")
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionsSpec:
+    """The taxonomy of what the campaign produces, structured by kind --
+    replaces a single flat observable-name list, which conflated
+    single-case quantities with the inherently inter-S gamma_O and
+    silently omitted path/orbit statistics that the human manifest also
+    requires."""
+
+    single_case_observables: tuple[str, ...]
+    single_case_diagnostics: tuple[str, ...]
+    path_statistics: tuple[str, ...]
+    orbit_statistics: tuple[str, ...]
+    inter_s_observables: InterSObservablesSpec
+
+    def __post_init__(self) -> None:
+        for name, values in (
+            ("single_case_observables", self.single_case_observables),
+            ("single_case_diagnostics", self.single_case_diagnostics),
+            ("path_statistics", self.path_statistics),
+        ):
+            if not values:
+                raise ValueError(f"{name} must be non-empty")
+            if len(values) != len(set(values)):
+                raise ValueError(f"{name} must be unique, got {values}")
+        if set(self.orbit_statistics) != set(_ORBIT_STATISTICS_FIELDS) or len(self.orbit_statistics) != len(
+            _ORBIT_STATISTICS_FIELDS
+        ):
+            raise ValueError(f"orbit_statistics must be exactly {_ORBIT_STATISTICS_FIELDS}, got {self.orbit_statistics}")
+        if not isinstance(self.inter_s_observables, InterSObservablesSpec):
+            raise ValueError(f"inter_s_observables must be an InterSObservablesSpec, got {type(self.inter_s_observables)}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,11 +330,12 @@ class Manifest:
     branch: str
     n_flavors: int
     external_charges_all_zero: bool
+    scientific_seed: int
     hamiltonian_cases: tuple[HamiltonianCaseSpec, ...]
     grid: tuple[GridPointSpec, ...]
     sectors: tuple[str, ...]
     target_groups: dict[str, tuple[TargetGroupSpec, ...]]
-    observables: tuple[str, ...]
+    productions: ProductionsSpec
     robustness: RobustnessSpec
     resource_guardrails: ResourceGuardrailsSpec
     degeneracy_tolerance: float
@@ -229,6 +356,8 @@ class Manifest:
             raise ValueError(f"n_flavors must be 2, got {self.n_flavors!r}")
         if self.external_charges_all_zero is not True:
             raise ValueError(f"external_charges_all_zero must be True, got {self.external_charges_all_zero!r}")
+        if isinstance(self.scientific_seed, bool) or not isinstance(self.scientific_seed, int) or self.scientific_seed < 0:
+            raise ValueError(f"scientific_seed must be a non-negative int, got {self.scientific_seed!r}")
         if not self.hamiltonian_cases:
             raise ValueError("hamiltonian_cases must be non-empty")
         hamiltonian_case_ids = {case.hamiltonian_case_id for case in self.hamiltonian_cases}
@@ -261,18 +390,16 @@ class Manifest:
             target_ids = [group.target_id for group in groups]
             if len(target_ids) != len(set(target_ids)):
                 raise ValueError(f"target_groups[{geometry!r}] has duplicate target_id(s): {target_ids}")
-        if not self.observables:
-            raise ValueError("observables must be non-empty")
-        if len(self.observables) != len(set(self.observables)):
-            raise ValueError(f"observables must be unique, got {self.observables}")
+        if not isinstance(self.productions, ProductionsSpec):
+            raise ValueError(f"productions must be a ProductionsSpec, got {type(self.productions)}")
         if (
             isinstance(self.degeneracy_tolerance, bool)
             or not isinstance(self.degeneracy_tolerance, (int, float))
             or not (math.isfinite(self.degeneracy_tolerance) and self.degeneracy_tolerance > 0)
         ):
             raise ValueError(f"degeneracy_tolerance must be a finite number > 0, got {self.degeneracy_tolerance!r}")
-        if self.pair_selection != "all_unordered_pairs":
-            raise ValueError(f"pair_selection must be 'all_unordered_pairs', got {self.pair_selection!r}")
+        if self.pair_selection != ALL_ORDERED_DISTINCT_PAIRS:
+            raise ValueError(f"pair_selection must be {ALL_ORDERED_DISTINCT_PAIRS!r}, got {self.pair_selection!r}")
 
 
 def _load_schema() -> dict:
@@ -345,6 +472,27 @@ def _parse_target_group(entry: dict) -> TargetGroupSpec:
         selection_kind=entry["selection_kind"],
         target_twice_T=entry["target_twice_T"],
         selection_within_label=entry["selection_within_label"],
+        required_spectral_status=entry["required_spectral_status"],
+        requires_inter_s_exact_match=entry["requires_inter_s_exact_match"],
+    )
+
+
+def _parse_inter_s_observables(entry: dict) -> InterSObservablesSpec:
+    return InterSObservablesSpec(
+        primary=entry["primary"],
+        secondary=tuple(entry["secondary"]),
+        robustness_verdicts_included=entry["robustness_verdicts_included"],
+        unproduced=tuple(entry["unproduced"]),
+    )
+
+
+def _parse_productions(entry: dict) -> ProductionsSpec:
+    return ProductionsSpec(
+        single_case_observables=tuple(entry["single_case_observables"]),
+        single_case_diagnostics=tuple(entry["single_case_diagnostics"]),
+        path_statistics=tuple(entry["path_statistics"]),
+        orbit_statistics=tuple(entry["orbit_statistics"]),
+        inter_s_observables=_parse_inter_s_observables(entry["inter_s_observables"]),
     )
 
 
@@ -360,6 +508,7 @@ def parse_manifest(raw: dict) -> Manifest:
         branch=raw["branch"],
         n_flavors=raw["n_flavors"],
         external_charges_all_zero=raw["external_charges_all_zero"],
+        scientific_seed=raw["scientific_seed"],
         hamiltonian_cases=tuple(_parse_hamiltonian_case(entry) for entry in raw["hamiltonian_cases"]),
         grid=tuple(_parse_grid_point(entry) for entry in raw["grid"]),
         sectors=tuple(raw["sectors"]),
@@ -367,7 +516,7 @@ def parse_manifest(raw: dict) -> Manifest:
             geometry: tuple(_parse_target_group(entry) for entry in entries)
             for geometry, entries in raw["target_groups"].items()
         },
-        observables=tuple(raw["observables"]),
+        productions=_parse_productions(raw["productions"]),
         robustness=RobustnessSpec(
             primary=raw["robustness"]["primary"],
             secondary=tuple(raw["robustness"]["secondary"]),
