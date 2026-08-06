@@ -23,6 +23,31 @@ from cosmobox.level0.operators import OperatorResult, transport, transport_dagge
 from .paths import OrientedPath
 
 
+def _validate_steps_against_lattice(lattice: Lattice, path: OrientedPath) -> None:
+    """Reject any step whose sense is not exactly +1/-1, or whose
+    edge_index is out of range for THIS lattice.
+
+    OrientedPath.__post_init__ already rejects a bad sense or a negative
+    edge_index unconditionally (lattice-independent), so those branches
+    are unreachable through a normally constructed path -- kept here
+    anyway as an explicit, self-contained guard: apply_transporter must
+    never silently treat a malformed sense (e.g. 0 or 2) as "reversed"
+    just because it happens to differ from +1, and must never let a
+    corrupted or hand-assembled path (e.g. via object.__setattr__ on a
+    frozen instance) through unchecked. The upper bound on edge_index is
+    genuinely lattice-dependent and can only be checked here.
+    """
+    n_edges = len(lattice.edges)
+    for index, (edge_index, sense) in enumerate(path.steps):
+        if sense not in (1, -1):
+            raise ValueError(f"path step {index} has sense={sense!r}, expected +1 or -1")
+        if not (0 <= edge_index < n_edges):
+            raise ValueError(
+                f"path step {index} references edge_index={edge_index}, out of range "
+                f"[0, {n_edges}) for lattice {lattice.name!r}"
+            )
+
+
 def apply_transporter(
     lattice: Lattice, n_flavors: int, spin: int, key: np.uint64, path: OrientedPath
 ) -> OperatorResult | None:
@@ -33,7 +58,12 @@ def apply_transporter(
     never re-derived. The empty path (path.steps == ()) returns the key
     unchanged with amplitude 1 (W_P = I), the same contract for every path
     length, no special case.
+
+    Raises ValueError before applying anything if any step is malformed
+    (see _validate_steps_against_lattice).
     """
+    _validate_steps_against_lattice(lattice, path)
+
     current_key = key
     amplitude = complex(1.0, 0.0)
     for edge_index, sense in reversed(path.steps):

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
 from cosmobox.level0.encoding import encode
 from cosmobox.level0.lattice import build_lattice
 from cosmobox.level0.operators import transport, transport_dagger
-from cosmobox.level1.paths import make_oriented_path
+from cosmobox.level1.paths import OrientedPath, make_oriented_path
 from cosmobox.level1.transporters import apply_transporter
 
 N_FLAVORS = 2
@@ -129,3 +131,44 @@ def test_apply_transporter_mixed_sense_amplitude_is_exact_raw_product() -> None:
     assert result is not None
     assert int(result.key) == int(step0_result.key)
     assert result.amplitude == expected_amplitude
+
+
+# ---------------------------------------------------------------------------
+# apply_transporter's own explicit validation against the lattice: an
+# out-of-range edge_index (genuinely lattice-dependent, cannot be checked
+# by OrientedPath.__post_init__ alone) and a defense-in-depth check for a
+# malformed sense reaching apply_transporter despite OrientedPath's own
+# construction-time guard.
+# ---------------------------------------------------------------------------
+
+
+def test_apply_transporter_rejects_edge_index_at_n_edges() -> None:
+    lattice = build_lattice("triangle")  # 3 edges: valid indices are 0, 1, 2
+    key = _key(lattice)
+    path = OrientedPath(nodes=(0, 1), steps=((3, 1),))  # constructible: 3 >= 0, sense valid
+    with pytest.raises(ValueError, match="edge_index"):
+        apply_transporter(lattice, N_FLAVORS, SPIN, key, path)
+
+
+def test_apply_transporter_rejects_edge_index_far_out_of_range() -> None:
+    lattice = build_lattice("triangle")
+    key = _key(lattice)
+    path = OrientedPath(nodes=(0, 1), steps=((99, -1),))
+    with pytest.raises(ValueError, match="edge_index"):
+        apply_transporter(lattice, N_FLAVORS, SPIN, key, path)
+
+
+def test_apply_transporter_rejects_malformed_sense_bypassing_construction() -> None:
+    # OrientedPath.__post_init__ already rejects sense not in {+1, -1} at
+    # construction time (see test_paths.py), so a normally constructed
+    # path can never carry a bad sense here. This test simulates a
+    # corrupted/hand-assembled path (object.__setattr__ on the frozen
+    # instance, bypassing __post_init__ entirely) to prove
+    # apply_transporter's own explicit check is real and independent, not
+    # merely inherited from OrientedPath and dead code in practice.
+    lattice = build_lattice("triangle")
+    key = _key(lattice)
+    path = make_oriented_path(lattice, (0, 1))
+    object.__setattr__(path, "steps", ((0, 2),))
+    with pytest.raises(ValueError, match="sense"):
+        apply_transporter(lattice, N_FLAVORS, SPIN, key, path)

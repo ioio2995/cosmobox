@@ -28,6 +28,14 @@ class OrientedPath:
 
     A general OrientedPath is an oriented walk, not necessarily simple --
     only minimal_paths' enumeration guarantees simplicity.
+
+    __post_init__ validates everything that does not require a specific
+    lattice (node/step count consistency, sense in {+1, -1}, edge_index
+    non-negative) -- a directly constructed OrientedPath cannot bypass
+    these checks. The remaining lattice-dependent check (edge_index within
+    the lattice's actual edge count) cannot be done here, since this type
+    carries no lattice reference; it is enforced at application time by
+    transporters.apply_transporter before any operator is applied.
     """
 
     nodes: tuple[int, ...]
@@ -41,6 +49,13 @@ class OrientedPath:
                 f"OrientedPath has {len(self.nodes)} node(s) but {len(self.steps)} step(s), "
                 f"expected {len(self.nodes) - 1} step(s)"
             )
+        for index, (edge_index, sense) in enumerate(self.steps):
+            if sense not in (1, -1):
+                raise ValueError(f"OrientedPath step {index} has sense={sense!r}, expected +1 or -1")
+            if edge_index < 0:
+                raise ValueError(
+                    f"OrientedPath step {index} has edge_index={edge_index}, expected a non-negative integer"
+                )
 
     @property
     def source(self) -> int:

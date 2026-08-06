@@ -6,6 +6,33 @@ from cosmobox.level0.lattice import Edge, Lattice, build_lattice
 from cosmobox.level1.paths import OrientedPath, invert_path, make_oriented_path, minimal_paths
 
 # ---------------------------------------------------------------------------
+# OrientedPath.__post_init__ -- a directly constructed instance (bypassing
+# make_oriented_path) must not be able to smuggle a structurally invalid
+# step past construction.
+# ---------------------------------------------------------------------------
+
+
+def test_oriented_path_rejects_sense_zero() -> None:
+    with pytest.raises(ValueError, match="sense"):
+        OrientedPath(nodes=(0, 1), steps=((0, 0),))
+
+
+def test_oriented_path_rejects_sense_two() -> None:
+    with pytest.raises(ValueError, match="sense"):
+        OrientedPath(nodes=(0, 1), steps=((0, 2),))
+
+
+def test_oriented_path_rejects_negative_edge_index() -> None:
+    with pytest.raises(ValueError, match="edge_index"):
+        OrientedPath(nodes=(0, 1), steps=((-1, 1),))
+
+
+def test_oriented_path_rejects_mismatched_node_and_step_counts() -> None:
+    with pytest.raises(ValueError, match="step"):
+        OrientedPath(nodes=(0, 1, 2), steps=((0, 1),))
+
+
+# ---------------------------------------------------------------------------
 # make_oriented_path -- construction and validation
 # ---------------------------------------------------------------------------
 
