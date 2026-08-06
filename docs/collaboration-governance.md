@@ -2,14 +2,14 @@
 
 Statut : **gelé**
 
-Ce document définit le protocole de collaboration utilisé pour concevoir, implémenter, auditer et valider les niveaux scientifiques du projet Cosmobox.
+Ce document définit le protocole de collaboration utilisé pour concevoir, implémenter, publier, auditer et valider les niveaux scientifiques du projet Cosmobox.
 
 Il complète `docs/documentation-governance.md` :
 
 - `documentation-governance.md` fixe où résident les informations normatives ;
-- le présent document fixe qui décide, qui produit, qui vérifie et sous quelle forme les échanges doivent être conduits.
+- le présent document fixe qui décide, qui produit, qui publie, qui vérifie et sous quelle forme les échanges sont conduits.
 
-Un rappel explicite à `docs/collaboration-governance.md` suffit à réactiver l’ensemble de ces règles lors d’une nouvelle session, d’un nouveau prompt ou après une dérive de périmètre.
+Un rappel explicite à ce document suffit à réactiver l’ensemble de ces règles lors d’une nouvelle session ou après une dérive.
 
 ---
 
@@ -22,12 +22,15 @@ Lionel est le superviseur du projet.
 Il :
 
 - fixe les priorités ;
-- autorise le passage d’un lot au suivant ;
+- valide le lancement d’un lot et le passage au lot suivant ;
 - arbitre les désaccords ;
 - valide les changements de périmètre ;
-- autorise les commits, les push, les PR et les gels ;
+- désigne la branche de travail autorisée ;
+- autorise les PR, les fusions et les gels ;
 - décide du recours exceptionnel à Claude Fable ;
 - conserve la décision finale sur toute proposition scientifique ou technique.
+
+L’autorisation d’implémenter un lot sur une branche de travail désignée inclut, sauf restriction explicite, l’autorisation de committer et de pousser le diff strictement limité à ce lot afin de permettre la revue distante.
 
 Aucun participant ne peut présenter comme validée une décision qui n’a pas été acceptée par Lionel.
 
@@ -39,29 +42,30 @@ Il prend en charge :
 
 - les hypothèses physiques ;
 - les définitions mathématiques ;
-- les conventions ;
-- les invariants ;
+- les conventions et invariants ;
 - le périmètre scientifique ;
 - les critères d’acceptation ;
 - les protocoles de validation ;
 - l’analyse et l’interprétation des résultats ;
 - la préparation des dossiers de conception destinés à Claude Code ;
-- la revue conceptuelle des propositions de Claude Code.
+- la revue du plan, du commit distant, du diff réel et des résultats de tests.
 
 ChatGPT doit distinguer explicitement :
 
 - ce qui est gelé ;
-- ce qui est une proposition ;
+- ce qui est proposé ;
 - ce qui relève d’un choix d’ingénierie ;
+- ce qui est implémenté et poussé ;
+- ce qui est accepté ;
 - ce qui nécessite une décision de Lionel.
 
 ChatGPT ne doit pas :
 
 - inventer une implémentation prétendument réalisée ;
-- annoncer un push sans vérification du diff réel ;
+- annoncer un push sans vérification du commit et du diff réels ;
 - modifier silencieusement une convention gelée ;
 - imposer un détail de programmation sans justification scientifique ou contractuelle ;
-- déclarer un résultat validé sans preuve correspondante.
+- déclarer un lot validé uniquement parce que les tests passent.
 
 ### 1.3 Claude Code — responsabilité d’ingénierie et d’implémentation
 
@@ -71,29 +75,29 @@ Il prend en charge :
 
 - l’audit des API existantes ;
 - l’architecture logicielle détaillée ;
-- les structures de données ;
-- les signatures d’API internes ;
+- les structures de données et signatures d’API internes ;
 - l’implémentation ;
 - les tests ;
 - le refactoring ;
 - le profilage et les optimisations ;
 - la documentation développeur ;
-- la préparation des commits techniques.
+- la préparation du diff ;
+- le commit et le push du lot sur la branche de travail autorisée ;
+- le rapport de livraison accompagné du SHA distant.
 
-Claude Code peut proposer :
+Claude Code peut proposer une architecture alternative, une simplification, une amélioration de performance ou une évolution d’API tant que les contrats scientifiques restent inchangés.
 
-- une architecture alternative ;
-- une simplification ;
-- une amélioration de performance ;
-- une évolution d’API.
-
-Toute proposition qui touche une définition scientifique, une convention, un seuil, un protocole ou un critère d’acceptation doit être remontée avant implémentation.
+Toute proposition touchant une définition scientifique, une convention, un seuil, un protocole ou un critère d’acceptation doit être remontée avant implémentation.
 
 Claude Code ne doit pas :
 
 - résoudre localement une ambiguïté scientifique ;
 - modifier une norme pour simplifier le code ;
 - élargir le périmètre d’un lot ;
+- inclure dans le commit des fichiers sans rapport ;
+- pousser sur une autre branche que celle désignée ;
+- forcer, réécrire ou écraser l’historique distant sans autorisation ;
+- ouvrir une PR ou fusionner sans autorisation ;
 - exécuter une campagne scientifique non autorisée ;
 - produire un verdict scientifique à partir d’un test technique seul.
 
@@ -101,22 +105,9 @@ Claude Code ne doit pas :
 
 Claude Fable est un relecteur externe exceptionnel.
 
-Son intervention est réservée aux cas suivants :
+Son intervention est réservée aux gels scientifiques importants, changements structurels de modèle, contradictions persistantes, résultats surprenants à fort enjeu ou audits explicitement demandés par Lionel.
 
-- gel scientifique important ;
-- changement structurel de modèle ;
-- contradiction persistante entre documents ;
-- résultat surprenant à fort enjeu ;
-- audit final demandé explicitement par Lionel.
-
-Claude Fable n’intervient pas dans la boucle quotidienne de développement.
-
-Son avis :
-
-- ne remplace pas la décision de Lionel ;
-- doit être confronté aux documents normatifs ;
-- doit être traduit en correctifs précis avant toute modification ;
-- ne peut pas introduire silencieusement un nouveau périmètre.
+Claude Fable n’intervient pas dans la boucle quotidienne. Son avis ne remplace pas la décision de Lionel et ne peut pas introduire silencieusement un nouveau périmètre.
 
 ---
 
@@ -127,7 +118,7 @@ Pour les décisions de projet :
 1. Lionel tranche ;
 2. les documents normatifs gelés fixent les contrats ;
 3. ChatGPT interprète et contrôle la cohérence scientifique ;
-4. Claude Code choisit l’implémentation compatible ;
+4. Claude Code choisit et publie l’implémentation compatible ;
 5. Claude Fable audite exceptionnellement.
 
 Pour les informations documentaires, la hiérarchie de `docs/documentation-governance.md` reste applicable.
@@ -137,8 +128,6 @@ Aucun message de conversation ne remplace durablement un document normatif lorsq
 ---
 
 ## 3. Cycle standard d’un lot
-
-Chaque lot suit obligatoirement les étapes ci-dessous.
 
 ### Étape 1 — cadrage scientifique
 
@@ -151,7 +140,7 @@ ChatGPT produit ou rappelle :
 - les critères d’acceptation ;
 - les documents normatifs applicables.
 
-Lionel valide le lancement du lot.
+Lionel valide le lancement du lot et la branche de travail.
 
 ### Étape 2 — audit préalable par Claude Code
 
@@ -171,62 +160,78 @@ Sauf autorisation explicite, cette étape ne comporte aucune modification de cod
 
 ### Étape 3 — revue conceptuelle
 
-ChatGPT vérifie :
+ChatGPT vérifie la conformité aux normes, l’absence d’hypothèse physique ajoutée, la couverture des invariants, la pertinence des tests et le respect du périmètre.
 
-- la conformité aux normes ;
-- l’absence d’hypothèse physique ajoutée ;
-- la couverture des invariants ;
-- la pertinence des tests proposés ;
-- le respect du périmètre.
+Lionel autorise ou refuse le passage à l’implémentation.
 
-Lionel arbitre et autorise ou refuse le passage à l’implémentation.
-
-### Étape 4 — implémentation
+### Étape 4 — implémentation, commit et push
 
 Claude Code implémente uniquement le lot autorisé.
 
-Il doit :
+L’autorisation d’implémenter comprend par défaut le droit de :
 
-- limiter le diff au périmètre approuvé ;
-- conserver les résultats individuels nécessaires aux validations ;
-- ajouter les tests correspondants ;
-- signaler toute difficulté qui remet en cause le plan ;
-- s’arrêter avant d’inventer une décision manquante.
+1. modifier les seuls fichiers du périmètre ;
+2. exécuter les tests prescrits ;
+3. stager explicitement les chemins concernés ;
+4. créer un commit logique ;
+5. pousser ce commit sur la branche de travail désignée ;
+6. vérifier que la tête distante correspond au SHA annoncé.
 
-### Étape 5 — rapport de livraison
+Cette autorisation implicite ne couvre jamais :
+
+- un fichier sans rapport ;
+- une modification normative non validée ;
+- une autre branche ;
+- un push forcé ;
+- une réécriture d’historique ;
+- une PR ;
+- une fusion ;
+- le passage au lot suivant.
+
+Si le périmètre réel diffère du plan validé, si un fichier sans rapport est modifié ou si la branche distante a divergé de manière non triviale, Claude Code s’arrête avant commit ou push et remonte le problème.
+
+### Étape 5 — rapport de livraison après push
+
+Le rapport est envoyé uniquement après publication du commit distant.
 
 Claude Code fournit :
 
 - résumé des changements ;
-- fichiers modifiés ;
+- branche distante ;
+- SHA du commit poussé ;
+- SHA de base ;
+- diff réel et liste exacte des fichiers ;
 - décisions techniques ;
 - tests exécutés et résultats ;
 - écarts par rapport au plan ;
 - limites connues ;
-- SHA du commit si un commit a été autorisé.
+- état du répertoire de travail ;
+- confirmation qu’aucun fichier hors périmètre n’a été poussé.
 
-### Étape 6 — validation
+Un rapport décrivant seulement des fichiers locaux non suivis n’est pas une livraison révisable et doit être évité lorsqu’un push sur la branche de travail est autorisé.
 
-ChatGPT examine la conformité scientifique et conceptuelle.
+### Étape 6 — revue du commit distant et validation
+
+ChatGPT examine directement le commit et le diff distants, puis contrôle la conformité scientifique et conceptuelle.
 
 Lionel valide :
 
 - l’acceptation du lot ;
 - les corrections éventuelles ;
-- le commit ;
-- le push ;
-- le passage au lot suivant.
+- le passage au lot suivant ;
+- l’ouverture d’une PR ou la fusion lorsque celles-ci deviennent pertinentes.
 
-Un lot n’est pas accepté uniquement parce que les tests passent.
+Un lot n’est pas accepté uniquement parce que le commit est poussé ou que les tests passent.
 
 ---
 
 ## 4. Format standard d’un prompt destiné à Claude Code
 
-Chaque mission doit contenir les sections suivantes.
+Chaque mission contient :
 
 ```text
 Contexte
+Branche de travail autorisée
 Documents obligatoires
 Objectif du lot
 Périmètre inclus
@@ -235,18 +240,10 @@ Invariants non négociables
 Travail demandé maintenant
 Livrable attendu
 Critères d’acceptation
-Actions interdites sans autorisation
+Restrictions Git particulières
 ```
 
-### 4.1 Contexte
-
-Indique le niveau, le lot et l’état du projet.
-
-### 4.2 Documents obligatoires
-
-Liste les documents à lire avant toute action.
-
-La liste commence toujours par :
+La liste des documents commence toujours par :
 
 ```text
 docs/collaboration-governance.md
@@ -255,64 +252,19 @@ docs/documentation-governance.md
 
 Puis viennent les spécifications, décisions, manifestes, schémas et plans de validation applicables.
 
-### 4.3 Objectif du lot
+### Autorisation Git par défaut
 
-Décrit un résultat unique et vérifiable.
+Lorsque le travail demandé est une implémentation ou un correctif sur une branche explicitement désignée, `committer et pousser le lot avant le rapport` est la règle par défaut.
 
-### 4.4 Périmètre inclus
+Le prompt ne doit mentionner `ne pas committer` ou `ne pas pousser` que lorsqu’une restriction particulière est réellement nécessaire, par exemple pour un audit, un prototype isolé, une branche non prête ou une investigation sans modification.
 
-Énumère ce que Claude Code peut modifier ou concevoir.
-
-### 4.5 Hors-périmètre
-
-Énumère explicitement ce qui ne doit pas être traité.
-
-### 4.6 Invariants non négociables
-
-Reprend les conventions scientifiques qui ne peuvent pas être modifiées.
-
-### 4.7 Travail demandé maintenant
-
-Précise si la demande porte sur :
-
-- un audit ;
-- un plan ;
-- une implémentation ;
-- des tests ;
-- un correctif ;
-- un rapport ;
-- un commit ;
-- un push.
-
-Une autorisation pour une action n’autorise pas automatiquement les suivantes.
-
-### 4.8 Livrable attendu
-
-Décrit la forme exacte de la réponse attendue.
-
-### 4.9 Critères d’acceptation
-
-Liste les validations nécessaires.
-
-### 4.10 Actions interdites sans autorisation
-
-Doivent être précisées lorsque pertinentes :
-
-```text
-ne pas coder
-ne pas modifier les documents normatifs
-ne pas committer
-ne pas pousser
-ne pas créer de PR
-ne pas lancer de campagne scientifique
-ne pas élargir le périmètre
-```
+Une autorisation de push n’autorise jamais une PR, une fusion, un changement de branche, un force-push ou un élargissement de périmètre.
 
 ---
 
 ## 5. Format standard d’une réponse de Claude Code
 
-Une réponse d’audit ou de plan doit utiliser cette structure :
+### 5.1 Réponse d’audit ou de plan
 
 ```text
 1. Compréhension du lot
@@ -326,43 +278,36 @@ Une réponse d’audit ou de plan doit utiliser cette structure :
 9. Actions non réalisées
 ```
 
-Une réponse de livraison doit utiliser :
+### 5.2 Rapport de livraison après push
 
 ```text
 1. Résumé
-2. Diff réel
-3. Décisions techniques
-4. Tests exécutés
-5. Résultats
-6. Écarts au plan
-7. Limites connues
-8. Commit ou état Git
-9. Actions restantes
+2. Branche et SHA distant
+3. Diff réel et fichiers poussés
+4. Décisions techniques
+5. Tests exécutés
+6. Résultats
+7. Écarts au plan
+8. Limites connues
+9. État Git résiduel
+10. Actions restantes
 ```
 
 Les affirmations telles que « terminé », « validé », « poussé » ou « conforme » doivent être accompagnées d’éléments vérifiables.
+
+Le mot `validé` est réservé à l’acceptation par Lionel après revue de ChatGPT. Claude Code peut dire `implémenté`, `testé` et `poussé` lorsqu’il fournit les preuves correspondantes.
 
 ---
 
 ## 6. Gestion des ambiguïtés
 
-Une ambiguïté est classée dans l’une des catégories suivantes.
-
 ### 6.1 Ambiguïté scientifique
 
-Exemples : orientation d’un opérateur, définition d’une observable, seuil, interprétation d’un état.
-
-Claude Code s’arrête et remonte la question.
-
-ChatGPT propose une résolution fondée sur les normes existantes ou prépare une décision.
-
-Lionel tranche lorsque la norme ne suffit pas.
+Claude Code s’arrête et remonte la question. ChatGPT propose une résolution fondée sur les normes existantes ou prépare une décision. Lionel tranche lorsque la norme ne suffit pas.
 
 ### 6.2 Ambiguïté d’ingénierie
 
-Exemples : type de classe, découpage de module, cache, représentation interne.
-
-Claude Code décide et documente son choix, tant que les contrats externes restent inchangés.
+Claude Code décide et documente son choix tant que les contrats externes restent inchangés.
 
 ### 6.3 Ambiguïté de périmètre
 
@@ -370,9 +315,7 @@ En cas de doute, l’élément est hors-périmètre jusqu’à autorisation expl
 
 ### 6.4 Contradiction documentaire
 
-Aucune implémentation ne doit choisir silencieusement entre deux textes contradictoires.
-
-La contradiction est signalée, puis corrigée selon `docs/documentation-governance.md` avant poursuite lorsque son impact est normatif.
+Aucune implémentation ne choisit silencieusement entre deux textes contradictoires. La contradiction est signalée et corrigée selon `docs/documentation-governance.md` lorsque son impact est normatif.
 
 ---
 
@@ -384,7 +327,8 @@ Une dérive est notamment caractérisée par :
 - une implémentation lancée avant validation du plan ;
 - une décision scientifique prise dans le code ;
 - un élargissement de périmètre ;
-- une action Git non autorisée ;
+- un push hors branche ou hors périmètre ;
+- une PR, une fusion ou un force-push non autorisé ;
 - une affirmation non vérifiée ;
 - une perte du format standard ;
 - un oubli des documents applicables.
@@ -395,90 +339,80 @@ Le rappel minimal est :
 Reviens à `docs/collaboration-governance.md` et reprends au dernier jalon validé.
 ```
 
-Après ce rappel, le participant doit :
-
-1. identifier la règle violée ;
-2. indiquer le dernier jalon effectivement validé ;
-3. distinguer ce qui a été fait de ce qui a seulement été annoncé ;
-4. proposer la reprise la plus courte ;
-5. ne poursuivre qu’à l’intérieur du périmètre restauré.
+Après ce rappel, le participant doit identifier la règle violée, indiquer le dernier jalon réellement validé, distinguer ce qui a été fait de ce qui a seulement été annoncé et proposer la reprise la plus courte.
 
 Si une modification erronée a déjà été publiée, elle doit être auditée avant tout nouveau travail.
 
 ---
 
-## 8. Règles Git et autorisations
+## 8. Règles Git
 
-Les actions suivantes sont distinctes :
+### 8.1 Opérations intégrées au lot
+
+Pour un lot d’implémentation autorisé sur une branche de travail désignée, les opérations suivantes constituent une seule chaîne de livraison :
 
 ```text
-modifier
-stager
-committer
-pousser
-ouvrir une PR
-fusionner
+modifier → tester → stager explicitement → committer → pousser → vérifier → rapporter
 ```
 
-L’autorisation de l’une n’implique pas l’autorisation des suivantes.
+Elles ne nécessitent pas un aller-retour d’autorisation entre chaque étape, sauf restriction explicite du prompt ou apparition d’un écart de périmètre.
 
-Avant d’annoncer un push ou une livraison :
+### 8.2 Opérations toujours séparées
+
+Les opérations suivantes exigent toujours une autorisation explicite :
+
+```text
+créer ou changer de branche
+force-push ou réécriture d’historique
+ouvrir une PR
+fusionner
+publier une release
+modifier une norme gelée hors périmètre du lot
+```
+
+### 8.3 Vérifications avant annonce
+
+Avant d’annoncer une livraison, Claude Code doit :
 
 - vérifier la branche ;
 - vérifier le SHA de départ ;
-- vérifier le diff réel ;
-- vérifier les chemins modifiés ;
+- inspecter le diff et les chemins stagés ;
+- exclure tout fichier sans rapport ;
 - vérifier l’absence de placeholder ;
-- vérifier le contenu critique ;
-- fournir le SHA final.
+- exécuter les tests prescrits ;
+- pousser ;
+- vérifier le SHA de la tête distante ;
+- fournir le SHA final et la liste réelle des fichiers.
 
-Un succès d’API Git ou une mise à jour de référence ne suffit pas à prouver que les fichiers annoncés ont été modifiés.
+Un succès de commande Git ne prouve pas à lui seul que le contenu annoncé est correct. ChatGPT contrôle ensuite le diff distant réel.
 
 ---
 
 ## 9. Recours à Claude Fable
 
-Le recours à Claude Fable doit être formulé comme un audit borné.
+Le recours à Claude Fable est formulé comme un audit borné précisant les documents, décisions gelées, questions exactes, éléments hors-périmètre et forme du verdict attendu.
 
-Le prompt doit préciser :
-
-- les documents à auditer ;
-- les décisions déjà gelées ;
-- les questions exactes ;
-- les éléments hors-périmètre ;
-- la forme du verdict attendu.
-
-Claude Fable ne reçoit pas une mission générale de redéfinition du projet.
-
-Après son retour :
-
-1. ChatGPT classe les remarques ;
-2. Lionel décide lesquelles retenir ;
-3. les correctifs sont écrits dans les documents appropriés ;
-4. le diff est audité ;
-5. un nouveau gel n’est déclaré qu’après cohérence complète.
+Après son retour, ChatGPT classe les remarques, Lionel décide lesquelles retenir, les correctifs sont écrits dans les documents appropriés et le diff est audité avant tout nouveau gel.
 
 ---
 
 ## 10. Jalon et mémoire de session
 
-À la fin d’une session importante, un résumé doit préciser :
+À la fin d’une session importante, le résumé précise :
 
 ```text
 branche
-commit de tête
+commit de tête distant
 lot courant
 dernier jalon validé
 documents applicables
-travail réalisé
+travail réalisé et poussé
 travail non réalisé
 prochaine action autorisée
 questions ouvertes
 ```
 
-Le dépôt reste la mémoire durable du projet.
-
-Les conversations servent à préparer et piloter le travail, mais les décisions durables doivent être inscrites dans les documents normatifs ou de gouvernance.
+Le dépôt reste la mémoire durable du projet. Les conversations servent à préparer et piloter le travail, mais les décisions durables sont inscrites dans les documents normatifs ou de gouvernance.
 
 ---
 
@@ -488,7 +422,7 @@ Une nouvelle session commence par :
 
 1. lecture de `docs/collaboration-governance.md` ;
 2. identification du dernier jalon validé ;
-3. vérification de la branche et du commit de tête ;
+3. vérification de la branche et du commit distant de tête ;
 4. lecture des documents spécifiques au lot ;
 5. formulation de la prochaine action autorisée.
 
@@ -498,20 +432,11 @@ Il est interdit de déduire l’état réel du dépôt à partir d’un simple s
 
 ## 12. Formule de rappel standard
 
-La formule courte officielle est :
-
 ```text
 Applique `docs/collaboration-governance.md` et reprends au dernier jalon validé.
 ```
 
-Cette phrase impose automatiquement :
-
-- le retour aux rôles définis ;
-- l’arrêt de toute action hors-périmètre ;
-- la vérification de l’état réel ;
-- la reprise du format standard ;
-- la distinction entre proposition, réalisation et validation ;
-- la soumission à Lionel de toute décision non couverte.
+Cette phrase impose automatiquement le retour aux rôles définis, l’arrêt des actions hors périmètre, la vérification de l’état distant réel, la distinction entre proposition, réalisation, publication et validation, puis la reprise au dernier jalon accepté.
 
 ---
 
