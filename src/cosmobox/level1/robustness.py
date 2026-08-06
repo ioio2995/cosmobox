@@ -40,12 +40,34 @@ _VERDICTS = (ROBUST, NON_ROBUST, INDETERMINATE)
 TRUNCATED_SPECTRAL_GROUP = "truncated_spectral_group"
 
 
+def _require_finite_complex(value: complex, name: str) -> complex:
+    value = complex(value)
+    if not (math.isfinite(value.real) and math.isfinite(value.imag)):
+        raise ValueError(f"{name} must be finite, got {value}")
+    return value
+
+
+def _require_finite_nonnegative(value: float, name: str, *, strictly_positive: bool = False) -> float:
+    value = float(value)
+    if not math.isfinite(value):
+        raise ValueError(f"{name} must be finite, got {value}")
+    if strictly_positive and value <= 0:
+        raise ValueError(f"{name} must be strictly positive, got {value}")
+    if not strictly_positive and value < 0:
+        raise ValueError(f"{name} must be >= 0, got {value}")
+    return value
+
+
 def compute_gamma_o(
     value_high: complex, value_low: complex, *, floor: float = NORMALIZATION_FLOOR
 ) -> NormalizedMoment:
     """gamma_O = |value_high - value_low| / max(|value_high|, |value_low|),
     null with "normalization_denominator_below_floor" if the denominator
     is <= floor. Never computes difference/floor as a substitute value."""
+    value_high = _require_finite_complex(value_high, "value_high")
+    value_low = _require_finite_complex(value_low, "value_low")
+    floor = _require_finite_nonnegative(floor, "floor", strictly_positive=True)
+
     difference = abs(value_high - value_low)
     amplitude = max(abs(value_high), abs(value_low))
     if amplitude <= floor:
@@ -106,6 +128,12 @@ def evaluate_robustness(
     binary verdict applies max(absolute_threshold, relative_threshold *
     amplitude), frontier inclusive (robust at exact equality).
     """
+    value_high = _require_finite_complex(value_high, "value_high")
+    value_low = _require_finite_complex(value_low, "value_low")
+    floor = _require_finite_nonnegative(floor, "floor", strictly_positive=True)
+    absolute_threshold = _require_finite_nonnegative(absolute_threshold, "absolute_threshold")
+    relative_threshold = _require_finite_nonnegative(relative_threshold, "relative_threshold")
+
     if match_outcome.status != EXACT_LABEL_MATCH:
         return RobustnessResult(
             verdict=INDETERMINATE, null_reason=match_outcome.status, gamma_o=None, difference=None, amplitude=None

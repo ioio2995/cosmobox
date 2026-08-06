@@ -356,23 +356,54 @@ def test_match_spectral_group_different_hamiltonian_identity_is_never_a_candidat
     assert outcome.status == TARGET_GROUP_NOT_IN_WINDOW
 
 
-def test_match_spectral_group_never_matches_complete_with_partial() -> None:
+def test_match_spectral_group_complete_target_never_matches_partial_candidate() -> None:
     target = _base_key(status=COMPLETE_MULTIPLET)
     candidate = _base_key(status=PARTIAL_SUBSPACE)
     outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
+    assert outcome.status != EXACT_LABEL_MATCH
     assert outcome.status == TARGET_GROUP_NOT_IN_WINDOW
 
 
-def test_match_spectral_group_partial_vs_partial_can_reach_exact_label_match() -> None:
-    # Structurally, a partial_subspace target CAN reach exact_label_match
-    # against a partial_subspace candidate with identical labels -- it is
-    # robustness.py's job (not matching.py's) to then treat this as
-    # exploratory only, never a definitive verdict (see test_robustness.py).
+def test_match_spectral_group_partial_target_never_matches_complete_candidate() -> None:
+    target = _base_key(status=PARTIAL_SUBSPACE)
+    candidate = _base_key(status=COMPLETE_MULTIPLET)
+    outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
+    assert outcome.status != EXACT_LABEL_MATCH
+
+
+def test_match_spectral_group_partial_vs_partial_with_identical_labels_is_ambiguous_not_exact() -> None:
+    # Even when the observed labels coincide exactly, a partial_subspace
+    # target or candidate can never produce exact_label_match: truncation
+    # means the group's true multiplicity may exceed the observed one, so
+    # its identity as a complete multiplet can never be proven.
     target = _base_key(status=PARTIAL_SUBSPACE)
     candidate = _base_key(status=PARTIAL_SUBSPACE)
     outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
-    assert outcome.status == EXACT_LABEL_MATCH
-    assert outcome.matched_group.status == PARTIAL_SUBSPACE
+    assert outcome.status == AMBIGUOUS_CROSS_TRUNCATION_MATCH
+    assert outcome.matched_group is None
+
+
+def test_match_spectral_group_target_translation_unavailable_is_ambiguous_not_absent() -> None:
+    # The group is NOT absent from the window -- its identity simply
+    # cannot be established -- so this must never be reported as
+    # target_group_not_in_window.
+    target = _base_key(translation_label=SymmetryLabel(kind=UNAVAILABLE, value=None))
+    candidate = _base_key()
+    outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
+    assert outcome.status == AMBIGUOUS_CROSS_TRUNCATION_MATCH
+
+
+def test_match_spectral_group_target_reflection_unavailable_is_ambiguous_not_absent() -> None:
+    target = _base_key(reflection_label=SymmetryLabel(kind=UNAVAILABLE, value=None))
+    candidate = _base_key()
+    outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
+    assert outcome.status == AMBIGUOUS_CROSS_TRUNCATION_MATCH
+
+
+def test_match_spectral_group_target_unavailable_label_with_no_candidates_is_still_ambiguous() -> None:
+    target = _base_key(translation_label=SymmetryLabel(kind=UNAVAILABLE, value=None))
+    outcome = match_spectral_group(target, [], structurally_applicable=True, low_window_truncated=False)
+    assert outcome.status == AMBIGUOUS_CROSS_TRUNCATION_MATCH
 
 
 def test_match_spectral_group_not_applicable_labels_on_both_sides_are_compatible() -> None:

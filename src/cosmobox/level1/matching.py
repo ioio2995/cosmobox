@@ -227,13 +227,30 @@ def match_spectral_group(
     found, "the target genuinely was not computed at S_low"
     (target_group_not_in_window) from "S_low's own window was truncated
     and may simply not have reached the target" (ambiguous_cross_
-    truncation_match) -- the latter also covers any candidate whose own
-    labels are "unavailable" (unresolved, not proof of anything).
+    truncation_match) -- the latter also covers an "unavailable" label on
+    EITHER side (target or a comparable candidate): an unresolved
+    computation proves nothing, on either side, so the target itself
+    carrying an "unavailable" label is never reported as
+    target_group_not_in_window (it is not absent, its identity simply
+    cannot be established).
+
+    A "partial_subspace" target or candidate can never produce
+    exact_label_match, even when the observed labels coincide exactly:
+    truncation means the group's true multiplicity may exceed the
+    observed one, so its identity as a complete multiplet can never be
+    proven -- any such correspondence is reported as ambiguous_cross_
+    truncation_match instead (matching.py's own share of the "matching
+    ambiguity vs. group completeness are never fused" rule; the other
+    share is evaluate_robustness's downgrade of a genuinely-exact but
+    partial match, which remains as defense in depth even though this
+    function no longer produces one under normal use).
     """
     if not structurally_applicable:
         return MatchOutcome(STRUCTURALLY_NOT_APPLICABLE, None)
     if target is None:
         return MatchOutcome(TARGET_GROUP_NOT_IN_WINDOW, None)
+
+    target_has_unavailable_label = target.translation_label.kind == UNAVAILABLE or target.reflection_label.kind == UNAVAILABLE
 
     comparable = [
         candidate
@@ -243,10 +260,12 @@ def match_spectral_group(
         and candidate.sector_identity == target.sector_identity
         and candidate.status == target.status
     ]
-    has_unavailable_label = any(
+    candidates_have_unavailable_label = any(
         candidate.translation_label.kind == UNAVAILABLE or candidate.reflection_label.kind == UNAVAILABLE
         for candidate in comparable
     )
+    has_unavailable_label = target_has_unavailable_label or candidates_have_unavailable_label
+
     exact = [
         candidate
         for candidate in comparable
@@ -255,6 +274,9 @@ def match_spectral_group(
         and symmetry_labels_match(candidate.translation_label, target.translation_label, tolerance=tolerance)
         and symmetry_labels_match(candidate.reflection_label, target.reflection_label, tolerance=tolerance)
     ]
+
+    if target.status == PARTIAL_SUBSPACE and exact:
+        return MatchOutcome(AMBIGUOUS_CROSS_TRUNCATION_MATCH, None)
 
     if len(exact) == 1:
         return MatchOutcome(EXACT_LABEL_MATCH, exact[0])

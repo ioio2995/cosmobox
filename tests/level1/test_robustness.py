@@ -12,6 +12,7 @@ from cosmobox.level1.matching import (
     MatchOutcome,
     SpectralGroupMatchKey,
     SymmetryLabel,
+    match_spectral_group,
 )
 from cosmobox.level1.restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE
 from cosmobox.level1.robustness import (
@@ -221,3 +222,109 @@ def test_robustness_result_rejects_negative_difference() -> None:
 def test_robustness_result_rejects_invalid_verdict() -> None:
     with pytest.raises(ValueError, match="verdict"):
         RobustnessResult(verdict="maybe", null_reason=None, gamma_o=None, difference=None, amplitude=None)
+
+
+# ---------------------------------------------------------------------------
+# End-to-end with the real match_spectral_group pipeline: partial_subspace
+# can no longer reach exact_label_match, so evaluate_robustness never
+# produces a robust/non_robust verdict for these cases either.
+# ---------------------------------------------------------------------------
+
+
+def test_partial_vs_partial_identical_labels_gives_no_robust_verdict() -> None:
+    target = _key(status=PARTIAL_SUBSPACE)
+    candidate = _key(status=PARTIAL_SUBSPACE)
+    outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
+    assert outcome.status == AMBIGUOUS_CROSS_TRUNCATION_MATCH
+
+    result = evaluate_robustness(outcome, 3.0, 2.0)
+    assert result.verdict == INDETERMINATE
+    assert result.null_reason == AMBIGUOUS_CROSS_TRUNCATION_MATCH
+    assert result.gamma_o is None
+    assert result.difference is None
+    assert result.amplitude is None
+
+
+def test_complete_target_partial_candidate_gives_no_robust_verdict() -> None:
+    target = _key(status=COMPLETE_MULTIPLET)
+    candidate = _key(status=PARTIAL_SUBSPACE)
+    outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
+    assert outcome.status != EXACT_LABEL_MATCH
+
+    result = evaluate_robustness(outcome, 3.0, 2.0)
+    assert result.verdict == INDETERMINATE
+    assert result.null_reason == outcome.status
+
+
+def test_partial_target_complete_candidate_gives_no_robust_verdict() -> None:
+    target = _key(status=PARTIAL_SUBSPACE)
+    candidate = _key(status=COMPLETE_MULTIPLET)
+    outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
+    assert outcome.status != EXACT_LABEL_MATCH
+
+    result = evaluate_robustness(outcome, 3.0, 2.0)
+    assert result.verdict == INDETERMINATE
+    assert result.null_reason == outcome.status
+
+
+def test_evaluate_robustness_still_downgrades_a_manually_constructed_partial_match_outcome() -> None:
+    # Defense in depth: even though match_spectral_group can no longer
+    # produce this, a manually constructed MatchOutcome carrying a
+    # partial_subspace matched_group must still be downgraded, never
+    # promoted to a robust/non_robust verdict.
+    outcome = MatchOutcome(EXACT_LABEL_MATCH, _key(status=PARTIAL_SUBSPACE))
+    result = evaluate_robustness(outcome, 3.0, 2.0)
+    assert result.verdict == INDETERMINATE
+    assert result.null_reason == TRUNCATED_SPECTRAL_GROUP
+    assert result.gamma_o.value == pytest.approx(1.0 / 3.0)
+
+
+# ---------------------------------------------------------------------------
+# Input validation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("bad_value", [complex(float("nan"), 0.0), complex(0.0, float("nan")), complex(float("inf"), 0.0)])
+def test_compute_gamma_o_rejects_non_finite_value_high(bad_value: complex) -> None:
+    with pytest.raises(ValueError, match="value_high"):
+        compute_gamma_o(bad_value, 1.0)
+
+
+@pytest.mark.parametrize("bad_value", [complex(float("nan"), 0.0), complex(0.0, float("nan")), complex(float("inf"), 0.0)])
+def test_compute_gamma_o_rejects_non_finite_value_low(bad_value: complex) -> None:
+    with pytest.raises(ValueError, match="value_low"):
+        compute_gamma_o(1.0, bad_value)
+
+
+@pytest.mark.parametrize("bad_floor", [float("nan"), float("inf"), 0.0, -1e-12])
+def test_compute_gamma_o_rejects_invalid_floor(bad_floor: float) -> None:
+    with pytest.raises(ValueError, match="floor"):
+        compute_gamma_o(1.0, 2.0, floor=bad_floor)
+
+
+def test_evaluate_robustness_rejects_non_finite_value_high() -> None:
+    with pytest.raises(ValueError, match="value_high"):
+        evaluate_robustness(_exact_match(), float("nan"), 1.0)
+
+
+def test_evaluate_robustness_rejects_non_finite_value_low() -> None:
+    with pytest.raises(ValueError, match="value_low"):
+        evaluate_robustness(_exact_match(), 1.0, complex(float("inf"), 0.0))
+
+
+@pytest.mark.parametrize("bad_floor", [float("nan"), float("inf"), 0.0, -1.0])
+def test_evaluate_robustness_rejects_invalid_floor(bad_floor: float) -> None:
+    with pytest.raises(ValueError, match="floor"):
+        evaluate_robustness(_exact_match(), 1.0, 2.0, floor=bad_floor)
+
+
+@pytest.mark.parametrize("bad_threshold", [float("nan"), float("-inf"), -0.01])
+def test_evaluate_robustness_rejects_invalid_absolute_threshold(bad_threshold: float) -> None:
+    with pytest.raises(ValueError, match="absolute_threshold"):
+        evaluate_robustness(_exact_match(), 1.0, 2.0, absolute_threshold=bad_threshold)
+
+
+@pytest.mark.parametrize("bad_threshold", [float("nan"), float("-inf"), -0.01])
+def test_evaluate_robustness_rejects_invalid_relative_threshold(bad_threshold: float) -> None:
+    with pytest.raises(ValueError, match="relative_threshold"):
+        evaluate_robustness(_exact_match(), 1.0, 2.0, relative_threshold=bad_threshold)
