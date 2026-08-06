@@ -596,7 +596,7 @@ V17 et V18 doivent passer avant toute exécution scientifique officielle.
 
 **Empreinte** (`experiments/level1/manifest.py:compute_manifest_fingerprint`) : SHA-256 de `json.dumps(manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False)` appliqué au document entier déjà validé — aucun champ exclu, y compris le nouveau `scientific_seed` racine (aucun champ purement opérationnel comme un répertoire de sortie ou une date n'existe dans le manifeste).
 
-**Seed racine et dérivation** : `manifest.scientific_seed` (entier non-négatif, dans le manifeste, donc dans l'empreinte) est l'unique source du seed racine — `planning.build_campaign_plan(manifest)` ne reçoit plus de `root_seed` libre. `planning.derive_case_seed(root_seed, case_id, role)` dérive chaque seed par cas via SHA-256 (`hashlib.sha256`, jamais `hash()`).
+**Seed racine et dérivation** : `manifest.scientific_seed` (entier non-négatif, dans le manifeste, donc dans l'empreinte) est l'unique source du seed racine — `planning.build_campaign_plan(manifest)` ne reçoit plus de `root_seed` libre. Valeur gelée : `scientific_seed = 0`. `planning.derive_case_seed(root_seed, case_id, role)` dérive chaque seed par cas via SHA-256 (`hashlib.sha256`, jamais `hash()`).
 
 **Modèle de cas** (`planning.CampaignCaseSpec`) : auto-vérifiant (`case_id` recalculé et comparé en `__post_init__`), porte désormais `ordered_pairs` (`planning.build_ordered_pairs(n_nodes)`, toutes les paires `(i,j)`, `i != j`, les deux ordres présents et distincts) en plus des paramètres du Hamiltonien, du secteur, des options de diagonalisation, des groupes cibles demandés et des trois seeds.
 
@@ -606,7 +606,9 @@ V17 et V18 doivent passer avant toute exécution scientifique officielle.
 
 **Garde-fous dimensionnels** : uniquement `resource_guardrails.max_dense_dimension`/`max_sparse_dimension` (2000/200000), déjà gelés par le niveau 0 ; aucun seuil mémoire/temps inventé.
 
-**Séparation mono-cas / inter-S** : `productions` (manifeste) distingue `single_case_observables`/`single_case_diagnostics`/`path_statistics`/`orbit_statistics` (un seul cas diagonalisé) de `inter_s_observables` (`gamma_O` primaire, verdicts de robustesse, `G_occ`/`path_phase_coherence` marqués `unproduced` faute de producteur physique) — `gamma_O` n'est jamais listé parmi les observables mono-cas.
+**Chemins** : `path_selection = "all_minimal_paths"` — tous les chemins minimaux de chaque paire ordonnée sont énumérés, valeur individuelle par chemin conservée ; `productions.path_statistics` reste vide (aucune statistique agrégée de chemin n'est gelée — `minimal_path_count` d'une version antérieure était une grandeur inventée, retirée). Distinct de `orbit_statistics` : les statistiques d'orbite agrègent sur les images d'un automorphisme au sein d'un même cas (mono-cas), jamais sur des chemins de longueurs différentes ni entre deux valeurs de S.
+
+**Séparation mono-cas / inter-S** : `productions` (manifeste) distingue `single_case_observables`/`single_case_diagnostics`/`path_statistics`/`orbit_statistics` (un seul cas diagonalisé) de `inter_s_observables` (`gamma_O` primaire, verdicts de robustesse, `G_occ`/`path_phase_coherence` marqués `unproduced` faute de producteur physique) — `gamma_O` n'est jamais listé parmi les observables mono-cas. Le bloc `robustness` du manifeste porte la liste secondaire complète (`G_occ`, `rho_QQ`, `C_TT_conn`, `flavor_singular_value_ratio`, `path_phase_coherence`), exactement celle du manifeste humain.
 
 ---
 

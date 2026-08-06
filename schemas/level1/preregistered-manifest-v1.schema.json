@@ -21,7 +21,8 @@
     "robustness",
     "resource_guardrails",
     "degeneracy_tolerance",
-    "pair_selection"
+    "pair_selection",
+    "path_selection"
   ],
   "properties": {
     "manifest_version": {"const": "level1b-reference-v1"},
@@ -62,7 +63,11 @@
     "robustness": {"$ref": "#/$defs/robustness"},
     "resource_guardrails": {"$ref": "#/$defs/resourceGuardrails"},
     "degeneracy_tolerance": {"type": "number", "exclusiveMinimum": 0},
-    "pair_selection": {"enum": ["all_ordered_distinct_pairs"]}
+    "pair_selection": {"enum": ["all_ordered_distinct_pairs"]},
+    "path_selection": {
+      "enum": ["all_minimal_paths"],
+      "description": "Every minimal path between an ordered pair is enumerated and its individual per-path observable values are kept -- never aggregated into a new path-level statistic until one is frozen. Distinct from orbit_statistics, which aggregates across an automorphism orbit, not across path length/count."
+    }
   },
   "$defs": {
     "hamiltonianCase": {
@@ -207,10 +212,10 @@
         },
         "path_statistics": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "uniqueItems": true,
           "items": {"type": "string", "minLength": 1},
-          "description": "Structural, path-enumeration facts (e.g. minimal-path multiplicity per pair) -- geometric, not a physics expectation value."
+          "description": "Aggregate path-level statistics -- currently always empty: path_selection == all_minimal_paths keeps every individual per-path observable value, and no aggregate path statistic is frozen yet. Never populated with an invented quantity; add an entry here only once a formula is actually frozen."
         },
         "orbit_statistics": {
           "type": "array",
@@ -254,8 +259,9 @@
         "primary": {"const": "gamma_O"},
         "secondary": {
           "type": "array",
-          "items": {"enum": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"]},
-          "uniqueItems": true
+          "items": {"enum": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence"]},
+          "uniqueItems": true,
+          "description": "The full D013-frozen secondary robustness list. path_phase_coherence is pre-registered here exactly as the human manifest always specified it, even though it currently has no producer (see productions.inter_s_observables.unproduced) -- pre-registration and current producibility are independent facts."
         },
         "absolute_tolerance": {"const": 0.05},
         "relative_tolerance": {"const": 0.15},

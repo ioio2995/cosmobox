@@ -45,6 +45,7 @@ COMPLETE_MULTIPLET = "complete_multiplet"
 PARTIAL_SUBSPACE = "partial_subspace"
 
 ALL_ORDERED_DISTINCT_PAIRS = "all_ordered_distinct_pairs"
+ALL_MINIMAL_PATHS = "all_minimal_paths"
 
 _INTER_S_SECONDARY_OBSERVABLES = ("G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence")
 _INTER_S_UNPRODUCED_OBSERVABLES = ("G_occ", "path_phase_coherence")
@@ -284,12 +285,18 @@ class ProductionsSpec:
         for name, values in (
             ("single_case_observables", self.single_case_observables),
             ("single_case_diagnostics", self.single_case_diagnostics),
-            ("path_statistics", self.path_statistics),
         ):
             if not values:
                 raise ValueError(f"{name} must be non-empty")
             if len(values) != len(set(values)):
                 raise ValueError(f"{name} must be unique, got {values}")
+        # path_statistics is currently always empty: path_selection ==
+        # "all_minimal_paths" keeps every individual per-path value, and
+        # no aggregate path statistic is frozen yet -- never populated
+        # with an invented quantity (the human manifest never
+        # pre-registered one).
+        if len(self.path_statistics) != len(set(self.path_statistics)):
+            raise ValueError(f"path_statistics must be unique, got {self.path_statistics}")
         if set(self.orbit_statistics) != set(_ORBIT_STATISTICS_FIELDS) or len(self.orbit_statistics) != len(
             _ORBIT_STATISTICS_FIELDS
         ):
@@ -340,6 +347,7 @@ class Manifest:
     resource_guardrails: ResourceGuardrailsSpec
     degeneracy_tolerance: float
     pair_selection: str
+    path_selection: str
     fingerprint: str
     raw: dict
 
@@ -400,6 +408,8 @@ class Manifest:
             raise ValueError(f"degeneracy_tolerance must be a finite number > 0, got {self.degeneracy_tolerance!r}")
         if self.pair_selection != ALL_ORDERED_DISTINCT_PAIRS:
             raise ValueError(f"pair_selection must be {ALL_ORDERED_DISTINCT_PAIRS!r}, got {self.pair_selection!r}")
+        if self.path_selection != ALL_MINIMAL_PATHS:
+            raise ValueError(f"path_selection must be {ALL_MINIMAL_PATHS!r}, got {self.path_selection!r}")
 
 
 def _load_schema() -> dict:
@@ -530,6 +540,7 @@ def parse_manifest(raw: dict) -> Manifest:
         ),
         degeneracy_tolerance=raw["degeneracy_tolerance"],
         pair_selection=raw["pair_selection"],
+        path_selection=raw["path_selection"],
         fingerprint=compute_manifest_fingerprint(raw),
         raw=raw,
     )

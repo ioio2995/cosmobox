@@ -5,7 +5,7 @@
   "branch": "research/level1-correlators",
   "n_flavors": 2,
   "external_charges_all_zero": true,
-  "scientific_seed": 20260805,
+  "scientific_seed": 0,
   "hamiltonian_cases": [
     {
       "hamiltonian_case_id": "reference",
@@ -150,9 +150,7 @@
       "hermitian_restricted_diagnostic",
       "non_hermitian_restricted_diagnostic"
     ],
-    "path_statistics": [
-      "minimal_path_count"
-    ],
+    "path_statistics": [],
     "orbit_statistics": [
       "orbit_mean",
       "orbit_max_pairwise_spread",
@@ -167,7 +165,7 @@
   },
   "robustness": {
     "primary": "gamma_O",
-    "secondary": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio"],
+    "secondary": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence"],
     "absolute_tolerance": 0.05,
     "relative_tolerance": 0.15,
     "normalization_floor": 1e-12
@@ -177,5 +175,6 @@
     "max_sparse_dimension": 200000
   },
   "degeneracy_tolerance": 1e-10,
-  "pair_selection": "all_ordered_distinct_pairs"
+  "pair_selection": "all_ordered_distinct_pairs",
+  "path_selection": "all_minimal_paths"
 }

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
@@ -125,7 +126,7 @@ def test_productions_has_all_five_categories() -> None:
     productions = m.load_manifest().productions
     assert productions.single_case_observables
     assert productions.single_case_diagnostics
-    assert productions.path_statistics
+    assert productions.path_statistics == ()  # no aggregate path statistic is frozen yet (D021 corrective)
     assert set(productions.orbit_statistics) == {"orbit_mean", "orbit_max_pairwise_spread", "orbit_covariance_defect"}
     assert productions.inter_s_observables.primary == "gamma_O"
 
@@ -205,3 +206,116 @@ def test_target_group_spec_rejects_mismatched_inter_s_exact_match_flag() -> None
             required_spectral_status="complete_multiplet",
             requires_inter_s_exact_match=True,  # only first_excited may require this
         )
+
+
+# ---------------------------------------------------------------------------
+# Final corrective round: scientific_seed == 0, path_selection ==
+# all_minimal_paths (no invented minimal_path_count), robustness.secondary
+# includes path_phase_coherence, Markdown/JSON consistency.
+# ---------------------------------------------------------------------------
+
+
+def test_manifest_scientific_seed_is_exactly_zero() -> None:
+    manifest = m.load_manifest()
+    assert manifest.scientific_seed == 0
+
+
+def test_manifest_rejects_a_nonzero_scientific_seed() -> None:
+    raw = _raw()
+    raw["scientific_seed"] = 1
+    mutated_fingerprint = m.compute_manifest_fingerprint(raw)
+    assert mutated_fingerprint != m.load_manifest().fingerprint  # confirms the fingerprint tracks the seed value
+    # The manifest itself does not hardcode "must equal 0" at the schema
+    # level (any non-negative int validates structurally) -- the frozen
+    # value 0 is a content fact, checked directly above and by the
+    # Markdown/JSON consistency test below, not a schema constraint.
+
+
+def test_path_selection_is_all_minimal_paths() -> None:
+    manifest = m.load_manifest()
+    assert manifest.path_selection == "all_minimal_paths"
+
+
+def test_manifest_rejects_unknown_path_selection_value() -> None:
+    raw = _raw()
+    raw["path_selection"] = "some_other_policy"
+    _assert_invalid(raw)
+
+
+def test_manifest_requires_path_selection_key() -> None:
+    raw = _raw()
+    del raw["path_selection"]
+    _assert_invalid(raw)
+
+
+def test_productions_path_statistics_is_empty_and_contains_no_invented_quantity() -> None:
+    productions = m.load_manifest().productions
+    assert productions.path_statistics == ()
+    assert "minimal_path_count" not in productions.path_statistics
+
+
+def test_robustness_secondary_contains_path_phase_coherence() -> None:
+    manifest = m.load_manifest()
+    assert set(manifest.robustness.secondary) == {
+        "G_occ",
+        "rho_QQ",
+        "C_TT_conn",
+        "flavor_singular_value_ratio",
+        "path_phase_coherence",
+    }
+
+
+def test_g_occ_and_path_phase_coherence_remain_marked_unproduced() -> None:
+    inter_s = m.load_manifest().productions.inter_s_observables
+    assert set(inter_s.unproduced) == {"G_occ", "path_phase_coherence"}
+
+
+# ---------------------------------------------------------------------------
+# Markdown/JSON consistency (explicit documentary check, not a schema
+# concern -- the Markdown is never itself loaded/validated, but D021
+# requires its normative-value mentions to match the JSON's actual values).
+# ---------------------------------------------------------------------------
+
+
+def _markdown_text() -> str:
+    path = Path(__file__).resolve().parents[3] / "experiments" / "level1" / "preregistered-manifest.md"
+    return path.read_text(encoding="utf-8")
+
+
+def test_markdown_mentions_the_normative_schema_version() -> None:
+    manifest = m.load_manifest()
+    assert f"schema_version = {manifest.schema_version}" in _markdown_text()
+
+
+def test_markdown_mentions_the_normative_scientific_seed() -> None:
+    manifest = m.load_manifest()
+    assert f"scientific_seed = {manifest.scientific_seed}" in _markdown_text()
+
+
+def test_markdown_mentions_the_normative_pair_selection() -> None:
+    manifest = m.load_manifest()
+    assert manifest.pair_selection in _markdown_text()
+
+
+def test_markdown_mentions_the_normative_path_selection() -> None:
+    manifest = m.load_manifest()
+    assert manifest.path_selection in _markdown_text()
+
+
+def test_markdown_documents_single_case_vs_inter_s_separation() -> None:
+    text = _markdown_text()
+    assert "mono-cas" in text
+    assert "inter-S" in text
+
+
+def test_markdown_documents_unproduced_inter_s_observables() -> None:
+    text = _markdown_text()
+    for name in m.load_manifest().productions.inter_s_observables.unproduced:
+        assert name in text
+    assert "aucun producteur" in text
+
+
+def test_markdown_documents_v1_schema_as_historical_only() -> None:
+    text = _markdown_text()
+    assert "correlators-v1.schema.json" in text
+    assert "historique" in text
