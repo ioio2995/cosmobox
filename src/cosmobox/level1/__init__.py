@@ -7,6 +7,32 @@ operators, hamiltonian.build_key_index/validate_key_index) without
 modification, per docs/levels/level1/implementation-design.md section 2.1.
 """
 
+from .automorphisms import (
+    GraphAutomorphism,
+    UnitaryAutomorphism,
+    build_automorphism,
+    compose,
+    compose_unitary_automorphisms,
+    generate_closed_subgroup,
+    generate_closed_unitary_subgroup,
+    hamiltonian_commutator_defect,
+    identity_automorphism,
+    identity_unitary_automorphism,
+    reflection_automorphism,
+    reflection_unitary_automorphism,
+    symmetry_subgroup,
+    transform_oriented_path,
+    translation_automorphism,
+    translation_unitary_automorphism,
+)
+from .flavor import (
+    FlavorCorrelatorMatrix,
+    build_flavor_correlator_matrix,
+    flavor_frobenius_squared,
+    flavor_singlet,
+    flavor_singular_value_ratio,
+    flavor_singular_values,
+)
 from .local_observables import (
     FLAVOR_COMPONENTS,
     NORMALIZATION_FLOOR,
@@ -26,6 +52,14 @@ from .local_observables import (
     raw_moment,
 )
 from .matter import apply_dressed_matter, build_dressed_matter_matrix
+from .orbits import (
+    OrbitComparabilityKey,
+    OrbitElement,
+    OrbitStatistics,
+    ValidatedOrbit,
+    aggregate_validated_orbit,
+    validate_orbit_covariance,
+)
 from .paths import OrientedPath, invert_path, make_oriented_path, minimal_paths
 from .restricted import (
     COMPLETE_MULTIPLET,
@@ -41,14 +75,24 @@ from .transporters import apply_transporter
 __all__ = [
     "COMPLETE_MULTIPLET",
     "FLAVOR_COMPONENTS",
+    "FlavorCorrelatorMatrix",
+    "GraphAutomorphism",
     "NORMALIZATION_FLOOR",
     "NormalizedMoment",
+    "OrbitComparabilityKey",
+    "OrbitElement",
+    "OrbitStatistics",
     "OrientedPath",
     "PARTIAL_SUBSPACE",
     "SpectralGroupState",
+    "UnitaryAutomorphism",
+    "ValidatedOrbit",
+    "aggregate_validated_orbit",
     "apply_dressed_matter",
     "apply_transporter",
+    "build_automorphism",
     "build_dressed_matter_matrix",
+    "build_flavor_correlator_matrix",
     "build_local_charge_operator",
     "build_local_flavor_generator",
     "build_local_flavor_generators",
@@ -56,12 +100,23 @@ __all__ = [
     "canonical_multiplet_expectation",
     "charge_correlator_connected",
     "charge_correlator_raw",
+    "compose",
+    "compose_unitary_automorphisms",
     "connected_moment",
     "expectation_value",
     "exploratory_partial_subspace_mean",
     "extract_group_state",
     "flavor_correlator_connected",
     "flavor_correlator_raw",
+    "flavor_frobenius_squared",
+    "flavor_singlet",
+    "flavor_singular_value_ratio",
+    "flavor_singular_values",
+    "generate_closed_subgroup",
+    "generate_closed_unitary_subgroup",
+    "hamiltonian_commutator_defect",
+    "identity_automorphism",
+    "identity_unitary_automorphism",
     "invert_path",
     "local_charge_product",
     "local_flavor_dot_product",
@@ -69,4 +124,11 @@ __all__ = [
     "minimal_paths",
     "normalized_charge_correlator",
     "raw_moment",
+    "reflection_automorphism",
+    "reflection_unitary_automorphism",
+    "symmetry_subgroup",
+    "transform_oriented_path",
+    "translation_automorphism",
+    "translation_unitary_automorphism",
+    "validate_orbit_covariance",
 ]
