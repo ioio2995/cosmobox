@@ -87,13 +87,33 @@ def _identity_key(document: dict) -> tuple:
     )
 
 
+def _spectral_group_sort_key(spectral_group: dict) -> tuple:
+    """Explicit, intentional field order -- spectral_window_group_index
+    first (D022's discriminant), then status/multiplicity/twice_T,
+    representative_energy last (descriptive metadata, never itself
+    prioritized ahead of the index). Deliberately NOT
+    json.dumps(spectral_group, sort_keys=True): alphabetical JSON key
+    order would sort by "multiplicity" first, not by the group's actual
+    identity discriminant."""
+    twice_t = spectral_group["twice_T"]
+    twice_t_key = (0,) if twice_t is None else (1, twice_t)
+    return (
+        spectral_group["spectral_window_group_index"],
+        spectral_group["status"],
+        spectral_group["multiplicity"],
+        twice_t_key,
+        spectral_group["representative_energy"],
+    )
+
+
 def _sort_key(document: dict) -> tuple:
     """A fully orderable canonical key -- unlike _identity_key (which only
     needs to be hashable), sorting requires every component to compare
     safely against every other document's corresponding component, so
     nested structures and the None/tuple duality of `path` are normalized
     into homogeneously comparable forms (JSON strings, an explicit
-    (present, value) pair for the optional path)."""
+    (present, value) pair for the optional path, and an explicit field
+    order for spectral_group -- see _spectral_group_sort_key)."""
     identity = document["identity"]
     path = identity["path"]
     path_key = (0,) if path is None else (1, tuple(path))
@@ -103,7 +123,7 @@ def _sort_key(document: dict) -> tuple:
         identity["spin"],
         json.dumps(identity["hamiltonian"], sort_keys=True),
         identity["sector"],
-        json.dumps(identity["spectral_group"], sort_keys=True),
+        _spectral_group_sort_key(identity["spectral_group"]),
         document["record_kind"],
         document["observable_kind"],
         path_key,

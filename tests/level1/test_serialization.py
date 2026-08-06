@@ -60,7 +60,9 @@ def _identity(**overrides) -> ScientificIdentity:
         n_flavors=2,
         hamiltonian=_hamiltonian(),
         sector="default",
-        spectral_group=SpectralGroupIdentity(status=COMPLETE_MULTIPLET, multiplicity=2, twice_T=1),
+        spectral_group=SpectralGroupIdentity(
+            status=COMPLETE_MULTIPLET, multiplicity=2, twice_T=1, spectral_window_group_index=0, representative_energy=-1.0
+        ),
         path=None,
         flavor_component=None,
         normalization=None,
@@ -491,7 +493,13 @@ def _manual_robustness_document(observable_kind: str) -> dict:
             "n_flavors": 2,
             "hamiltonian": {"J": [1.0], "h_is_zero": True, "t": 1.0, "g_E": 1.0, "K": 1.0},
             "sector": "default",
-            "spectral_group": {"status": "complete_multiplet", "multiplicity": 2, "twice_T": 1},
+            "spectral_group": {
+                "status": "complete_multiplet",
+                "multiplicity": 2,
+                "twice_T": 1,
+                "spectral_window_group_index": 0,
+                "representative_energy": -1.0,
+            },
             "path": None,
             "flavor_component": None,
             "normalization": None,

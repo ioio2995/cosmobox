@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
+from cosmobox.level0.degeneracy import SpectralLevelGroup
 from cosmobox.level1.local_observables import NormalizedMoment
 from cosmobox.level1.matching import (
     EXACT_LABEL_MATCH,
@@ -13,7 +15,7 @@ from cosmobox.level1.matching import (
 )
 from cosmobox.level1.orbits import OrbitComparabilityKey, OrbitElement, OrbitStatistics, ValidatedOrbit
 from cosmobox.level1.orbits import _VALIDATION_TOKEN
-from cosmobox.level1.restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE
+from cosmobox.level1.restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE, SpectralGroupState
 from cosmobox.level1.results import (
     HamiltonianIdentity,
     OrbitResultPayload,
@@ -22,6 +24,7 @@ from cosmobox.level1.results import (
     ScientificIdentity,
     SpectralGroupIdentity,
     build_orbit_result_payload,
+    build_spectral_group_identity,
 )
 from cosmobox.level1.results import build_result_record as _build_result_record_impl
 from cosmobox.level1.robustness import INDETERMINATE, ROBUST, RobustnessResult
@@ -48,9 +51,29 @@ def _hamiltonian(**overrides) -> HamiltonianIdentity:
 
 
 def _group(**overrides) -> SpectralGroupIdentity:
-    defaults = dict(status=COMPLETE_MULTIPLET, multiplicity=2, twice_T=1)
+    defaults = dict(status=COMPLETE_MULTIPLET, multiplicity=2, twice_T=1, spectral_window_group_index=0, representative_energy=-1.0)
     defaults.update(overrides)
     return SpectralGroupIdentity(**defaults)
+
+
+def _orthonormal_columns(dimension: int, multiplicity: int, seed: int) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    raw = rng.normal(size=(dimension, multiplicity)) + 1j * rng.normal(size=(dimension, multiplicity))
+    q, _ = np.linalg.qr(raw)
+    return q[:, :multiplicity]
+
+
+def _level_group(**overrides) -> SpectralLevelGroup:
+    defaults = dict(
+        start_index=0, end_index_exclusive=2, representative_energy=-1.0,
+        min_energy=-1.01, max_energy=-0.99, multiplicity_observed=2, lower_bound_only=False,
+    )
+    defaults.update(overrides)
+    return SpectralLevelGroup(**defaults)
+
+
+def _group_state(*, multiplicity: int = 2, status: str = COMPLETE_MULTIPLET, dimension: int = 6, seed: int = 0) -> SpectralGroupState:
+    return SpectralGroupState(psi=_orthonormal_columns(dimension, multiplicity, seed), status=status)
 
 
 def _identity(**overrides) -> ScientificIdentity:
@@ -110,17 +133,132 @@ def test_hamiltonian_identity_rejects_non_finite_J() -> None:
 
 def test_spectral_group_identity_rejects_invalid_status() -> None:
     with pytest.raises(ValueError, match="status"):
-        SpectralGroupIdentity(status="degenerate", multiplicity=1, twice_T=0)
+        _group(status="degenerate")
 
 
 def test_spectral_group_identity_rejects_nonpositive_multiplicity() -> None:
     with pytest.raises(ValueError, match="multiplicity"):
-        SpectralGroupIdentity(status=COMPLETE_MULTIPLET, multiplicity=0, twice_T=0)
+        _group(multiplicity=0)
 
 
 def test_spectral_group_identity_accepts_none_twice_t() -> None:
-    group = SpectralGroupIdentity(status=COMPLETE_MULTIPLET, multiplicity=1, twice_T=None)
+    group = _group(twice_T=None)
     assert group.twice_T is None
+
+
+# ---------------------------------------------------------------------------
+# SpectralGroupIdentity -- spectral_window_group_index / representative_energy
+# (Level1B lot 1B-8b, D022)
+# ---------------------------------------------------------------------------
+
+
+def test_spectral_group_identity_rejects_negative_spectral_window_group_index() -> None:
+    with pytest.raises(ValueError, match="spectral_window_group_index"):
+        _group(spectral_window_group_index=-1)
+
+
+def test_spectral_group_identity_rejects_bool_spectral_window_group_index() -> None:
+    with pytest.raises(ValueError, match="spectral_window_group_index"):
+        _group(spectral_window_group_index=True)
+
+
+def test_spectral_group_identity_accepts_zero_spectral_window_group_index() -> None:
+    group = _group(spectral_window_group_index=0)
+    assert group.spectral_window_group_index == 0
+
+
+@pytest.mark.parametrize("bad_energy", [float("nan"), float("inf"), float("-inf")])
+def test_spectral_group_identity_rejects_non_finite_representative_energy(bad_energy: float) -> None:
+    with pytest.raises(ValueError, match="representative_energy"):
+        _group(representative_energy=bad_energy)
+
+
+def test_spectral_group_identity_preserves_exact_representative_energy() -> None:
+    group = _group(representative_energy=-3.7791264446349917)
+    assert group.representative_energy == -3.7791264446349917
+
+
+def test_spectral_group_identity_two_groups_same_status_multiplicity_twice_t_different_index() -> None:
+    """The exact collision this sub-lot fixes: two groups sharing
+    (status, multiplicity, twice_T) are distinguished by
+    spectral_window_group_index alone."""
+    group_0 = _group(spectral_window_group_index=0, representative_energy=-3.7791264446349917)
+    group_1 = _group(spectral_window_group_index=1, representative_energy=-3.7309647726093322)
+    assert group_0.status == group_1.status
+    assert group_0.multiplicity == group_1.multiplicity
+    assert group_0.twice_T == group_1.twice_T
+    assert group_0 != group_1
+    assert group_0.spectral_window_group_index != group_1.spectral_window_group_index
+
+
+# ---------------------------------------------------------------------------
+# build_spectral_group_identity -- derived constructor (D022)
+# ---------------------------------------------------------------------------
+
+
+def test_build_spectral_group_identity_derives_status_multiplicity_energy() -> None:
+    group = _level_group(
+        representative_energy=-2.5,
+        min_energy=-2.51,
+        max_energy=-2.49,
+        multiplicity_observed=3,
+        end_index_exclusive=3,
+        lower_bound_only=False,
+    )
+    state = _group_state(multiplicity=3, status=COMPLETE_MULTIPLET)
+    identity = build_spectral_group_identity(group, state, spectral_window_group_index=4, twice_T=2)
+    assert identity.status == COMPLETE_MULTIPLET
+    assert identity.multiplicity == 3
+    assert identity.representative_energy == -2.5
+    assert identity.spectral_window_group_index == 4
+    assert identity.twice_T == 2
+
+
+def test_build_spectral_group_identity_never_rounds_representative_energy() -> None:
+    group = _level_group(representative_energy=-3.7791264446349917, min_energy=-3.78, max_energy=-3.77)
+    state = _group_state()
+    identity = build_spectral_group_identity(group, state, spectral_window_group_index=0, twice_T=None)
+    assert identity.representative_energy == -3.7791264446349917
+
+
+def test_build_spectral_group_identity_accepts_partial_when_lower_bound_only() -> None:
+    group = _level_group(lower_bound_only=True)
+    state = _group_state(status=PARTIAL_SUBSPACE)
+    identity = build_spectral_group_identity(group, state, spectral_window_group_index=1, twice_T=None)
+    assert identity.status == PARTIAL_SUBSPACE
+
+
+def test_build_spectral_group_identity_rejects_status_lower_bound_only_mismatch() -> None:
+    group = _level_group(lower_bound_only=True)
+    state = _group_state(status=COMPLETE_MULTIPLET)  # inconsistent with lower_bound_only=True
+    with pytest.raises(ValueError, match="lower_bound_only"):
+        build_spectral_group_identity(group, state, spectral_window_group_index=0, twice_T=None)
+
+
+def test_build_spectral_group_identity_rejects_multiplicity_mismatch() -> None:
+    group = _level_group(multiplicity_observed=2, end_index_exclusive=2)
+    state = _group_state(multiplicity=3, dimension=6)  # mismatched vs group.multiplicity_observed=2
+    with pytest.raises(ValueError, match="multiplicity"):
+        build_spectral_group_identity(group, state, spectral_window_group_index=0, twice_T=None)
+
+
+def test_build_spectral_group_identity_rejects_non_spectral_level_group() -> None:
+    state = _group_state()
+    with pytest.raises(ValueError, match="SpectralLevelGroup"):
+        build_spectral_group_identity("not-a-group", state, spectral_window_group_index=0, twice_T=None)
+
+
+def test_build_spectral_group_identity_rejects_non_spectral_group_state() -> None:
+    group = _level_group()
+    with pytest.raises(ValueError, match="SpectralGroupState"):
+        build_spectral_group_identity(group, "not-a-state", spectral_window_group_index=0, twice_T=None)
+
+
+def test_build_spectral_group_identity_rejects_negative_index() -> None:
+    group = _level_group()
+    state = _group_state()
+    with pytest.raises(ValueError, match="spectral_window_group_index"):
+        build_spectral_group_identity(group, state, spectral_window_group_index=-1, twice_T=None)
 
 
 def test_scientific_identity_rejects_wrong_n_flavors() -> None:

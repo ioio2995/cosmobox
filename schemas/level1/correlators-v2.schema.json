@@ -228,11 +228,20 @@
     },
     "spectralGroupIdentity": {
       "type": "object",
-      "required": ["status", "multiplicity", "twice_T"],
+      "required": ["status", "multiplicity", "twice_T", "spectral_window_group_index", "representative_energy"],
       "properties": {
         "status": {"$ref": "#/$defs/spectralStatus"},
         "multiplicity": {"type": "integer", "minimum": 1},
-        "twice_T": {"type": ["integer", "null"], "minimum": 0}
+        "twice_T": {"type": ["integer", "null"], "minimum": 0},
+        "spectral_window_group_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The group's own position in the diagonalized case's full, unfiltered spectral-window sequence (D022). A single-case discriminant only -- never an inter-S matching criterion."
+        },
+        "representative_energy": {
+          "type": "number",
+          "description": "SpectralLevelGroup.representative_energy, transcribed exactly (D022) -- descriptive metadata, never itself the identity discriminant and never compared with a tolerance."
+        }
       },
       "additionalProperties": false
     },

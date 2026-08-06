@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import ast
+import inspect
+
 import numpy as np
 import pytest
 
@@ -9,6 +12,7 @@ from cosmobox.level0.lattice import build_lattice
 from cosmobox.level0.params import HamiltonianParameters
 from cosmobox.level0.reports import SpectrumOptions, build_level0_report_with_eigenvectors
 from cosmobox.level0.symmetries import build_flavor_casimir
+from cosmobox.level1 import matching as matching_module
 from cosmobox.level1.automorphisms import (
     reflection_unitary_automorphism,
     translation_unitary_automorphism,
@@ -36,6 +40,7 @@ from cosmobox.level1.restricted import (
     canonical_multiplet_expectation,
     extract_group_state,
 )
+from cosmobox.level1.results import SpectralGroupIdentity
 
 N_FLAVORS = 2
 
@@ -411,3 +416,62 @@ def test_match_spectral_group_not_applicable_labels_on_both_sides_are_compatible
     candidate = _base_key(translation_label=SymmetryLabel(kind=NOT_APPLICABLE, value=None))
     outcome = match_spectral_group(target, [candidate], structurally_applicable=True, low_window_truncated=False)
     assert outcome.status == EXACT_LABEL_MATCH
+
+
+# ---------------------------------------------------------------------------
+# D022: spectral_window_group_index / representative_energy (single-case
+# metadata on SpectralGroupIdentity, results.py) must never affect
+# inter-S matching. matching.py itself is not modified by this sub-lot.
+# ---------------------------------------------------------------------------
+
+
+def _match_key_from_identity(identity: SpectralGroupIdentity) -> SpectralGroupMatchKey:
+    return SpectralGroupMatchKey(
+        geometry="triangle",
+        hamiltonian_identity_without_spin="ref_j1",
+        sector_identity="default",
+        status=identity.status,
+        multiplicity=identity.multiplicity,
+        twice_T=identity.twice_T,
+        translation_label=SymmetryLabel(kind=NUMERIC, value=1 + 0j),
+        reflection_label=SymmetryLabel(kind=NUMERIC, value=1 + 0j),
+    )
+
+
+def test_spectral_window_group_index_and_representative_energy_never_affect_matching() -> None:
+    """Two physically-matchable SpectralGroupIdentity differing ONLY in
+    spectral_window_group_index/representative_energy (D022) must produce
+    an identical match_spectral_group outcome -- proven behaviorally:
+    SpectralGroupMatchKey (matching.py's own type) has no field for
+    either, so a key built from the same status/multiplicity/twice_T/
+    labels is identical regardless of which spectral_window_group_index/
+    representative_energy the source SpectralGroupIdentity carried."""
+    identity_a = SpectralGroupIdentity(
+        status=COMPLETE_MULTIPLET, multiplicity=2, twice_T=1, spectral_window_group_index=0, representative_energy=-3.0
+    )
+    identity_b = SpectralGroupIdentity(
+        status=COMPLETE_MULTIPLET, multiplicity=2, twice_T=1, spectral_window_group_index=7, representative_energy=42.5
+    )
+    assert identity_a.spectral_window_group_index != identity_b.spectral_window_group_index
+    assert identity_a.representative_energy != identity_b.representative_energy
+
+    key_a = _match_key_from_identity(identity_a)
+    key_b = _match_key_from_identity(identity_b)
+    assert key_a == key_b
+
+    outcome_a = match_spectral_group(key_a, [key_a], structurally_applicable=True, low_window_truncated=False)
+    outcome_b = match_spectral_group(key_b, [key_b], structurally_applicable=True, low_window_truncated=False)
+    assert outcome_a == outcome_b
+
+
+def test_matching_module_source_never_references_the_new_spectral_group_identity_fields() -> None:
+    """Complementary AST-based filet -- not the sole proof (see the
+    behavioral test above): matching.py's source contains no identifier
+    for either D022 field, confirming it was not modified to consult
+    them."""
+    tree = ast.parse(inspect.getsource(matching_module))
+    names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+    attrs = {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
+    forbidden = {"spectral_window_group_index", "representative_energy"}
+    assert not (names & forbidden)
+    assert not (attrs & forbidden)

@@ -140,7 +140,13 @@ def _hamiltonian_identity_payload(hamiltonian: HamiltonianIdentity) -> dict:
 
 
 def _spectral_group_identity_payload(group: SpectralGroupIdentity) -> dict:
-    return {"status": group.status, "multiplicity": group.multiplicity, "twice_T": group.twice_T}
+    return {
+        "status": group.status,
+        "multiplicity": group.multiplicity,
+        "twice_T": group.twice_T,
+        "spectral_window_group_index": group.spectral_window_group_index,
+        "representative_energy": _finite_number(group.representative_energy, "representative_energy"),
+    }
 
 
 def _identity_payload(identity: ScientificIdentity) -> dict:

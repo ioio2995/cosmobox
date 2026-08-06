@@ -112,6 +112,7 @@ from .results import (
     SpectralGroupIdentity,
     build_orbit_result_payload,
     build_result_record,
+    build_spectral_group_identity,
 )
 from .robustness import (
     ABSOLUTE_ROBUSTNESS_THRESHOLD,
@@ -191,6 +192,7 @@ __all__ = [
     "build_orbit_result_payload",
     "build_restricted_operator",
     "build_result_record",
+    "build_spectral_group_identity",
     "canonical_multiplet_expectation",
     "charge_correlator_connected",
     "charge_correlator_connected_group",

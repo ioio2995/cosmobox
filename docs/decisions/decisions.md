@@ -317,6 +317,26 @@ Cette décision corrige et complète le lot d'infrastructure 1B-8 (`experiments/
 
 Hors périmètre de cette décision : le runner de campagne, `local_observables.py`/D020, le niveau 0, le calcul physique de `G_occ`, l'appariement inter-S, toute exécution de campagne.
 
+## D022 — Identité mono-cas des groupes spectraux (lot 1B-8b)
+
+**Statut : gelé**
+
+En construisant le runner mono-cas du lot 1B-8, une collision réelle a été observée sur **triangle S=2, cas `j_break`** : le groupe fondamental (`groups[0]`, énergie représentative ≈ -3.7791) et le premier groupe excité (`groups[1]`, énergie représentative ≈ -3.7310) sont deux multiplets complets **physiquement distincts** — leurs caractères de translation/réflexion diffèrent réellement — mais partagent exactement `(status=complete_multiplet, multiplicity=2, twice_T=1)`. `SpectralGroupIdentity`, gelée au lot 1B-7 avec ces trois seuls champs, produisait donc une identité scientifique identique pour deux résultats différents, provoquant à juste titre un `AssemblyContradiction` (`assembly.py`) plutôt qu'une fusion silencieuse.
+
+**Insuffisance confirmée** : `(status, multiplicity, twice_T)` seul ne discrimine pas de façon exhaustive les groupes spectraux d'un même cas (même géométrie/spin/Hamiltonien/secteur) — deux multiplets complets distincts peuvent légitimement partager ce triplet.
+
+**Discriminant mono-cas** : `SpectralGroupIdentity` gagne `spectral_window_group_index: int` (`>= 0`, jamais `bool`), la position du groupe dans la séquence complète et non filtrée `DegeneracyReport.groups` de son cas, obtenue par énumération réelle (`enumerate(groups)`) **avant tout filtrage** — jamais un rang de cible, jamais l'ordre des cibles du manifeste, jamais un rang réattribué après filtrage.
+
+**Métadonnée descriptive** : `SpectralGroupIdentity` gagne aussi `representative_energy: float`, transcrite exactement depuis `SpectralLevelGroup.representative_energy` (`build_spectral_group_identity`, `results.py`) — finie, jamais arrondie, jamais quantifiée. C'est une métadonnée d'audit, jamais elle-même le discriminant : deux identités ne sont égales que si tous leurs champs exacts (y compris `spectral_window_group_index`) coïncident ; aucune tolérance d'énergie n'intervient dans la comparaison d'identité (`assembly._identity_key`, inchangée dans son principe — elle hash déjà le dictionnaire `spectral_group` entier, donc les deux nouveaux champs y entrent automatiquement sans modification de code).
+
+**Interdiction absolue d'usage inter-S** : ni `spectral_window_group_index` ni `representative_energy` ne sont jamais des critères d'appariement inter-S (`matching.py`, non modifié par cette décision) — un indice de fenêtre spectrale n'a de sens qu'à l'intérieur du cas qui l'a produit ; deux cas à des `S` différents ont chacun leur propre séquence de groupes, sans correspondance a priori entre leurs indices.
+
+**Absence de `target_id`** : `SpectralGroupIdentity` ne porte, et ne portera jamais, l'identifiant d'une cible du manifeste. Deux cibles distinctes (ex. `first_excited` et un `target_id` de type `flavor_label`) qui résolvent vers le même groupe physique doivent produire exactement la même identité spectrale — l'identité appartient au groupe, jamais à la règle de sélection qui l'a trouvé.
+
+**Caractère cassant assumé** : `schemas/level1/correlators-v2.schema.json` rend les deux nouveaux champs de `spectral_group` obligatoires, sans valeur par défaut ni migration silencieuse — tout document v2 déjà sérialisé sans eux est désormais rejeté. `correlators-v1.schema.json` reste strictement inchangé (contrat historique, D019). `assembly._sort_key` ordonne désormais explicitement sa composante spectrale par `(spectral_window_group_index, status, multiplicity, twice_T, representative_energy)` plutôt que par l'ordre alphabétique des clés JSON, pour que l'ordre produit soit intentionnel.
+
+Hors périmètre de cette décision : le runner de campagne (reste suspendu), le manifeste de campagne, la sélection des cibles, D020/D021 (sauf référence croisée ci-dessus), le niveau 0, `matching.py`, toute formule scientifique, tout verdict, `G_occ`, `path_phase_coherence`.
+
 ## Questions ouvertes
 
 - organisation logicielle des utilitaires de campagne, mutualisés ou locaux ;

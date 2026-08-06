@@ -32,12 +32,14 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from cosmobox.level0.degeneracy import SpectralLevelGroup
+
 from .diagnostics import HermitianRestrictedDiagnostics, NonHermitianRestrictedDiagnostics
 from .flavor import FlavorCorrelatorMatrix
 from .local_observables import NormalizedMoment
 from .matching import EXACT_LABEL_MATCH, MatchOutcome, SymmetryLabel
 from .orbits import OrbitComparabilityKey, OrbitStatistics, ValidatedOrbit, aggregate_validated_orbit
-from .restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE
+from .restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE, SpectralGroupState
 from .robustness import INDETERMINATE, RobustnessResult
 
 # ---------------------------------------------------------------------------
@@ -130,9 +132,24 @@ class HamiltonianIdentity:
 
 @dataclass(frozen=True, slots=True)
 class SpectralGroupIdentity:
+    """(status, multiplicity, twice_T) alone is insufficient to identify a
+    spectral group within a single case: two distinct complete multiplets
+    at the same (geometry, spin, Hamiltonian, sector) can share the same
+    status/multiplicity/twice_T (observed on triangle S=2 j_break -- D022).
+    spectral_window_group_index (the group's own position in the
+    diagonalized case's full, unfiltered spectral-window sequence) is the
+    exact discriminant added to resolve this; representative_energy is a
+    descriptive, exact metadata field, never itself the discriminant and
+    never compared with a tolerance. Neither field may ever be used as an
+    inter-S matching criterion (matching.py, D022) -- a spectral window
+    index is only ever meaningful within the single case that produced
+    it."""
+
     status: str
     multiplicity: int
     twice_T: int | None
+    spectral_window_group_index: int
+    representative_energy: float
 
     def __post_init__(self) -> None:
         if self.status not in (COMPLETE_MULTIPLET, PARTIAL_SUBSPACE):
@@ -141,6 +158,86 @@ class SpectralGroupIdentity:
             raise ValueError(f"multiplicity must be > 0, got {self.multiplicity}")
         if self.twice_T is not None and self.twice_T < 0:
             raise ValueError(f"twice_T must be >= 0 or None, got {self.twice_T}")
+        if (
+            isinstance(self.spectral_window_group_index, bool)
+            or not isinstance(self.spectral_window_group_index, int)
+            or self.spectral_window_group_index < 0
+        ):
+            raise ValueError(
+                f"spectral_window_group_index must be a non-negative int, got {self.spectral_window_group_index!r}"
+            )
+        if isinstance(self.representative_energy, bool) or not isinstance(self.representative_energy, (int, float)):
+            raise ValueError(f"representative_energy must be a real number, got {self.representative_energy!r}")
+        if not math.isfinite(self.representative_energy):
+            raise ValueError(f"representative_energy must be finite, got {self.representative_energy!r}")
+
+
+def build_spectral_group_identity(
+    group: SpectralLevelGroup,
+    group_state: SpectralGroupState,
+    *,
+    spectral_window_group_index: int,
+    twice_T: int | None,
+) -> SpectralGroupIdentity:
+    """The recommended way to construct a SpectralGroupIdentity. status/
+    multiplicity/representative_energy are derived directly from `group`/
+    `group_state` -- never recomputed, never rounded, never re-derived
+    from individual eigenlevels or a fresh diagonalization.
+    spectral_window_group_index and twice_T remain caller-supplied: the
+    index must come from enumerating the case's own full, unfiltered
+    `groups` sequence (cosmobox.level0.degeneracy.DegeneracyReport.groups,
+    e.g. via `enumerate(groups)`) BEFORE any filtering -- never a rank
+    reassigned after dropping some groups, never a target's rank in the
+    manifest, never an inter-S matching criterion; twice_T comes from
+    matching.compute_twice_T, already computed upstream.
+
+    Cross-checks (defense in depth -- catches a caller passing a `group`/
+    `group_state` pair that do not actually describe the same spectral
+    group):
+    - group_state.status == "partial_subspace" iff group.lower_bound_only
+      is True;
+    - group_state.multiplicity == group.multiplicity_observed;
+    - group.end_index_exclusive - group.start_index ==
+      group.multiplicity_observed (SpectralLevelGroup's own invariant,
+      re-checked here rather than trusted blindly);
+    - group_state.psi.shape[1] == group_state.multiplicity (SpectralGroupState's
+      own invariant, re-checked here rather than trusted blindly).
+    """
+    if not isinstance(group, SpectralLevelGroup):
+        raise ValueError(f"group must be a SpectralLevelGroup, got {type(group)}")
+    if not isinstance(group_state, SpectralGroupState):
+        raise ValueError(f"group_state must be a SpectralGroupState, got {type(group_state)}")
+
+    is_partial = group_state.status == PARTIAL_SUBSPACE
+    if is_partial != group.lower_bound_only:
+        raise ValueError(
+            f"group_state.status ({group_state.status!r}) does not match group.lower_bound_only "
+            f"({group.lower_bound_only!r}) -- group and group_state do not describe the same spectral group"
+        )
+    if group_state.multiplicity != group.multiplicity_observed:
+        raise ValueError(
+            f"group_state.multiplicity ({group_state.multiplicity}) does not match "
+            f"group.multiplicity_observed ({group.multiplicity_observed}) -- group and group_state do not "
+            "describe the same spectral group"
+        )
+    if group.end_index_exclusive - group.start_index != group.multiplicity_observed:
+        raise ValueError(
+            f"group.end_index_exclusive - group.start_index ({group.end_index_exclusive - group.start_index}) "
+            f"does not match group.multiplicity_observed ({group.multiplicity_observed})"
+        )
+    if group_state.psi.shape[1] != group_state.multiplicity:
+        raise ValueError(
+            f"group_state.psi.shape[1] ({group_state.psi.shape[1]}) does not match "
+            f"group_state.multiplicity ({group_state.multiplicity})"
+        )
+
+    return SpectralGroupIdentity(
+        status=group_state.status,
+        multiplicity=group_state.multiplicity,
+        twice_T=twice_T,
+        spectral_window_group_index=spectral_window_group_index,
+        representative_energy=group.representative_energy,
+    )
 
 
 @dataclass(frozen=True, slots=True)

@@ -25,6 +25,7 @@ Ce document est normatif pour l’acceptation de l’implémentation décrite da
 | V19 | Agrégation d’orbite | moyenne, dispersion maximale et défaut de covariance | numérique | 1e-10 |
 | V20 | Diagnostics non hermitiens | absence de Schur et de spectre complexe | contrat | exact |
 | V21 | Corrélateurs de charge/saveur multiplet (D020) | triangle S=1, multiplet fondamental dégénéré | analytique + numérique | 1e-10 |
+| V22 | Identité exacte des groupes spectraux (D022) | triangle S=2 `j_break`, groupes 0/1 collisionnant | contrat + numérique | exact |
 
 ## Règles
 
@@ -37,4 +38,5 @@ Ce document est normatif pour l’acceptation de l’implémentation décrite da
 - `gamma_O = |O_high - O_low| / max(|O_high|, |O_low|)`, `null` avec `normalization_denominator_below_floor` si le dénominateur est sous `NORMALIZATION_FLOOR` (D018) ; verdict `robuste` si `|O_high - O_low| <= max(0.05, 0.15 * max(|O_high|, |O_low|))`, frontière incluse ;
 - un appariement ambigu ou un groupe `partial_subspace` ne produit jamais de verdict `robuste`/`non_robuste` (`null_reason = "truncated_spectral_group"` pour un groupe tronqué, `"ambiguous_cross_truncation_match"` pour l’appariement — jamais fusionnés) ;
 - l’appariement inter-S exige un Hamiltonien identique à l’exception de S (référence avec référence, un `j_break` avec exactement le même `j_break`, jamais l’un avec l’autre) ;
-- pour un `SpectralGroupState` (D020), `C_QQ_raw/conn` et `C_TT_raw/conn` de groupe utilisent exclusivement la moyenne canonique (`complete_multiplet`) ou exploratoire (`partial_subspace`) déjà gelée pour tout opérateur ; le terme connecté de saveur soustrait composante par composante, jamais après sommation globale ; un groupe `partial_subspace` ne reçoit jamais de statut promu ni de verdict normatif ; `rho_QQ` de groupe réutilise `normalized_charge_correlator` sans modification ni epsilon artificiel.
+- pour un `SpectralGroupState` (D020), `C_QQ_raw/conn` et `C_TT_raw/conn` de groupe utilisent exclusivement la moyenne canonique (`complete_multiplet`) ou exploratoire (`partial_subspace`) déjà gelée pour tout opérateur ; le terme connecté de saveur soustrait composante par composante, jamais après sommation globale ; un groupe `partial_subspace` ne reçoit jamais de statut promu ni de verdict normatif ; `rho_QQ` de groupe réutilise `normalized_charge_correlator` sans modification ni epsilon artificiel ;
+- deux groupes spectraux d'un même cas ne sont considérés comme la même identité que si tous les champs de `SpectralGroupIdentity` coïncident exactement, y compris `spectral_window_group_index` (D022) ; `representative_energy` est une métadonnée exacte, jamais arrondie et jamais elle-même le discriminant ; ni l'un ni l'autre champ n'intervient dans l'appariement inter-S.
