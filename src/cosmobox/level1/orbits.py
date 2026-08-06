@@ -19,14 +19,30 @@ OrbitComparabilityKey: every element entering an orbit must carry an
 IDENTICAL key (orbit family, path length, spectral group, complete/partial
 status, observable kind, normalization level, flavor component,
 Hamiltonian-parameter identity) -- checked by validate_orbit_covariance
-before any aggregate is computed, not merely documented.
+before any aggregate is computed, not merely documented. The four fields
+that are locally derivable from the function's own other arguments
+(path_length, status, observable_kind, flavor_component) are cross-checked
+against `key` rather than trusted at face value -- a key that lies about
+any of them raises ValueError before any ValidatedOrbit is built. The
+remaining fields (orbit_family, spectral_group_key, normalization,
+hamiltonian_identity) are not derivable from what this function sees and
+remain caller-supplied.
+
+ValidatedOrbit itself is only constructible through validate_orbit_covariance:
+its __post_init__ requires a private token that only this module holds a
+reference to (never exported), so direct construction
+`ValidatedOrbit(key=..., elements=...)` from outside this module cannot
+succeed even though the type is public -- closing the gap where a
+caller-fabricated ValidatedOrbit could previously be handed straight to
+aggregate_validated_orbit.
 """
 
 from __future__ import annotations
 
 import itertools
+import math
 from collections.abc import Hashable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -36,6 +52,24 @@ from .automorphisms import UnitaryAutomorphism, transform_oriented_path
 from .matter import build_dressed_matter_matrix
 from .paths import OrientedPath
 from .restricted import SpectralGroupState, canonical_multiplet_expectation, exploratory_partial_subspace_mean
+
+DRESSED_MATTER_OBSERVABLE_KIND = "O_ij_raw"
+
+# Private, never exported (not in __init__.py, not re-exported by this
+# module's own public surface): the only way another module can obtain a
+# reference to this exact object is by reaching into orbits._VALIDATION_TOKEN
+# directly, an explicit, conscious bypass -- not an accidental one. This is
+# the mechanism, not caller discipline, that makes validate_orbit_covariance
+# the only ordinary way to construct a ValidatedOrbit.
+_VALIDATION_TOKEN = object()
+
+
+def flavor_component_label(alpha: int, beta: int) -> str:
+    """Canonical OrbitComparabilityKey.flavor_component string for a given
+    (alpha, beta) pair -- the format validate_orbit_covariance checks
+    key.flavor_component against, exported so callers can build a
+    conforming key rather than guess the format."""
+    return f"alpha{alpha}_beta{beta}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,10 +100,37 @@ class ValidatedOrbit:
     """Produced only by validate_orbit_covariance: proof that the
     generating automorphisms were empirically confirmed (via the operator
     covariance identity, not assumed) to be genuine symmetries before any
-    aggregate is computed from `elements`."""
+    aggregate is computed from `elements`.
+
+    Despite being a public type, direct construction from outside this
+    module cannot succeed: `_token` must be this module's private
+    _VALIDATION_TOKEN object, which is never exported. __post_init__ also
+    enforces the invariants a validated orbit must satisfy regardless of
+    who holds the token: a non-empty element list, every element's key
+    identical to self.key, and every element's value a finite complex
+    number.
+    """
 
     key: OrbitComparabilityKey
     elements: tuple[OrbitElement, ...]
+    _token: object = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if self._token is not _VALIDATION_TOKEN:
+            raise ValueError(
+                "ValidatedOrbit may only be constructed by validate_orbit_covariance -- "
+                "direct construction from outside cosmobox.level1.orbits is not a validated orbit"
+            )
+        if not self.elements:
+            raise ValueError("a ValidatedOrbit must contain at least one element")
+        for element in self.elements:
+            if element.key != self.key:
+                raise ValueError(
+                    f"orbit element key {element.key} does not match ValidatedOrbit.key {self.key}"
+                )
+            value = complex(element.value)
+            if not (math.isfinite(value.real) and math.isfinite(value.imag)):
+                raise ValueError(f"orbit element value is not finite: {element.value}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,11 +171,31 @@ def validate_orbit_covariance(
     (family, path length, spectral group, status, observable kind,
     normalization, flavor component, Hamiltonian identity) -- it is
     metadata, not a value, and is attached identically to every produced
-    element. Raises ValueError if the covariance identity fails for any
-    automorphism -- this is the only way to obtain a ValidatedOrbit.
+    element. The four fields derivable from this function's own other
+    arguments (path_length, status, observable_kind, flavor_component)
+    are cross-checked against `base_path`/`group_state`/`alpha`/`beta`
+    before anything else is built; a key that lies about any of them
+    raises ValueError. Raises ValueError if the covariance identity fails
+    for any automorphism -- this is the only way to obtain a ValidatedOrbit.
     """
     if not subgroup:
         raise ValueError("an orbit must contain at least one subgroup element")
+
+    if key.path_length != base_path.length:
+        raise ValueError(f"key.path_length ({key.path_length}) does not match base_path.length ({base_path.length})")
+    if key.status != group_state.status:
+        raise ValueError(f"key.status ({key.status!r}) does not match group_state.status ({group_state.status!r})")
+    if key.observable_kind != DRESSED_MATTER_OBSERVABLE_KIND:
+        raise ValueError(
+            f"key.observable_kind ({key.observable_kind!r}) does not match the dressed matter operator's "
+            f"canonical observable_kind ({DRESSED_MATTER_OBSERVABLE_KIND!r})"
+        )
+    expected_flavor_component = flavor_component_label(alpha, beta)
+    if key.flavor_component != expected_flavor_component:
+        raise ValueError(
+            f"key.flavor_component ({key.flavor_component!r}) does not match (alpha={alpha}, beta={beta}) "
+            f"-- expected {expected_flavor_component!r}"
+        )
 
     expectation = canonical_multiplet_expectation if group_state.is_complete else exploratory_partial_subspace_mean
 
@@ -138,7 +219,7 @@ def validate_orbit_covariance(
         value = expectation(image_operator, group_state, hermitian=False)
         elements.append(OrbitElement(key, value))
 
-    return ValidatedOrbit(key=key, elements=tuple(elements))
+    return ValidatedOrbit(key=key, elements=tuple(elements), _token=_VALIDATION_TOKEN)
 
 
 def aggregate_validated_orbit(orbit: ValidatedOrbit) -> OrbitStatistics:

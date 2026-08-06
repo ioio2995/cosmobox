@@ -53,11 +53,13 @@ from .local_observables import (
 )
 from .matter import apply_dressed_matter, build_dressed_matter_matrix
 from .orbits import (
+    DRESSED_MATTER_OBSERVABLE_KIND,
     OrbitComparabilityKey,
     OrbitElement,
     OrbitStatistics,
     ValidatedOrbit,
     aggregate_validated_orbit,
+    flavor_component_label,
     validate_orbit_covariance,
 )
 from .paths import OrientedPath, invert_path, make_oriented_path, minimal_paths
@@ -74,6 +76,7 @@ from .transporters import apply_transporter
 
 __all__ = [
     "COMPLETE_MULTIPLET",
+    "DRESSED_MATTER_OBSERVABLE_KIND",
     "FLAVOR_COMPONENTS",
     "FlavorCorrelatorMatrix",
     "GraphAutomorphism",
@@ -106,6 +109,7 @@ __all__ = [
     "expectation_value",
     "exploratory_partial_subspace_mean",
     "extract_group_state",
+    "flavor_component_label",
     "flavor_correlator_connected",
     "flavor_correlator_raw",
     "flavor_frobenius_squared",
