@@ -5,7 +5,7 @@ import inspect
 
 import pytest
 
-from cosmobox.level1.matching import EXACT_LABEL_MATCH, MatchOutcome, SpectralGroupMatchKey, SymmetryLabel
+from cosmobox.level1.matching import AMBIGUOUS_CROSS_TRUNCATION_MATCH, EXACT_LABEL_MATCH, MatchOutcome, SpectralGroupMatchKey, SymmetryLabel
 from cosmobox.level1.restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE
 from experiments.level1 import manifest as manifest_module
 from experiments.level1 import planning as planning_module
@@ -107,14 +107,18 @@ def _dummy_match_key(case, *, status: str = COMPLETE_MULTIPLET, twice_T: int = 1
 
 
 def _fake_group(case, *, group_index: int = 0, documents: tuple, status: str = COMPLETE_MULTIPLET) -> IndexedSpectralGroup:
+    # twice_T varies with group_index so distinct groups of the same case
+    # carry genuinely distinct SpectralGroupMatchKey content -- needed to
+    # exercise match_key-based group-membership checks meaningfully.
+    twice_T = group_index + 1
     return IndexedSpectralGroup(
         case_id=case.case_id,
         case=case,
         spectral_group_identity=SpectralGroupIdentity(
-            status=status, multiplicity=1, twice_T=1, spectral_window_group_index=group_index, representative_energy=-1.0
+            status=status, multiplicity=1, twice_T=twice_T, spectral_window_group_index=group_index, representative_energy=-1.0
         ),
         spectral_window_group_index=group_index,
-        match_key=_dummy_match_key(case, status=status),
+        match_key=_dummy_match_key(case, status=status, twice_T=twice_T),
         documents=documents,
     )
 
@@ -145,6 +149,141 @@ def _build_all(triangle_s2, triangle_s3, high_documents: tuple, low_documents: t
     robustness_report = build_inter_s_robustness_report(matching_report, comparison_report)
     synthesis = build_inter_s_synthesis_report(matching_report, comparison_report, robustness_report)
     return match, matching_report, comparison_report, robustness_report, synthesis
+
+
+def _dummy_symmetry_doc(**kwargs):
+    """A document whose observable_kind is never one of the 4 closed
+    1B-9d targets -- silently ignored by comparisons.py, never a
+    candidate, never an error. Used to build a genuine exact_label_match
+    spectral group carrying zero 1B-9d comparisons."""
+    return _doc(record_kind="symmetry_label", observable_kind="translation_character", payload={"kind": "not_applicable", "value": None}, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Correctif: matching_report.matches (not comparison_report.comparisons)
+# is the source of truth for group existence/order. An exact_label_match
+# with a concrete low_group must produce an (empty) InterSGroupSynthesis
+# even with zero 1B-9d comparisons; a non-exact match never does, but
+# stays counted in matching_count.
+# ---------------------------------------------------------------------------
+
+
+def test_exact_match_without_comparisons_still_produces_an_empty_group(triangle_s2, triangle_s3) -> None:
+    high_group_0 = _fake_group(triangle_s3, group_index=0, documents=(_c_tt_conn_doc(-0.1, path=(0, 1)),))
+    low_group_0 = _fake_group(triangle_s2, group_index=0, documents=(_c_tt_conn_doc(-0.2, path=(0, 1)),))
+    match_0 = _fake_match(triangle_s3, triangle_s2, high_group_0, low_group_0)
+
+    # A genuine exact_label_match spectral group pairing whose documents
+    # never touch any of the 4 closed 1B-9d observable kinds.
+    high_group_1 = _fake_group(triangle_s3, group_index=1, documents=(_dummy_symmetry_doc(),))
+    low_group_1 = _fake_group(triangle_s2, group_index=1, documents=(_dummy_symmetry_doc(),))
+    match_1 = _fake_match(triangle_s3, triangle_s2, high_group_1, low_group_1)
+
+    matching_report = _fake_matching_report(match_0, match_1)
+    comparison_report = build_inter_s_observable_comparison_report(matching_report)
+    robustness_report = build_inter_s_robustness_report(matching_report, comparison_report)
+    synthesis = build_inter_s_synthesis_report(matching_report, comparison_report, robustness_report)
+
+    assert synthesis.matching_count == 2
+    assert synthesis.exact_match_count == 2
+    assert len(synthesis.groups) == 2
+    assert len(synthesis.groups) == synthesis.exact_match_count
+    assert [g.high_group_index for g in synthesis.groups] == [0, 1]
+
+    empty_group = synthesis.groups[1]
+    assert empty_group.evaluations == ()
+    assert empty_group.unevaluable_comparisons == ()
+    assert empty_group.verdicts == VerdictCounts(robust=0, non_robust=0, indeterminate=0)
+    assert [count.observable_kind for count in empty_group.observable_counts] == list(ROBUSTNESS_EVALUATION_ORDER)
+    assert all(count.evaluation_count == 0 for count in empty_group.observable_counts)
+
+
+def test_group_order_follows_matching_report_with_a_non_exact_match_interleaved(triangle_s2, triangle_s3) -> None:
+    high_group_0 = _fake_group(triangle_s3, group_index=0, documents=(_c_tt_conn_doc(-0.1, path=(0, 1)),))
+    low_group_0 = _fake_group(triangle_s2, group_index=0, documents=(_c_tt_conn_doc(-0.2, path=(0, 1)),))
+    match_0 = _fake_match(triangle_s3, triangle_s2, high_group_0, low_group_0)
+
+    high_group_na = _fake_group(triangle_s3, group_index=2, documents=(_c_tt_conn_doc(-0.5, path=(0, 1)),))
+    low_group_na = _fake_group(triangle_s2, group_index=2, documents=(_c_tt_conn_doc(-0.6, path=(0, 1)),))
+    match_non_exact = _fake_match(triangle_s3, triangle_s2, high_group_na, low_group_na, status=AMBIGUOUS_CROSS_TRUNCATION_MATCH)
+
+    high_group_1 = _fake_group(triangle_s3, group_index=1, documents=(_c_tt_conn_doc(-0.3, path=(0, 1)),))
+    low_group_1 = _fake_group(triangle_s2, group_index=1, documents=(_c_tt_conn_doc(-0.4, path=(0, 1)),))
+    match_1 = _fake_match(triangle_s3, triangle_s2, high_group_1, low_group_1)
+
+    matching_report = _fake_matching_report(match_0, match_non_exact, match_1)
+    comparison_report = build_inter_s_observable_comparison_report(matching_report)
+    robustness_report = build_inter_s_robustness_report(matching_report, comparison_report)
+    synthesis = build_inter_s_synthesis_report(matching_report, comparison_report, robustness_report)
+
+    assert synthesis.matching_count == 3
+    assert synthesis.exact_match_count == 2
+    assert len(synthesis.groups) == 2
+    assert [g.high_group_index for g in synthesis.groups] == [0, 1]
+    assert len(synthesis.couples) == 1
+    assert len(synthesis.couples[0].groups) == 2
+
+
+def test_group_synthesis_rejects_an_evaluation_from_a_different_group_of_the_same_couple(triangle_s2, triangle_s3) -> None:
+    high_group_0 = _fake_group(triangle_s3, group_index=0, documents=(_c_tt_conn_doc(-0.1, path=(0, 1)),))
+    low_group_0 = _fake_group(triangle_s2, group_index=0, documents=(_c_tt_conn_doc(-0.2, path=(0, 1)),))
+    match_0 = _fake_match(triangle_s3, triangle_s2, high_group_0, low_group_0)
+
+    high_group_1 = _fake_group(triangle_s3, group_index=1, documents=(_c_tt_conn_doc(-0.3, path=(0, 1)),))
+    low_group_1 = _fake_group(triangle_s2, group_index=1, documents=(_c_tt_conn_doc(-0.4, path=(0, 1)),))
+    match_1 = _fake_match(triangle_s3, triangle_s2, high_group_1, low_group_1)
+
+    matching_report = _fake_matching_report(match_0, match_1)
+    comparison_report = build_inter_s_observable_comparison_report(matching_report)
+    robustness_report = build_inter_s_robustness_report(matching_report, comparison_report)
+    synthesis = build_inter_s_synthesis_report(matching_report, comparison_report, robustness_report)
+
+    group_0_synthesis = synthesis.groups[0]
+    group_1_evaluation = synthesis.groups[1].evaluations[0]
+
+    with pytest.raises(ValueError, match="match_key mismatch"):
+        dataclasses.replace(group_0_synthesis, evaluations=(group_1_evaluation,))
+
+
+def test_group_synthesis_rejects_an_unevaluable_comparison_from_a_different_group_of_the_same_couple(triangle_s2, triangle_s3) -> None:
+    high_group_0 = _fake_group(triangle_s3, group_index=0, documents=(_rho_qq_doc(null_reason="zero_local_charge_variance", path=(0, 1)),))
+    low_group_0 = _fake_group(triangle_s2, group_index=0, documents=(_rho_qq_doc(null_reason="zero_local_charge_variance", path=(0, 1)),))
+    match_0 = _fake_match(triangle_s3, triangle_s2, high_group_0, low_group_0)
+
+    high_group_1 = _fake_group(triangle_s3, group_index=1, documents=(_rho_qq_doc(null_reason="zero_local_charge_variance", path=(0, 1)),))
+    low_group_1 = _fake_group(triangle_s2, group_index=1, documents=(_rho_qq_doc(null_reason="zero_local_charge_variance", path=(0, 1)),))
+    match_1 = _fake_match(triangle_s3, triangle_s2, high_group_1, low_group_1)
+
+    matching_report = _fake_matching_report(match_0, match_1)
+    comparison_report = build_inter_s_observable_comparison_report(matching_report)
+    robustness_report = build_inter_s_robustness_report(matching_report, comparison_report)
+    synthesis = build_inter_s_synthesis_report(matching_report, comparison_report, robustness_report)
+
+    group_0_synthesis = synthesis.groups[0]
+    group_1_unevaluable = synthesis.groups[1].unevaluable_comparisons[0]
+
+    with pytest.raises(ValueError, match="match_key mismatch"):
+        dataclasses.replace(group_0_synthesis, unevaluable_comparisons=(group_1_unevaluable,))
+
+
+def test_group_synthesis_requires_all_four_observable_kinds_in_fixed_order(triangle_s2, triangle_s3) -> None:
+    _, _, _, _, synthesis = _build_all(triangle_s2, triangle_s3, (_c_tt_conn_doc(-0.1, path=(0, 1)),), (_c_tt_conn_doc(-0.2, path=(0, 1)),))
+    group = synthesis.groups[0]
+    with pytest.raises(ValueError, match="observable_counts must contain"):
+        dataclasses.replace(group, observable_counts=group.observable_counts[:3])
+
+
+def test_couple_synthesis_requires_all_four_observable_kinds_in_fixed_order(triangle_s2, triangle_s3) -> None:
+    _, _, _, _, synthesis = _build_all(triangle_s2, triangle_s3, (_c_tt_conn_doc(-0.1, path=(0, 1)),), (_c_tt_conn_doc(-0.2, path=(0, 1)),))
+    couple = synthesis.couples[0]
+    with pytest.raises(ValueError, match="observable_counts must contain"):
+        dataclasses.replace(couple, observable_counts=couple.observable_counts[:3])
+
+
+def test_len_groups_equals_exact_match_count_invariant_is_enforced(triangle_s2, triangle_s3) -> None:
+    _, _, _, _, synthesis = _build_all(triangle_s2, triangle_s3, (_c_tt_conn_doc(-0.1, path=(0, 1)),), (_c_tt_conn_doc(-0.2, path=(0, 1)),))
+    with pytest.raises(ValueError, match="exact_match_count"):
+        dataclasses.replace(synthesis, exact_match_count=synthesis.exact_match_count + 1)
 
 
 # ---------------------------------------------------------------------------

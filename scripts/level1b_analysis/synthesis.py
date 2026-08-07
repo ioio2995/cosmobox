@@ -24,22 +24,38 @@ module draws no conclusion from it.
 
 Unit of synthesis: the inter-S matched spectral group (one
 InterSGroupMatch, identified by its SpectralGroupMatchKey pair, never by
-representative_energy, rank, or file order). Comparison -> source match
-association reuses robustness_evaluation.py's own private object-
-identity index (_index_matches_by_group_identity/_find_source_match),
-imported directly rather than reimplemented, for exactly the same
-reason 1B-9e itself cannot use dataclass value-equality: IndexedSpectral
-Group/CampaignCaseSpec carry unhashable numpy.ndarray fields whose ==
-returns an array, not a bool.
+representative_energy, rank, or file order). The source of truth for
+which groups EXIST and in what ORDER is matching_report.matches itself,
+never comparison_report.comparisons: a group produces an
+InterSGroupSynthesis whenever its InterSGroupMatch carries a concrete
+low_group (exact_label_match, per InterSGroupMatch.__post_init__'s own
+already-accepted invariant that exact_label_match holds if and only if
+low_group is not None -- verified directly in inter_s.py before relying
+on it here), independently of whether the closed 1B-9d observable list
+produced any comparison for it. A match without a concrete low_group is
+not a spectral group pairing at all and is never turned into a group
+synthesis, though it stays counted in matching_count. Comparison ->
+source match association (used only to bucket each comparison into its
+already-existing group, never to decide whether that group exists)
+reuses robustness_evaluation.py's own private object-identity index
+(_index_matches_by_group_identity/_find_source_match), imported
+directly rather than reimplemented, for exactly the same reason 1B-9e
+itself cannot use dataclass value-equality: IndexedSpectralGroup/
+CampaignCaseSpec carry unhashable numpy.ndarray fields whose == returns
+an array, not a bool. Each InterSGroupSynthesis independently re-checks
+that every evaluation/unevaluable comparison it carries genuinely
+belongs to ITS OWN exact spectral group pairing (match_key and index
+equality against evaluation.match/comparison.high_group/low_group,
+never energy or proximity) -- a same-couple, different-group evaluation
+can never be silently attributed to the wrong group.
 
-Ordering: couples/groups follow the first-appearance order of
-comparison_report.comparisons (itself already deterministic, derived
-from InterSMatchingReport.matches and each matched group's own canonical
-document order); observables follow ROBUSTNESS_EVALUATION_ORDER, the
-same fixed 4-tuple 1B-9e already defines. Nothing is ever sorted by
-difference, gamma_O, amplitude, verdict, or representative_energy --
-those orderings are used only internally, transiently, to compute a
-median, never to decide output order.
+Ordering: couples/groups follow the order of matching_report.matches
+itself (restricted to entries with a concrete low_group); observables
+follow ROBUSTNESS_EVALUATION_ORDER, the same fixed 4-tuple 1B-9e already
+defines. Nothing is ever sorted by difference, gamma_O, amplitude,
+verdict, or representative_energy -- those orderings are used only
+internally, transiently, to compute a median, never to decide output
+order.
 """
 
 from __future__ import annotations
@@ -215,11 +231,19 @@ def _build_observable_counts(evaluations: tuple[InterSRobustnessEvaluation, ...]
 class InterSGroupSynthesis:
     """One inter-S matched spectral group -- identified by its
     SpectralGroupMatchKey pair (never by representative_energy, rank, or
-    file order). evaluations/unevaluable_comparisons are the exact
-    source objects belonging to this group (never copies): the synthesis
-    never replaces the elementary data, it only reorganizes references
-    to it. spectral_window_group_index is carried purely as intra-case
-    display/diagnostic metadata, never as part of the group's identity."""
+    file order). Exists for every matching_report.matches entry that
+    carries a concrete low_group (exact_label_match, per InterSGroupMatch
+    's own already-accepted invariant), independently of whether the
+    closed 1B-9d observable list produced any comparison for it -- an
+    exact spectral group pairing with zero comparisons is a legitimate,
+    empty group, never an error. evaluations/unevaluable_comparisons are
+    the exact source objects belonging to THIS group (never copies, and
+    never an object belonging to a different group of the same couple --
+    checked below via match_key/index, never energy or proximity): the
+    synthesis never replaces the elementary data, it only reorganizes
+    references to it. spectral_window_group_index is carried purely as
+    intra-case display/diagnostic metadata, never as part of the group's
+    identity."""
 
     high_case_id: str
     low_case_id: str
@@ -247,22 +271,33 @@ class InterSGroupSynthesis:
         _require_elements("evaluations", self.evaluations, InterSRobustnessEvaluation)
         _require_tuple("unevaluable_comparisons", self.unevaluable_comparisons)
         _require_elements("unevaluable_comparisons", self.unevaluable_comparisons, ScalarObservableComparison)
+
         for evaluation in self.evaluations:
-            if evaluation.comparison.high_case_id != self.high_case_id or evaluation.comparison.low_case_id != self.low_case_id:
-                raise ValueError("an evaluation in this group does not belong to (high_case_id, low_case_id)")
+            match = evaluation.match
+            if match.high_case_id != self.high_case_id or match.low_case_id != self.low_case_id:
+                raise ValueError("an evaluation's match does not belong to (high_case_id, low_case_id)")
+            if match.high_group.match_key != self.high_group_match_key or match.low_group.match_key != self.low_group_match_key:
+                raise ValueError("an evaluation's match does not belong to this exact spectral group pairing (match_key mismatch)")
+            if match.high_group.spectral_window_group_index != self.high_group_index or match.low_group.spectral_window_group_index != self.low_group_index:
+                raise ValueError("an evaluation's match group indices are inconsistent with this group synthesis")
+
         for comparison in self.unevaluable_comparisons:
             if comparison.high_case_id != self.high_case_id or comparison.low_case_id != self.low_case_id:
-                raise ValueError("an unevaluable comparison in this group does not belong to (high_case_id, low_case_id)")
-        if not self.evaluations and not self.unevaluable_comparisons:
-            raise ValueError(f"group ({self.high_case_id!r} -> {self.low_case_id!r}) has neither evaluations nor unevaluable comparisons")
+                raise ValueError("an unevaluable comparison does not belong to (high_case_id, low_case_id)")
+            if comparison.high_group.match_key != self.high_group_match_key or comparison.low_group.match_key != self.low_group_match_key:
+                raise ValueError("an unevaluable comparison does not belong to this exact spectral group pairing (match_key mismatch)")
+            if comparison.high_group.spectral_window_group_index != self.high_group_index or comparison.low_group.spectral_window_group_index != self.low_group_index:
+                raise ValueError("an unevaluable comparison's group indices are inconsistent with this group synthesis")
 
         _require_tuple("observable_counts", self.observable_counts)
         _require_elements("observable_counts", self.observable_counts, ObservableEvaluationCounts)
+        if tuple(count.observable_kind for count in self.observable_counts) != ROBUSTNESS_EVALUATION_ORDER:
+            raise ValueError(f"observable_counts must contain exactly the four kinds in {ROBUSTNESS_EVALUATION_ORDER}")
         if not isinstance(self.verdicts, VerdictCounts):
             raise ValueError(f"verdicts must be a VerdictCounts, got {type(self.verdicts)}")
         if self.verdicts.total != len(self.evaluations):
             raise ValueError(f"verdicts.total ({self.verdicts.total}) must equal len(evaluations) ({len(self.evaluations)})")
-        if sum(c.evaluation_count for c in self.observable_counts) != len(self.evaluations):
+        if sum(count.evaluation_count for count in self.observable_counts) != len(self.evaluations):
             raise ValueError("sum of observable_counts.evaluation_count must equal len(evaluations)")
 
 
@@ -304,6 +339,8 @@ class InterSCoupleSynthesis:
 
         _require_tuple("observable_counts", self.observable_counts)
         _require_elements("observable_counts", self.observable_counts, ObservableEvaluationCounts)
+        if tuple(count.observable_kind for count in self.observable_counts) != ROBUSTNESS_EVALUATION_ORDER:
+            raise ValueError(f"observable_counts must contain exactly the four kinds in {ROBUSTNESS_EVALUATION_ORDER}")
         if not isinstance(self.verdicts, VerdictCounts):
             raise ValueError(f"verdicts must be a VerdictCounts, got {type(self.verdicts)}")
         if self.verdicts.total != self.evaluation_count:
@@ -433,6 +470,11 @@ class InterSSynthesisReport:
         _require_tuple("observables", self.observables)
         _require_elements("observables", self.observables, InterSObservableSynthesis)
 
+        if len(self.groups) != self.exact_match_count:
+            raise ValueError(
+                f"len(groups) ({len(self.groups)}) must equal exact_match_count ({self.exact_match_count}) -- "
+                "InterSGroupMatch guarantees exact_label_match iff a concrete low_group exists"
+            )
         if sum(len(couple.groups) for couple in self.couples) != len(self.groups):
             raise ValueError("sum of couples[*].groups length must equal len(groups)")
         if sum(couple.evaluation_count for couple in self.couples) != self.evaluated_count:
@@ -487,15 +529,9 @@ def build_inter_s_synthesis_report(
 
     per_match_evaluations: dict[int, list[InterSRobustnessEvaluation]] = {}
     per_match_unevaluable: dict[int, list[ScalarObservableComparison]] = {}
-    match_order: list = []
-    seen_match_ids: set[int] = set()
 
     for comparison in comparison_report.comparisons:
         match = _find_source_match(comparison, matches_by_identity)
-        if id(match) not in seen_match_ids:
-            seen_match_ids.add(id(match))
-            match_order.append(match)
-
         comparison_id = id(comparison)
         if comparison_id in evaluation_by_comparison_id:
             per_match_evaluations.setdefault(id(match), []).append(evaluation_by_comparison_id[comparison_id])
@@ -507,8 +543,20 @@ def build_inter_s_synthesis_report(
                 "robustness_report -- comparison_report and robustness_report were not built from the same pipeline run"
             )
 
+    # Source of truth for group EXISTENCE and ORDER is matching_report.
+    # matches itself, never comparison_report.comparisons: an
+    # exact_label_match with a concrete low_group must be represented
+    # even when the closed 1B-9d observable list produced zero
+    # comparisons for it. A match without a concrete low_group (non-exact
+    # outcome) is not a spectral group pairing representable by a
+    # SpectralGroupMatchKey pair -- it stays counted in matching_count,
+    # never in groups/couples. InterSGroupMatch.__post_init__ already
+    # guarantees (exact_label_match) iff (low_group is not None), so
+    # filtering on low_group here is exactly filtering on exactness.
     groups: list[InterSGroupSynthesis] = []
-    for match in match_order:
+    for match in matching_report.matches:
+        if match.low_group is None:
+            continue
         evaluations = tuple(per_match_evaluations.get(id(match), ()))
         unevaluable = tuple(per_match_unevaluable.get(id(match), ()))
         groups.append(
