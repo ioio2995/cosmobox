@@ -8,13 +8,24 @@ Ce document est un contrat de reprise, pas une documentation scientifique. Il do
 63d3db6018cb5f2d1ccd5b4a34a5bf3d6ebd9a42
 ```
 
-D022 accepté à ce commit, sur `research/level1-correlators`.
+D022 accepté à ce commit, sur `research/level1-correlators`. Reste le dernier commit accepté tant que le correctif ci-dessous n'est pas lui-même accepté.
+
+## Livraison en attente de correction
+
+```text
+de9acab27bc7be96aabcbc70772ed8ce383d2bd5
+```
+
+Runner mono-cas livré à ce commit, mais **acceptation finale suspendue** : défaut contractuel dans `_verify_case_belongs_to_manifest` (un `CampaignCaseSpec` auto-cohérent mais absent du plan pouvait être accepté) et construction des identités D022 non strictement séparée de la sélection des cibles.
 
 ## Lot actif
 
-1B-8 — runner mono-cas.
+Correctif final du runner mono-cas (lot 1B-8).
 
-Du code non commité préexiste dans `scripts/level1b_campaign/` (écrit avant la suspension du lot pour D022). **Ce code n'est pas présumé conforme** : il doit être audité ligne par ligne contre le présent mandat, et toute décision non explicitement autorisée ici doit être supprimée ou corrigée avant d'être conservée.
+Aucune fonctionnalité nouvelle. Deux corrections strictement bornées :
+
+1. `run_single_case` doit rejeter tout `CampaignCaseSpec` qui n'est pas exactement celui produit par `build_campaign_plan(manifest)` pour son `case_id` — jamais seulement auto-cohérent.
+2. Les identités `SpectralGroupIdentity` (D022) de tous les groupes doivent être construites une fois, avant tout appel à `select_target_group`, jamais reconstruites après sélection.
 
 ## Objectif
 
@@ -40,13 +51,14 @@ for group_index, group in enumerate(degeneracy_report.groups):
 
 Cette énumération a lieu **avant** toute sélection des cibles, tout filtrage complet/partiel, tout filtrage par saveur, et toute suppression de groupes absents des productions. L'indice n'est jamais reconstruit depuis `target_id`, l'ordre des cibles, une liste filtrée, ou un rang après sélection. Deux cibles qui résolvent vers le même groupe physique réutilisent la même `SpectralGroupIdentity` (même objet de contenu), jamais deux identités artificiellement différentes.
 
-## Périmètre autorisé (fichiers)
+## Périmètre autorisé (fichiers) -- correctif
 
 - `docs/governance/current-task.md` (ce fichier).
-- Documents Level 1 directement nécessaires au runner (mise à jour minimale, sans formule scientifique nouvelle).
-- `scripts/level1b_campaign/__init__.py`, `runner.py`.
-- Tests du runner (`tests/scripts/level1b_campaign/`).
-- Un module d'orchestration sous `experiments/level1/` uniquement si strictement nécessaire et déjà prévu par D021 (à justifier explicitement si utilisé).
+- `scripts/level1b_campaign/runner.py`.
+- `tests/scripts/level1b_campaign/test_runner.py`.
+- `docs/levels/level1/implementation-design.md`, uniquement si une phrase sur l'appartenance stricte au plan est nécessaire.
+
+Aucun fichier hors cette liste. Aucune fonctionnalité nouvelle -- ce correctif ne fait que fermer les deux défauts décrits ci-dessus.
 
 ## Hors périmètre strict
 

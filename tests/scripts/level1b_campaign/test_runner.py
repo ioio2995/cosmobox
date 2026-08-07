@@ -84,13 +84,33 @@ def ring4_s1_result(manifest: manifest_module.Manifest, ring4_s1_case):
 
 @pytest.fixture(scope="module")
 def truncated_triangle_s1_result(manifest: manifest_module.Manifest, triangle_s1_case):
-    """n_eigenvalues=2 (< the S=1 fundamental multiplicity of 4): the
-    fundamental group itself becomes partial_subspace, and first_excited/
-    T_max fall outside the window entirely -- covers both the partial-
-    group and the absent-target cases with a single, cheap run."""
-    truncated_options = dataclasses.replace(triangle_s1_case.spectrum_options, n_eigenvalues=2)
-    truncated_case = dataclasses.replace(triangle_s1_case, spectrum_options=truncated_options)
-    return run_single_case(manifest, truncated_case, repository_commit=REPO_COMMIT)
+    """Exercises partial_subspace/absent-target behavior WITHOUT ever
+    passing a tampered CampaignCaseSpec to the public run_single_case API
+    (a tampered n_eigenvalues would now be correctly rejected by
+    run_single_case's own plan-membership check -- see the dedicated
+    rejection tests below). Instead, only the Level0 diagonalization
+    PRIMITIVE is replaced with a double: it calls the real
+    build_level0_report_with_eigenvectors, but with n_eigenvalues=2
+    (< the S=1 fundamental multiplicity of 4) instead of the case's own
+    spectrum_options.n_eigenvalues -- the fundamental group itself
+    becomes partial_subspace, and first_excited/T_max fall outside the
+    window entirely, covering both the partial-group and the
+    absent-target cases with a single, cheap run. The CampaignCaseSpec
+    passed to run_single_case is the real, untampered, plan-matching
+    triangle_s1_case throughout."""
+    real_build_level0_report_with_eigenvectors = runner_module.build_level0_report_with_eigenvectors
+
+    def truncated_window_double(lattice, n_flavors, spin, basis, terms, params, *, spectrum_options):
+        truncated_options = dataclasses.replace(spectrum_options, n_eigenvalues=2)
+        return real_build_level0_report_with_eigenvectors(
+            lattice, n_flavors, spin, basis, terms, params, spectrum_options=truncated_options
+        )
+
+    runner_module.build_level0_report_with_eigenvectors = truncated_window_double
+    try:
+        return run_single_case(manifest, triangle_s1_case, repository_commit=REPO_COMMIT)
+    finally:
+        runner_module.build_level0_report_with_eigenvectors = real_build_level0_report_with_eigenvectors
 
 
 def _schema_validator() -> Draft202012Validator:
@@ -594,27 +614,166 @@ def test_spectral_group_identity_never_carries_a_target_id_field(triangle_s1_res
 
 
 # ---------------------------------------------------------------------------
-# Manifest ownership check (run_single_case step 2).
+# Manifest ownership check (run_single_case step 2) -- strict plan
+# membership. A CampaignCaseSpec that is merely self-consistent (its own
+# __post_init__ already re-verifies case_id/ordered_pairs against its
+# other fields) is not enough: run_single_case must independently
+# reconstruct build_campaign_plan(manifest) and reject any case that is
+# not EXACTLY the planned case for its case_id -- no force/override
+# escape hatch exists.
+#
+# Some fields (spin, spectral_window, hamiltonian_parameters,
+# ordered_pairs) are themselves encoded in case_id, so tampering them
+# already fails CampaignCaseSpec's OWN self-verification at construction
+# time -- before run_single_case is ever called, which is an even
+# stronger form of "rejected before diagonalization". Other fields
+# (spectrum_options.n_eigenvalues, scientific_seed, solver_seed,
+# validation_rotation_seed) are NOT encoded in case_id: a tampered case
+# construts successfully with the SAME case_id as the real planned case,
+# so only run_single_case's own plan-membership check can catch it --
+# this is the exact defect this correctif closes (the previous
+# ownership check re-derived seeds/target_groups only, and would have
+# silently accepted an n_eigenvalues-tampered case).
 # ---------------------------------------------------------------------------
 
+_NOT_PLANNED_MESSAGE = "not present in build_campaign_plan|differs from the case build_campaign_plan"
 
-def test_run_single_case_rejects_a_case_with_tampered_scientific_seed(manifest, triangle_s1_case) -> None:
+
+def test_run_single_case_rejects_case_id_absent_from_the_plan(manifest, triangle_s1_case) -> None:
+    with pytest.raises(ValueError):
+        dataclasses.replace(triangle_s1_case, case_id="not-a-real-case-id")  # CampaignCaseSpec's own self-check
+
+
+@pytest.mark.parametrize(
+    "build_tampered",
+    [
+        lambda case: dataclasses.replace(case, spin=case.spin + 1),
+        lambda case: dataclasses.replace(case, spectral_window=case.spectral_window + 1),
+        lambda case: dataclasses.replace(case, ordered_pairs=((0, 1),)),
+    ],
+    ids=["spin", "spectral_window", "ordered_pairs"],
+)
+def test_run_single_case_rejects_a_case_id_encoded_field_tampered(manifest, triangle_s1_case, build_tampered) -> None:
+    """Rejected at CampaignCaseSpec construction itself (case_id no
+    longer matches), before run_single_case could even be called --
+    strictly stronger than "rejected before diagonalization"."""
+    with pytest.raises(ValueError):
+        build_tampered(triangle_s1_case)
+
+
+def test_run_single_case_rejects_a_tampered_hamiltonian(manifest, triangle_s1_case) -> None:
+    from cosmobox.level0.params import HamiltonianParameters
+
+    tampered_parameters = HamiltonianParameters(
+        J=tuple(value * 2 for value in triangle_s1_case.hamiltonian_parameters.J),
+        h=triangle_s1_case.hamiltonian_parameters.h,
+        t=triangle_s1_case.hamiltonian_parameters.t,
+        g_E=triangle_s1_case.hamiltonian_parameters.g_E,
+        K=triangle_s1_case.hamiltonian_parameters.K,
+    )
+    with pytest.raises(ValueError):
+        dataclasses.replace(triangle_s1_case, hamiltonian_parameters=tampered_parameters)
+
+
+def test_run_single_case_rejects_tampered_n_eigenvalues_not_encoded_in_case_id(manifest, triangle_s1_case) -> None:
+    """The exact defect this correctif closes: spectrum_options is not
+    part of case_id, so this tampered case constructs successfully with
+    the SAME case_id as the real planned case -- only run_single_case's
+    own plan-membership check catches it."""
+    tampered_options = dataclasses.replace(triangle_s1_case.spectrum_options, n_eigenvalues=2)
+    tampered = dataclasses.replace(triangle_s1_case, spectrum_options=tampered_options)
+    assert tampered.case_id == triangle_s1_case.case_id
+    with pytest.raises(ValueError, match=_NOT_PLANNED_MESSAGE):
+        run_single_case(manifest, tampered, repository_commit=REPO_COMMIT)
+
+
+def test_run_single_case_rejects_tampered_scientific_seed(manifest, triangle_s1_case) -> None:
     tampered = dataclasses.replace(triangle_s1_case, scientific_seed=triangle_s1_case.scientific_seed + 1)
-    with pytest.raises(ValueError, match="scientific_seed"):
+    assert tampered.case_id == triangle_s1_case.case_id
+    with pytest.raises(ValueError, match=_NOT_PLANNED_MESSAGE):
+        run_single_case(manifest, tampered, repository_commit=REPO_COMMIT)
+
+
+def test_run_single_case_rejects_tampered_solver_seed(manifest, triangle_s1_case) -> None:
+    tampered = dataclasses.replace(triangle_s1_case, solver_seed=triangle_s1_case.solver_seed + 1)
+    assert tampered.case_id == triangle_s1_case.case_id
+    with pytest.raises(ValueError, match=_NOT_PLANNED_MESSAGE):
+        run_single_case(manifest, tampered, repository_commit=REPO_COMMIT)
+
+
+def test_run_single_case_rejects_tampered_validation_rotation_seed(manifest, triangle_s1_case) -> None:
+    tampered = dataclasses.replace(triangle_s1_case, validation_rotation_seed=42)
+    assert tampered.case_id == triangle_s1_case.case_id
+    with pytest.raises(ValueError, match=_NOT_PLANNED_MESSAGE):
         run_single_case(manifest, tampered, repository_commit=REPO_COMMIT)
 
 
 def test_run_single_case_rejects_a_case_checked_against_a_manifest_with_different_target_groups(
     manifest, triangle_s1_case
 ) -> None:
-    """CampaignCaseSpec's own case_id already encodes its target_groups
-    content, so a case cannot be tampered directly without also failing
-    its own self-verification (a different, already-tested guarantee).
-    This test instead checks the case against a DIFFERENT manifest object
-    (same grid, different target_groups for this geometry) to exercise
-    the runner's own ownership check specifically."""
+    """Checks the (real, untampered) case against a DIFFERENT manifest
+    object (same grid, different target_groups for this geometry): the
+    reconstructed plan's own case_id for this geometry/spin then differs
+    from the real case's case_id, so it is rejected as absent from the
+    plan."""
     tampered_target_groups = dict(manifest.target_groups)
     tampered_target_groups["triangle"] = manifest.target_groups["triangle"][:1]
     tampered_manifest = dataclasses.replace(manifest, target_groups=tampered_target_groups)
-    with pytest.raises(ValueError, match="target_groups"):
+    with pytest.raises(ValueError, match=_NOT_PLANNED_MESSAGE):
         run_single_case(tampered_manifest, triangle_s1_case, repository_commit=REPO_COMMIT)
+
+
+def test_ownership_check_happens_before_any_diagonalization(monkeypatch: pytest.MonkeyPatch, manifest, triangle_s1_case) -> None:
+    """A tampered case must never reach Level0: monkeypatches the
+    diagonalization primitive to fail loudly if it is ever called, then
+    confirms the ownership rejection still fires (proving the check
+    happens strictly before diagonalization, not merely alongside it)."""
+
+    def fail_if_called(*args, **kwargs):
+        pytest.fail("build_level0_report_with_eigenvectors must not be called for a case outside the plan")
+
+    monkeypatch.setattr(runner_module, "build_level0_report_with_eigenvectors", fail_if_called)
+
+    tampered_options = dataclasses.replace(triangle_s1_case.spectrum_options, n_eigenvalues=2)
+    tampered = dataclasses.replace(triangle_s1_case, spectrum_options=tampered_options)
+    with pytest.raises(ValueError, match=_NOT_PLANNED_MESSAGE):
+        run_single_case(manifest, tampered, repository_commit=REPO_COMMIT)
+
+
+# ---------------------------------------------------------------------------
+# D022 identities built for every group before the first select_target_group
+# call (never rebuilt after selection).
+# ---------------------------------------------------------------------------
+
+
+def test_group_identities_are_all_built_before_the_first_select_target_group_call(
+    monkeypatch: pytest.MonkeyPatch, manifest, triangle_s1_case
+) -> None:
+    call_order: list[str] = []
+
+    real_build_spectral_group_identity = runner_module.build_spectral_group_identity
+
+    def recording_build_spectral_group_identity(*args, **kwargs):
+        call_order.append("build_spectral_group_identity")
+        return real_build_spectral_group_identity(*args, **kwargs)
+
+    real_select_target_group = runner_module.select_target_group
+
+    def recording_select_target_group(*args, **kwargs):
+        call_order.append("select_target_group")
+        return real_select_target_group(*args, **kwargs)
+
+    monkeypatch.setattr(runner_module, "build_spectral_group_identity", recording_build_spectral_group_identity)
+    monkeypatch.setattr(runner_module, "select_target_group", recording_select_target_group)
+
+    run_single_case(manifest, triangle_s1_case, repository_commit=REPO_COMMIT)
+
+    assert "build_spectral_group_identity" in call_order
+    assert "select_target_group" in call_order
+    first_select_index = call_order.index("select_target_group")
+    # every build_spectral_group_identity call happened strictly before
+    # the first select_target_group call, and none happened after
+    assert call_order[:first_select_index] == [
+        entry for entry in call_order if entry == "build_spectral_group_identity"
+    ]
+    assert "build_spectral_group_identity" not in call_order[first_select_index:]

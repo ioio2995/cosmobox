@@ -24,9 +24,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
+
 from cosmobox.level0.basis import build_basis
 from cosmobox.level0.hamiltonian import build_hamiltonian_terms, build_key_index
 from cosmobox.level0.lattice import Lattice, build_lattice
+from cosmobox.level0.params import HamiltonianParameters
 from cosmobox.level0.reports import build_level0_report_with_eigenvectors
 from cosmobox.level0.symmetries import build_flavor_casimir
 from cosmobox.level1.assembly import AssemblyReport, assemble_execution
@@ -81,7 +84,7 @@ from cosmobox.level1.results import (
 from cosmobox.level1.serialization import serialize_result_record
 
 from experiments.level1.manifest import Manifest
-from experiments.level1.planning import CampaignCaseSpec, derive_case_seed
+from experiments.level1.planning import CampaignCaseSpec, build_campaign_plan
 from experiments.level1.target_selection import SELECTED, TargetSelectionOutcome, select_target_group
 
 N_FLAVORS = 2
@@ -115,34 +118,68 @@ class CaseExecutionResult:
     assembly_report: AssemblyReport
 
 
+def _hamiltonian_parameters_equal(a: HamiltonianParameters, b: HamiltonianParameters) -> bool:
+    """HamiltonianParameters.h holds numpy arrays, so a bare `a == b`
+    (as the dataclass-generated __eq__ would attempt) raises ("truth
+    value of an array is ambiguous") rather than compare -- the same
+    issue cosmobox.level0.experiments works around via a canonical JSON
+    payload; a direct element-wise comparison is simpler here since only
+    a Python bool is ever needed, never a serialized payload."""
+    if a.J != b.J or a.t != b.t or a.g_E != b.g_E or a.K != b.K:
+        return False
+    if len(a.h) != len(b.h):
+        return False
+    return all(np.array_equal(x, y) for x, y in zip(a.h, b.h))
+
+
+def _case_matches_planned_case(case: CampaignCaseSpec, planned: CampaignCaseSpec) -> bool:
+    """Field-by-field comparison, deliberately not `case == planned`:
+    CampaignCaseSpec.hamiltonian_parameters.h holds numpy arrays (see
+    _hamiltonian_parameters_equal), so the dataclass-generated __eq__
+    would raise rather than compare. Every normative field is compared
+    explicitly; none is skipped."""
+    return (
+        case.geometry == planned.geometry
+        and case.spin == planned.spin
+        and case.hamiltonian_case_id == planned.hamiltonian_case_id
+        and _hamiltonian_parameters_equal(case.hamiltonian_parameters, planned.hamiltonian_parameters)
+        and case.sector_id == planned.sector_id
+        and case.spectral_window == planned.spectral_window
+        and case.physical_dimension == planned.physical_dimension
+        and case.spectrum_options == planned.spectrum_options
+        and case.target_groups == planned.target_groups
+        and case.ordered_pairs == planned.ordered_pairs
+        and case.scientific_seed == planned.scientific_seed
+        and case.solver_seed == planned.solver_seed
+        and case.validation_rotation_seed == planned.validation_rotation_seed
+        and case.case_id == planned.case_id
+    )
+
+
 def _verify_case_belongs_to_manifest(case: CampaignCaseSpec, manifest: Manifest) -> None:
-    """The case must actually have been planned from THIS manifest, not
-    merely one that happens to share its shape: two manifests with
-    identical grid/target content but different scientific_seed would
-    plan cases with the same case_id but different per-case seeds, so
-    re-deriving the expected seeds from manifest.scientific_seed and
-    case.case_id (planning.derive_case_seed, unchanged) is a real,
-    meaningful check -- not a formality."""
-    if case.geometry not in manifest.target_groups:
-        raise ValueError(f"case.geometry {case.geometry!r} is not a geometry in this manifest's target_groups")
-    if case.target_groups != manifest.target_groups[case.geometry]:
+    """`case` must be EXACTLY the CampaignCaseSpec build_campaign_plan(manifest)
+    itself produces for this case_id -- a self-consistent CampaignCaseSpec
+    (its own __post_init__ already re-verifies its case_id/seeds against
+    its own other fields) is not enough: it could still be absent from
+    the plan entirely, or share a case_id with a planned case while
+    differing on some other field (e.g. a grafted spin or
+    spectrum_options). Rejected before any diagonalization. No force/
+    override/experimental escape hatch exists -- a case outside the plan
+    is always rejected."""
+    planned_cases = build_campaign_plan(manifest)
+    planned_by_case_id = {planned.case_id: planned for planned in planned_cases}
+
+    planned = planned_by_case_id.get(case.case_id)
+    if planned is None:
         raise ValueError(
-            f"case.target_groups for geometry {case.geometry!r} does not match this manifest's own "
-            "target_groups -- the case was not planned from this manifest"
+            f"case_id {case.case_id!r} is not present in build_campaign_plan(manifest) -- this case was not "
+            "planned from this manifest"
         )
-    expected_scientific_seed = derive_case_seed(manifest.scientific_seed, case.case_id, "scientific")
-    if case.scientific_seed != expected_scientific_seed:
+    if not _case_matches_planned_case(case, planned):
         raise ValueError(
-            f"case.scientific_seed ({case.scientific_seed}) does not match the seed derived from this "
-            f"manifest's scientific_seed and the case's own case_id ({expected_scientific_seed}) -- the case "
-            "was not planned from this manifest"
-        )
-    expected_solver_seed = derive_case_seed(manifest.scientific_seed, case.case_id, "solver")
-    if case.solver_seed != expected_solver_seed:
-        raise ValueError(
-            f"case.solver_seed ({case.solver_seed}) does not match the seed derived from this manifest's "
-            f"scientific_seed and the case's own case_id ({expected_solver_seed}) -- the case was not planned "
-            "from this manifest"
+            f"case (case_id={case.case_id!r}) differs from the case build_campaign_plan(manifest) itself "
+            "produces for this case_id on at least one normative field -- this case was not planned from "
+            "this manifest"
         )
 
 
@@ -484,6 +521,19 @@ def run_single_case(manifest: Manifest, case: CampaignCaseSpec, *, repository_co
     hamiltonian_identity = _hamiltonian_identity(case)
     hamiltonian = terms.total
 
+    # D022: every group's twice_T and SpectralGroupIdentity are computed
+    # for the FULL, unfiltered sequence, once, BEFORE select_target_group
+    # is ever called -- physical identity is established independently
+    # of, and prior to, which selection rule later picks a group. Never
+    # rebuilt after selection: two targets resolving to the same
+    # group_index therefore always reuse group_identities[group_index],
+    # the exact same object.
+    group_twice_Ts = tuple(_group_twice_T(flavor_casimir, group_state) for group_state in group_states)
+    group_identities = tuple(
+        build_spectral_group_identity(group, group_state, spectral_window_group_index=group_index, twice_T=twice_T)
+        for group_index, (group, group_state, twice_T) in enumerate(zip(groups, group_states, group_twice_Ts))
+    )
+
     outcomes = tuple(
         select_target_group(
             target,
@@ -506,19 +556,14 @@ def run_single_case(manifest: Manifest, case: CampaignCaseSpec, *, repository_co
         if group_index in already_produced_group_indices:
             # Two different targets (e.g. first_excited and a flavor_label
             # target) may resolve to the SAME physical group -- its
-            # SpectralGroupIdentity is built exactly once, right here, and
-            # every one of its records is produced exactly once: two
-            # targets sharing a group therefore always share the exact
-            # same identity, never two artificially different ones.
+            # productions are therefore produced exactly once, reusing
+            # group_identities[group_index] (built above, before
+            # selection), never rebuilt or duplicated.
             continue
         already_produced_group_indices.add(group_index)
 
-        group = groups[group_index]
         group_state = group_states[group_index]
-        twice_T = _group_twice_T(flavor_casimir, group_state)
-        spectral_group_identity = build_spectral_group_identity(
-            group, group_state, spectral_window_group_index=group_index, twice_T=twice_T
-        )
+        spectral_group_identity = group_identities[group_index]
 
         records.extend(
             _group_level_records(
