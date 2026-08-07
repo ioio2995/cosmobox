@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -18,13 +19,14 @@ from scripts.level1b_campaign.outputs import write_case_success
 from scripts.level1b_campaign.runner import CaseExecutionResult
 from scripts.level1b_analysis import inter_s as inter_s_module
 from scripts.level1b_analysis import loader as loader_module
-from scripts.level1b_analysis.indexing import build_campaign_artifact_index
+from scripts.level1b_analysis.indexing import CampaignArtifactIndex, build_campaign_artifact_index
 from scripts.level1b_analysis.inter_s import (
     InterSGroupMatch,
     InterSMatchingError,
     InterSMatchingReport,
     build_inter_s_matching_report,
 )
+from scripts.level1b_analysis.loader import LoadedCase
 
 REPO_COMMIT = "d" * 40
 
@@ -84,6 +86,48 @@ def triangle_s3(real_plan: tuple):
 
 def _patch_plan(monkeypatch: pytest.MonkeyPatch, plan: tuple) -> None:
     monkeypatch.setattr(loader_module, "build_campaign_plan", lambda manifest_arg: plan)
+
+
+def _replace_case(case, **overrides):
+    """Like dataclasses.replace, but always supplies a matching case_id in
+    the SAME replace call -- CampaignCaseSpec.__post_init__ enforces
+    case_id == compute_case_id(...) over (geometry, spin,
+    hamiltonian_case_id, hamiltonian_parameters, sector_id,
+    spectral_window, target_groups) on every construction, including an
+    intermediate dataclasses.replace call, so the new case_id must be
+    computed from the MERGED field set up front and passed alongside the
+    other overrides in one shot. physical_dimension/spectrum_options are
+    not part of that hash, so overriding them alone still needs no
+    case_id change -- computed here regardless, for uniformity."""
+    merged = {field.name: overrides.get(field.name, getattr(case, field.name)) for field in dataclasses.fields(case)}
+    new_case_id = planning_module.compute_case_id(
+        geometry=merged["geometry"],
+        spin=merged["spin"],
+        hamiltonian_case_id=merged["hamiltonian_case_id"],
+        hamiltonian_parameters=merged["hamiltonian_parameters"],
+        sector_id=merged["sector_id"],
+        spectral_window=merged["spectral_window"],
+        target_groups=merged["target_groups"],
+    )
+    return dataclasses.replace(case, **overrides, case_id=new_case_id)
+
+
+def _fake_index_from_cases(real_manifest, cases: tuple) -> CampaignArtifactIndex:
+    """A CampaignArtifactIndex carrying real CampaignCaseSpec objects but
+    no real groups/documents -- LoadedCase.__post_init__ only requires a
+    non-empty tuple of deeply frozen documents, and CampaignArtifactIndex.
+    __post_init__ only requires non-duplicate case_ids/group keys, so this
+    is sufficient (and much cheaper than writing real records.jsonl) to
+    unit-test _build_case_pairs, which only ever reads index.cases."""
+    dummy_document = MappingProxyType({"dummy": True})
+    loaded_cases = tuple(LoadedCase(case=case, documents=(dummy_document,)) for case in cases)
+    return CampaignArtifactIndex(
+        manifest_fingerprint=real_manifest.fingerprint,
+        campaign_id=real_manifest.campaign_id,
+        repository_commit=REPO_COMMIT,
+        cases=loaded_cases,
+        groups=(),
+    )
 
 
 def build_result_record(*args, **kwargs):
@@ -298,19 +342,98 @@ def test_no_couple_for_single_spin_identity(monkeypatch, real_manifest, triangle
 
 
 # ---------------------------------------------------------------------------
-# 19/20. low_window_truncated reconstruction from CampaignCaseSpec alone
-# -- no spectral computation.
+# _build_case_pairs (durcissement secondaire): the two SELECTED spins must
+# be the two largest DISTINCT values, never the first two entries of a
+# naive spin-descending sort -- and if more than one CampaignCaseSpec
+# shares the same physical identity AND the same one of those two spins,
+# _build_case_pairs must never pick one arbitrarily.
 # ---------------------------------------------------------------------------
 
 
-def test_low_window_truncated_true_for_a_real_truncated_case(triangle_s2) -> None:
+def test_build_case_pairs_selects_the_two_largest_distinct_spins(real_manifest, triangle_s1, triangle_s2, triangle_s3) -> None:
+    index = _fake_index_from_cases(real_manifest, (triangle_s1, triangle_s2, triangle_s3))
+
+    pairs = inter_s_module._build_case_pairs(index)
+
+    assert len(pairs) == 1
+    high, low = pairs[0]
+    assert high.case.spin == 3
+    assert low.case.spin == 2
+
+
+def test_build_case_pairs_raises_on_duplicate_case_at_a_selected_spin(real_manifest, triangle_s2, triangle_s3) -> None:
+    # Same physical identity (geometry/hamiltonian_identity_without_spin/
+    # sector) and same spin (3) as triangle_s3, but a distinct case_id --
+    # exactly the "S=3 case A, S=3 case B, S=2 case C" scenario from the
+    # mandate. A naive spin-descending sort could silently pair the two
+    # S=3 cases together; this must instead raise, never guess.
+    duplicate_high = _replace_case(triangle_s3, hamiltonian_case_id="reference-duplicate-for-test")
+    assert duplicate_high.case_id != triangle_s3.case_id
+    index = _fake_index_from_cases(real_manifest, (triangle_s2, triangle_s3, duplicate_high))
+
+    with pytest.raises(InterSMatchingError, match="share spin 3"):
+        inter_s_module._build_case_pairs(index)
+
+
+# ---------------------------------------------------------------------------
+# low_window_truncated reconstruction from CampaignCaseSpec alone -- no
+# spectral computation. Covers dense/sparse dispatch, dimension 0/1, and
+# the guardrail-exceeded ("not_computed") branch, per the correctif
+# mandate: the previous "spectral_window < physical_dimension" formula
+# was wrong on the sparse branch (eigsh computes at most dimension - 1
+# eigenvalues, never dimension).
+# ---------------------------------------------------------------------------
+
+
+def test_low_window_truncated_dense_true_for_a_real_truncated_case(triangle_s2) -> None:
+    assert triangle_s2.physical_dimension <= triangle_s2.spectrum_options.max_dense_dimension
     assert triangle_s2.spectral_window < triangle_s2.physical_dimension
     assert inter_s_module._low_window_truncated(triangle_s2) is True
 
 
-def test_low_window_truncated_false_for_a_synthetic_untruncated_case(triangle_s2) -> None:
-    untruncated = dataclasses.replace(triangle_s2, physical_dimension=triangle_s2.spectral_window)
-    assert inter_s_module._low_window_truncated(untruncated) is False
+def test_low_window_truncated_dense_false_when_spectral_window_covers_the_dimension(triangle_s2) -> None:
+    case = _replace_case(triangle_s2, physical_dimension=10)  # <= max_dense_dimension: dense path
+    assert case.spectral_window >= case.physical_dimension  # 16 >= 10
+    assert inter_s_module._low_window_truncated(case) is False
+
+
+def test_low_window_truncated_sparse_true_when_spectral_window_is_small(triangle_s2) -> None:
+    # dimension (3000) > max_dense_dimension (2000): sparse path.
+    case = _replace_case(triangle_s2, physical_dimension=3000)
+    assert case.physical_dimension > case.spectrum_options.max_dense_dimension
+    assert case.spectral_window < case.physical_dimension
+    assert inter_s_module._low_window_truncated(case) is True
+
+
+def test_low_window_truncated_sparse_true_even_when_spectral_window_covers_the_dimension(triangle_s2) -> None:
+    # The bug this correctif fixes: sparse can never compute `dimension`
+    # eigenvalues (only dimension - 1, at most), so this must stay True
+    # even though spectral_window (5000) >= physical_dimension (3000) --
+    # the old "spectral_window < physical_dimension" formula wrongly
+    # returned False here.
+    case = _replace_case(triangle_s2, physical_dimension=3000, spectral_window=5000)
+    assert case.physical_dimension > case.spectrum_options.max_dense_dimension
+    assert case.spectral_window >= case.physical_dimension
+    assert inter_s_module._low_window_truncated(case) is True
+
+
+def test_low_window_truncated_dimension_one_is_always_false(triangle_s2) -> None:
+    case = _replace_case(triangle_s2, physical_dimension=1)
+    assert inter_s_module._low_window_truncated(case) is False
+
+
+def test_low_window_truncated_dimension_zero_raises_structural_error(triangle_s2) -> None:
+    case = _replace_case(triangle_s2, physical_dimension=0)
+    with pytest.raises(InterSMatchingError, match="physical_dimension == 0"):
+        inter_s_module._low_window_truncated(case)
+
+
+def test_low_window_truncated_guardrail_exceeded_raises_structural_error(triangle_s2) -> None:
+    unreachable_dimension = triangle_s2.spectrum_options.max_sparse_dimension + 1
+    case = _replace_case(triangle_s2, physical_dimension=unreachable_dimension)
+    assert case.spectrum_options.force is False
+    with pytest.raises(InterSMatchingError, match="not_computed"):
+        inter_s_module._low_window_truncated(case)
 
 
 # ---------------------------------------------------------------------------
