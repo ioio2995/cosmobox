@@ -5,40 +5,43 @@ Ce document est un contrat de reprise, pas une documentation scientifique. Il do
 ## Dernier commit accepté
 
 ```text
-b2cb6b1cd3c94e36e5da50063d095b95a1030015
+514181cab2a2f9c4f0e28cec63b7ad75832a31d6
 ```
 
-Runner mono-cas (lot 1B-8, y compris son correctif) accepté à ce commit, sur `research/level1-correlators`.
+Persistance atomique et reprise par cas (lot 1B-8c) acceptée à ce commit, sur `research/level1-correlators`.
 
 ## Lot actif
 
-1B-8c — persistance atomique et reprise par cas.
+1B-8d — orchestration multi-cas avec reprise.
 
-**Rapport de conception validé. Implémentation autorisée.** Aucune campagne complète.
+**Rapport de conception validé. Implémentation autorisée.** Aucune campagne scientifique réelle ou complète n'est lancée par ce lot.
 
 ## Objectif
 
-Ajouter la couche de persistance d'un résultat mono-cas déjà produit par `run_single_case` (lot 1B-8), sans modifier le calcul scientifique. Aucune campagne scientifique complète n'est lancée par ce lot.
+Construire l'orchestrateur qui exécute le plan déterministe complet du manifeste (`experiments.level1.planning.build_campaign_plan`), cas par cas, dans l'ordre exact du plan, en réutilisant exclusivement `validate_existing_case_run`/`run_single_case`/`write_case_success`/`write_case_failure` (inchangés). Les erreurs isolées d'un cas sont enregistrées via `write_case_failure` sans interrompre les autres cas, sauf `KeyboardInterrupt`/`SystemExit` (jamais avalés) et un échec de `write_case_failure` lui-même (propagé, jamais avalé). Aucune agrégation inter-S dans ce lot.
 
-Format obligatoire :
+## Signal de garde-fou (point essentiel du rapport de conception)
 
-```text
-runs/<case_id>/records.jsonl
-runs/<case_id>/run.json
-```
+Level0 ne lève jamais d'exception pour un dépassement de dimension : `SpectrumReport.status == "not_computed"` est son signal typé, exclusif, mais `run_single_case` (inchangé) ne le vérifie pas avant de déréférencer `.degeneracy.groups`. L'orchestrateur ne s'appuie donc jamais sur une exception Level0 ni sur un texte de message : il pré-vérifie, avant tout appel à `run_single_case`, `case.physical_dimension > case.spectrum_options.max_sparse_dimension` (uniquement si `case.spectrum_options.force is False`, seule valeur produite par `planning.py`). `max_dense_dimension` ne sélectionne que dense vs sparse, ce n'est jamais un seuil d'échec.
 
 ## Périmètre autorisé (fichiers)
 
 - `docs/governance/current-task.md` (ce fichier).
-- `scripts/level1b_campaign/outputs.py` (nouveau).
-- `tests/scripts/level1b_campaign/test_outputs.py` (nouveau).
-- Documents Level 1 directement concernés, mise à jour minimale.
+- `scripts/level1b_campaign/campaign.py` (nouveau).
+- `tests/scripts/level1b_campaign/test_campaign.py` (nouveau).
+- Documents Level 1 directement concernés, mise à jour minimale, uniquement si nécessaire.
 
-`scripts/level1b_campaign/runner.py` n'est **pas** modifié par ce lot (confirmé au rapport de conception : `CaseExecutionResult` porte déjà tout ce dont la couche de persistance a besoin).
+Ne modifie pas : `runner.py`, `outputs.py`, `planning.py`, le manifeste, `results.py`, `serialization.py`, `assembly.py`, les schémas, `target_selection.py`, `local_observables.py`, `matching.py`, le niveau 0, D020/D021/D022.
 
 ## Hors périmètre strict
 
-Boucle multi-cas, lancement complet de la campagne, comparaisons inter-S, `gamma_O`, verdicts de robustesse, `G_occ`, `path_phase_coherence`. Ne pas modifier : `results.py`, `serialization.py`, `assembly.py`, les schémas, le manifeste, le niveau 0, `target_selection.py`, `local_observables.py`, `matching.py`, D020, D021, D022.
+Comparaisons inter-S, `gamma_O`, verdicts de robustesse, `G_occ`, `path_phase_coherence`, agrégation scientifique entre cas, lecture de payload physique pour comparer des cas. Aucun fichier global de campagne (`campaign.json`, résumé/index global) : `CampaignExecutionReport` reste un objet Python en mémoire pour ce lot.
+
+## API de l'orchestrateur (campaign.py)
+
+`CASE_ORCHESTRATION_STATUSES = ("success", "skipped_existing_valid", "resource_guardrail_exceeded", "failed")`. `CaseOrchestrationOutcome(case_id, status, errors)` et `CampaignExecutionReport(case_outcomes, total_required, executed_success_count, reused_success_count, resource_guardrail_exceeded_count, failed_count, global_success)`, tous deux `frozen`/auto-vérifiants. `run_campaign(manifest, *, output_dir, repository_commit) -> CampaignExecutionReport` : construit `build_campaign_plan(manifest)` exactement une fois, aucun tri supplémentaire, aucune liste libre de cas acceptée ; `repository_commit` non vide obligatoire ; `global_success` vrai ssi tous les statuts sont `success`/`skipped_existing_valid`.
+
+`check_repository_cleanliness(repo_root) -> tuple[bool, tuple[str, ...]]` : fonction séparée, lecture seule (`git status --porcelain`), jamais appelée automatiquement par `run_campaign`, jamais de paramètre de contournement. Une future entrée de lancement scientifique normatif DOIT l'appeler et refuser de lancer si `is_clean` est faux. Le répertoire racine `results/` reste hors filtre.
 
 ## records.jsonl
 
