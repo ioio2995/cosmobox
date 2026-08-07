@@ -16,6 +16,8 @@ Correctif 1B-8d (force=True rejeté avant garde-fou ; détection de renommage so
 
 **Rapport de conception validé. Implémentation autorisée.** Aucune campagne scientifique réelle n'est lancée par ce lot.
 
+Livraison `92572f0d842742e0c4de9623cb4c8b72f425b0e2` : conforme sur l'architecture, **acceptation finale suspendue pour une seule correction bornée** (les erreurs des primitives de précondition elles-mêmes — `load_manifest()`, `check_repository_cleanliness()` — n'étaient pas normalisées en `NormativeLaunchError`). Le dernier commit accepté reste `43a1fdb7b7a5261ea7bca6004fd8e9f56693c501` jusqu'à acceptation du correctif. Aucune fonctionnalité nouvelle dans le correctif.
+
 ## Objectif
 
 Créer une entrée de lancement explicite (`prepare_normative_launch`/`launch_normative_campaign` dans `scripts/level1b_campaign/launch.py`, plus une CLI mince `scripts/run_level1b_campaign.py`) qui vérifie toutes les préconditions normatives de la campagne puis appelle `run_campaign` (lot 1B-8d, inchangé) exactement comme celui-ci est déjà défini. Aucune logique scientifique nouvelle ; aucune reconstruction du plan (`run_campaign` construit déjà `build_campaign_plan(manifest)` exactement une fois).
@@ -26,7 +28,7 @@ Créer une entrée de lancement explicite (`prepare_normative_launch`/`launch_no
 
 `launch_normative_campaign` effectue une SECONDE vérification (HEAD, branche, propreté) immédiatement avant `run_campaign`, après le premier passage complet de `prepare_normative_launch` — mitigation explicite et documentée honnêtement comme non atomique (aucun verrou Git introduit) : une fenêtre résiduelle subsiste entre cette seconde vérification et le premier appel interne de `run_campaign`. Le `repository_commit` transmis à `run_campaign` est exactement celui de cette seconde vérification.
 
-Toute erreur de précondition lève `NormativeLaunchError` (avec `dirty_paths` peuplé uniquement pour une erreur de propreté) **avant** tout appel à `run_campaign` — aucun `run.json` de cas n'est jamais créé pour ce type d'échec.
+Toute erreur de précondition lève `NormativeLaunchError` (avec `dirty_paths` peuplé uniquement pour une erreur de propreté) **avant** tout appel à `run_campaign` — aucun `run.json` de cas n'est jamais créé pour ce type d'échec. Ceci inclut les erreurs des primitives de précondition elles-mêmes : `load_manifest()` (via le helper privé `_load_normative_manifest`) et `check_repository_cleanliness()` (via `_check_repository_cleanliness_or_fail`, aux deux points d'appel — premier et second contrôle TOCTOU) normalisent toute exception sous-jacente en `NormativeLaunchError` (`raise ... from exc`, cause préservée dans `__cause__`), avec `dirty_paths=()` quand aucune liste fiable de chemins sales n'a pu être obtenue. `_resolve_head_sha`/`_current_branch` faisaient déjà cette normalisation depuis la livraison initiale. Cette normalisation reste strictement bornée aux appels de précondition : `launch_normative_campaign` n'enveloppe jamais `run_campaign` dans un `except Exception` — une exception levée par `run_campaign` reste son propre comportement, jamais requalifiée en échec de précondition.
 
 ## Périmètre autorisé (fichiers)
 

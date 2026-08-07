@@ -245,6 +245,121 @@ def test_run_campaign_never_called_after_prepare_failure(monkeypatch, real_manif
 
 
 # ---------------------------------------------------------------------------
+# Precondition-primitive error normalization (correctif to 92572f0):
+# load_manifest() and check_repository_cleanliness() are themselves
+# precondition primitives -- any exception they raise is exactly as much
+# a launch precondition failure as a bad branch or a dirty tree, so it
+# must be normalized to NormativeLaunchError (with the original
+# exception preserved as __cause__), never left as a raw
+# ValueError/CalledProcessError, and never allowed to be confused with
+# an exception raised by run_campaign itself (a genuinely different
+# kind of failure that must never be relabeled as a precondition
+# failure).
+# ---------------------------------------------------------------------------
+
+
+def test_load_manifest_value_error_is_normalized(monkeypatch, real_manifest, tmp_path: Path) -> None:
+    recorder = _Recorder()
+    _patch_git(monkeypatch, recorder, head_values=(SHA_A,), branch_values=(real_manifest.branch,))
+
+    original = ValueError("manifest does not validate against its schema")
+
+    def raising_load_manifest():
+        raise original
+
+    monkeypatch.setattr(launch_module, "load_manifest", raising_load_manifest)
+    _patch_run_campaign(monkeypatch, recorder, _empty_success_report())
+
+    with pytest.raises(NormativeLaunchError) as excinfo:
+        launch_normative_campaign(tmp_path / "repo", output_dir=tmp_path / "out")
+    assert excinfo.value.__cause__ is original
+    assert recorder.run_campaign_calls == []
+
+
+def test_first_cleanliness_check_process_error_is_normalized(monkeypatch, real_manifest, tmp_path: Path) -> None:
+    recorder = _Recorder()
+    _patch_git(monkeypatch, recorder, head_values=(SHA_A,), branch_values=(real_manifest.branch,))
+    _patch_load_manifest(monkeypatch, recorder, real_manifest)
+
+    original = subprocess.CalledProcessError(1, ["git", "status", "--porcelain"])
+
+    def raising_cleanliness(repo_root):
+        raise original
+
+    monkeypatch.setattr(launch_module, "check_repository_cleanliness", raising_cleanliness)
+    _patch_run_campaign(monkeypatch, recorder, _empty_success_report())
+
+    with pytest.raises(NormativeLaunchError) as excinfo:
+        launch_normative_campaign(tmp_path / "repo", output_dir=tmp_path / "out")
+    assert excinfo.value.__cause__ is original
+    assert excinfo.value.dirty_paths == ()
+    assert recorder.run_campaign_calls == []
+
+
+def test_second_cleanliness_check_process_error_is_normalized(monkeypatch, real_manifest, tmp_path: Path) -> None:
+    recorder = _Recorder()
+    _patch_git(monkeypatch, recorder, head_values=(SHA_A, SHA_A), branch_values=(real_manifest.branch, real_manifest.branch))
+    _patch_load_manifest(monkeypatch, recorder, real_manifest)
+
+    original = subprocess.CalledProcessError(1, ["git", "status", "--porcelain"])
+    results = [(True, ())]
+
+    def flaky_cleanliness(repo_root):
+        recorder.cleanliness_calls.append(repo_root)
+        if results:
+            return results.pop(0)
+        raise original
+
+    monkeypatch.setattr(launch_module, "check_repository_cleanliness", flaky_cleanliness)
+    _patch_run_campaign(monkeypatch, recorder, _empty_success_report())
+
+    with pytest.raises(NormativeLaunchError) as excinfo:
+        launch_normative_campaign(tmp_path / "repo", output_dir=tmp_path / "out")
+    assert excinfo.value.__cause__ is original
+    assert excinfo.value.dirty_paths == ()
+    assert recorder.run_campaign_calls == []
+    assert len(recorder.cleanliness_calls) == 2
+
+
+def test_run_campaign_exception_is_not_converted_to_normative_launch_error(
+    monkeypatch, real_manifest, tmp_path: Path
+) -> None:
+    recorder = _Recorder()
+    _setup(monkeypatch, recorder, real_manifest, head_values=(SHA_A, SHA_A))
+
+    def raising_run_campaign(manifest, *, output_dir, repository_commit):
+        raise RuntimeError("run_campaign internal failure")
+
+    monkeypatch.setattr(launch_module, "run_campaign", raising_run_campaign)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        launch_normative_campaign(tmp_path / "repo", output_dir=tmp_path / "out")
+    assert not isinstance(excinfo.value, NormativeLaunchError)
+
+
+def test_cli_normalizes_load_manifest_error_to_exit_code_2(monkeypatch, real_manifest, tmp_path: Path) -> None:
+    recorder = _Recorder()
+    _patch_git(monkeypatch, recorder, head_values=(SHA_A,), branch_values=(real_manifest.branch,))
+
+    def raising_load_manifest():
+        raise ValueError("bad manifest")
+
+    monkeypatch.setattr(launch_module, "load_manifest", raising_load_manifest)
+
+    exit_code = cli_module.main(["--output-dir", str(tmp_path / "out"), "--repo-root", str(tmp_path / "repo")])
+    assert exit_code == 2
+
+
+def test_cli_does_not_catch_run_campaign_exceptions(monkeypatch, tmp_path: Path) -> None:
+    def raising_launch(repo_root, *, output_dir):
+        raise RuntimeError("run_campaign internal failure")
+
+    monkeypatch.setattr(cli_module, "launch_normative_campaign", raising_launch)
+    with pytest.raises(RuntimeError):
+        cli_module.main(["--output-dir", str(tmp_path / "out"), "--repo-root", str(tmp_path)])
+
+
+# ---------------------------------------------------------------------------
 # 12. Context carries the exact Manifest object loaded.
 # ---------------------------------------------------------------------------
 

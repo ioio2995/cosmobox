@@ -23,6 +23,18 @@ Any precondition failure raises NormativeLaunchError BEFORE
 run_campaign is ever called -- no runs/<case_id>/run.json is ever
 written for a precondition failure; it is not a per-case outcome at
 all, only individual case executions inside run_campaign produce those.
+This includes failures of the underlying precondition primitives
+themselves (an invalid manifest from load_manifest(), or git being
+inaccessible to check_repository_cleanliness): every precondition call
+is normalized to NormativeLaunchError (via `raise ... from exc`, never
+losing the original cause), so a caller of prepare_normative_launch or
+launch_normative_campaign only ever has to handle one exception type
+for a precondition failure. This normalization is strictly scoped to
+the precondition calls themselves -- launch_normative_campaign never
+wraps run_campaign in a broad `except Exception`, so an exception
+raised by run_campaign itself (a genuinely different kind of failure,
+already run_campaign's own well-defined behavior) is never relabeled as
+a precondition failure.
 
 TOCTOU: a change to the repository between the initial precondition
 check and the actual run_campaign call cannot be fully excluded without
@@ -145,6 +157,34 @@ def _resolve_output_dir(repo_root: Path, output_dir: Path) -> Path:
     return output_dir.resolve()
 
 
+def _load_normative_manifest() -> Manifest:
+    """load_manifest() itself can raise (ValueError for an invalid or
+    unparsable manifest, per its own docstring; OSError if the file is
+    missing) -- a bad manifest is exactly as much a launch precondition
+    failure as a bad Git state, so it is normalized here into
+    NormativeLaunchError, with the original exception preserved as
+    __cause__, exactly like _resolve_head_sha/_current_branch already do
+    for Git failures."""
+    try:
+        return load_manifest()
+    except Exception as exc:  # noqa: BLE001 -- any manifest-loading failure is a precondition failure
+        raise NormativeLaunchError(f"could not load the normative manifest: {exc}") from exc
+
+
+def _check_repository_cleanliness_or_fail(repo_root: Path) -> tuple[bool, tuple[str, ...]]:
+    """check_repository_cleanliness itself shells out to git and can
+    raise (subprocess.CalledProcessError, OSError) if git is
+    inaccessible from `repo_root` -- normalized here into
+    NormativeLaunchError exactly like the Git helpers above. A technical
+    failure to even determine cleanliness carries no reliable dirty_paths
+    list (none was actually obtained), so dirty_paths stays () rather
+    than a guess."""
+    try:
+        return check_repository_cleanliness(repo_root)
+    except Exception as exc:  # noqa: BLE001 -- any cleanliness-check failure is a precondition failure
+        raise NormativeLaunchError(f"could not determine repository cleanliness for {repo_root}: {exc}") from exc
+
+
 def _validate_output_dir(repo_root: Path, output_dir: Path) -> Path:
     resolved_repo_root = repo_root.resolve()
     resolved_output_dir = _resolve_output_dir(repo_root, output_dir)
@@ -180,14 +220,14 @@ def prepare_normative_launch(repo_root: Path, *, output_dir: Path) -> NormativeL
 
     head_sha = _resolve_head_sha(resolved_repo_root)
     branch = _current_branch(resolved_repo_root)
-    manifest = load_manifest()
+    manifest = _load_normative_manifest()
 
     if branch != manifest.branch:
         raise NormativeLaunchError(
             f"current branch ({branch!r}) does not match the manifest's own branch ({manifest.branch!r})"
         )
 
-    is_clean, dirty_paths = check_repository_cleanliness(resolved_repo_root)
+    is_clean, dirty_paths = _check_repository_cleanliness_or_fail(resolved_repo_root)
     if not is_clean:
         raise NormativeLaunchError(
             f"repository is not clean under the normative paths: {list(dirty_paths)}", dirty_paths=dirty_paths
@@ -237,7 +277,7 @@ def launch_normative_campaign(repo_root: Path, *, output_dir: Path) -> CampaignE
             f"branch changed between prepare and launch: {context.branch!r} -> {second_branch!r}"
         )
 
-    second_is_clean, second_dirty_paths = check_repository_cleanliness(repo_root.resolve())
+    second_is_clean, second_dirty_paths = _check_repository_cleanliness_or_fail(repo_root.resolve())
     if not second_is_clean:
         raise NormativeLaunchError(
             f"repository became unclean between prepare and launch: {list(second_dirty_paths)}",
