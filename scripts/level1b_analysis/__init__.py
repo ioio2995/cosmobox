@@ -10,5 +10,9 @@ C_TT_conn/flavor_singular_value_ratio -> raw numeric pairs);
 robustness_evaluation.py (1B-9e) applies cosmobox.level1.robustness.
 evaluate_robustness, unmodified, to every comparison whose source values
 are both numeric -- a comparison with a null source value is carried
-unevaluated, never given a fabricated verdict or a new null_reason.
+unevaluated, never given a fabricated verdict or a new null_reason;
+synthesis.py (1B-9f) reorganizes and counts the results of 1B-9c/9d/9e
+into deterministic global/per-couple/per-group/per-observable views --
+it never re-matches, never recomputes a RobustnessResult field, and
+never fuses individual verdicts into a new aggregate one.
 """
