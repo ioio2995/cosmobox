@@ -366,7 +366,14 @@ def test_dimension_between_dense_and_sparse_is_not_an_exceedance(monkeypatch, ma
     assert case.case_id in recorder.run_calls
 
 
-def test_force_true_is_never_auto_classified_as_guardrail(monkeypatch, manifest, tmp_path, two_cases) -> None:
+def test_force_true_is_a_configuration_failure_not_a_guardrail(monkeypatch, manifest, tmp_path, two_cases) -> None:
+    """force=True is the only value under which the physical_dimension
+    pre-check is NOT equivalent to Level0's own guardrail behavior (see
+    _exceeds_resource_guardrail's docstring) -- such a case must never
+    be classified resource_guardrail_exceeded (no guardrail was actually
+    evaluated) and must never reach run_single_case either; it is an
+    ordinary campaign-configuration `failed`, exactly like any other
+    pre-execution rejection."""
     base = two_cases[0]
     forced = dataclasses.replace(
         base,
@@ -376,9 +383,50 @@ def test_force_true_is_never_auto_classified_as_guardrail(monkeypatch, manifest,
     plan = (forced,)
     report, recorder = _run(monkeypatch, manifest, tmp_path, plan)
     outcome = report.case_outcomes[0]
+    assert outcome.status == "failed"
     assert outcome.status != "resource_guardrail_exceeded"
-    assert outcome.status == "success"
-    assert forced.case_id in recorder.run_calls
+    assert len(outcome.errors) == 1
+    assert "force=True" in outcome.errors[0]
+    assert forced.case_id not in recorder.run_calls
+    assert recorder.failure_calls == [
+        dict(
+            case_id=forced.case_id,
+            run_status="failed",
+            errors=[outcome.errors[0]],
+            repository_commit=REPO_COMMIT,
+        )
+    ]
+
+
+def test_force_true_with_dimension_within_sparse_bound_is_still_a_configuration_failure(
+    monkeypatch, manifest, tmp_path, two_cases
+) -> None:
+    """The force=True rejection is unconditional on dimension -- a
+    force=True case whose physical_dimension does NOT exceed
+    max_sparse_dimension must still be rejected as `failed`, never
+    silently allowed through to run_single_case."""
+    base = two_cases[0]
+    forced = dataclasses.replace(base, spectrum_options=dataclasses.replace(base.spectrum_options, force=True))
+    assert forced.physical_dimension <= forced.spectrum_options.max_sparse_dimension
+    plan = (forced,)
+    report, recorder = _run(monkeypatch, manifest, tmp_path, plan)
+    outcome = report.case_outcomes[0]
+    assert outcome.status == "failed"
+    assert forced.case_id not in recorder.run_calls
+
+
+def test_force_true_write_case_failure_failure_propagates(monkeypatch, manifest, tmp_path, two_cases) -> None:
+    base = two_cases[0]
+    forced = dataclasses.replace(base, spectrum_options=dataclasses.replace(base.spectrum_options, force=True))
+    recorder = _Recorder()
+    _patch_plan(monkeypatch, recorder, (forced,))
+    _patch_validate(monkeypatch, recorder)
+    _patch_run_single_case(monkeypatch, recorder)
+    _patch_write_case_success(monkeypatch, recorder)
+    _patch_write_case_failure(monkeypatch, recorder, raise_for=frozenset({forced.case_id}))
+    with pytest.raises(RuntimeError, match="write_case_failure failed"):
+        run_campaign(manifest, output_dir=tmp_path, repository_commit=REPO_COMMIT)
+    assert recorder.run_calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -605,6 +653,8 @@ def _init_repo(repo_root: Path) -> None:
         "schemas/placeholder.json",
         "experiments/placeholder.py",
         "scripts/placeholder.py",
+        "archive/placeholder.py",
+        "archive/other.py",
     ):
         path = repo_root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -657,6 +707,45 @@ def test_check_repository_cleanliness_returns_deterministic_order(tmp_path: Path
     _, dirty_paths = check_repository_cleanliness(tmp_path)
     assert dirty_paths == tuple(sorted(dirty_paths))
     assert list(dirty_paths) == sorted(["scripts/z_new.py", "docs/a_new.md"])
+
+
+def _git_mv(repo_root: Path, source: str, destination: str) -> None:
+    destination_path = repo_root / destination
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "mv", source, destination], cwd=repo_root, check=True)
+
+
+def test_check_repository_cleanliness_detects_rename_out_of_normative_path(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    _git_mv(tmp_path, "src/placeholder.py", "archive/placeholder_moved.py")
+    is_clean, dirty_paths = check_repository_cleanliness(tmp_path)
+    assert is_clean is False
+    assert "src/placeholder.py" in dirty_paths
+
+
+def test_check_repository_cleanliness_detects_rename_into_normative_path(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    _git_mv(tmp_path, "archive/placeholder.py", "src/placeholder_moved.py")
+    is_clean, dirty_paths = check_repository_cleanliness(tmp_path)
+    assert is_clean is False
+    assert "src/placeholder_moved.py" in dirty_paths
+
+
+def test_check_repository_cleanliness_ignores_rename_entirely_outside_normative_paths(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    _git_mv(tmp_path, "archive/placeholder.py", "archive/placeholder_moved.py")
+    is_clean, dirty_paths = check_repository_cleanliness(tmp_path)
+    assert is_clean is True
+    assert dirty_paths == ()
+
+
+def test_check_repository_cleanliness_rename_order_is_deterministic(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    _git_mv(tmp_path, "src/placeholder.py", "archive/z_moved.py")
+    _git_mv(tmp_path, "archive/other.py", "docs/a_moved.py")
+    _, dirty_paths = check_repository_cleanliness(tmp_path)
+    assert dirty_paths == tuple(sorted(dirty_paths))
+    assert list(dirty_paths) == sorted(["src/placeholder.py", "docs/a_moved.py"])
 
 
 def test_check_repository_cleanliness_never_mutates_git_state(monkeypatch, tmp_path: Path) -> None:

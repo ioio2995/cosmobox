@@ -183,13 +183,13 @@ def _exception_message(exc: Exception) -> str:
 
 
 def _exceeds_resource_guardrail(case) -> bool:
-    """The exact condition Level0 itself applies (SpectrumOptions.force
-    is always False in the current plan -- see planning.py's
-    _build_spectrum_options): a dimension over max_sparse_dimension is
-    never diagonalized. max_dense_dimension only selects dense vs sparse
-    solving -- it is never itself a guardrail. Requires spectrum_options.
-    force is False; if it is not, this function is not the right check
-    at all (the caller must not treat this as a guardrail)."""
+    """The exact condition Level0 itself applies when
+    spectrum_options.force is False: a dimension over
+    max_sparse_dimension is never diagonalized. max_dense_dimension only
+    selects dense vs sparse solving -- it is never itself a guardrail.
+    Only equivalent to Level0's own behavior when force is False; the
+    caller (run_campaign) must reject force=True cases as an ordinary
+    configuration failure before ever reaching this check."""
     return case.physical_dimension > case.spectrum_options.max_sparse_dimension
 
 
@@ -235,7 +235,36 @@ def run_campaign(
             outcomes.append(CaseOrchestrationOutcome(case_id=case.case_id, status="skipped_existing_valid", errors=()))
             continue
 
-        if case.spectrum_options.force is False and _exceeds_resource_guardrail(case):
+        if case.spectrum_options.force is not False:
+            # The dimensional pre-check below is only equivalent to
+            # Level0's own guardrail when force is False (the only value
+            # planning.py ever produces): with force=True, Level0 would
+            # attempt sparse diagonalization regardless of dimension, so
+            # this pre-check could no longer stand in for it. Rather than
+            # silently reusing an inapplicable check, or forwarding to
+            # run_single_case anyway, a force=True case is treated as a
+            # campaign-configuration failure -- ordinary `failed`, never
+            # `resource_guardrail_exceeded` (no guardrail was actually
+            # evaluated), and run_single_case is never called for it.
+            message = (
+                f"case {case.case_id!r} has spectrum_options.force={case.spectrum_options.force!r}: "
+                "force=True is incompatible with the normative 1B campaign plan (planning.py always "
+                "produces force=False), so the resource-guardrail pre-check cannot stand in for Level0's "
+                "own guardrail for this case"
+            )
+            write_case_failure(
+                output_dir,
+                case.case_id,
+                campaign_id=manifest.campaign_id,
+                manifest_fingerprint=manifest.fingerprint,
+                repository_commit=repository_commit,
+                run_status="failed",
+                errors=[message],
+            )
+            outcomes.append(CaseOrchestrationOutcome(case_id=case.case_id, status="failed", errors=(message,)))
+            continue
+
+        if _exceeds_resource_guardrail(case):
             message = (
                 f"physical_dimension ({case.physical_dimension}) exceeds max_sparse_dimension "
                 f"({case.spectrum_options.max_sparse_dimension})"
@@ -325,12 +354,20 @@ def check_repository_cleanliness(repo_root: Path) -> tuple[bool, tuple[str, ...]
         if not line:
             continue
         # `git status --porcelain` format: two status chars, a space, then
-        # the path (rename entries use "old -> new"; only the new path is
-        # relevant to whether the tree is dirty under a normative prefix).
+        # the path -- except a rename entry, which uses "old -> new" for
+        # that trailing part. Both the source and the destination are
+        # examined independently: a rename OUT of a normative path (e.g.
+        # src/foo.py -> archive/foo.py) is exactly as much a change to a
+        # normative path as a rename INTO one, so either side matching a
+        # normative prefix makes the tree dirty.
         path = line[3:]
         if " -> " in path:
-            path = path.split(" -> ", 1)[1]
-        if path.startswith(_CLEANLINESS_PATHS):
-            dirty_paths.add(path)
+            source_path, destination_path = path.split(" -> ", 1)
+            candidates = (source_path, destination_path)
+        else:
+            candidates = (path,)
+        for candidate in candidates:
+            if candidate.startswith(_CLEANLINESS_PATHS):
+                dirty_paths.add(candidate)
 
     return (len(dirty_paths) == 0, tuple(sorted(dirty_paths)))

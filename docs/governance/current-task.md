@@ -16,13 +16,15 @@ Persistance atomique et reprise par cas (lot 1B-8c) acceptée à ce commit, sur 
 
 **Rapport de conception validé. Implémentation autorisée.** Aucune campagne scientifique réelle ou complète n'est lancée par ce lot.
 
+Livraison `ff7c8a080332e26bece81ee6231ea54b0df9912c` : conforme sur l'essentiel, **acceptation suspendue pour deux corrections bornées** (force=True non rejeté avant garde-fou ; renommages Git non détectés sur le chemin source). Le dernier commit accepté reste `514181cab2a2f9c4f0e28cec63b7ad75832a31d6` jusqu'à acceptation du correctif. Aucune fonctionnalité nouvelle dans le correctif.
+
 ## Objectif
 
 Construire l'orchestrateur qui exécute le plan déterministe complet du manifeste (`experiments.level1.planning.build_campaign_plan`), cas par cas, dans l'ordre exact du plan, en réutilisant exclusivement `validate_existing_case_run`/`run_single_case`/`write_case_success`/`write_case_failure` (inchangés). Les erreurs isolées d'un cas sont enregistrées via `write_case_failure` sans interrompre les autres cas, sauf `KeyboardInterrupt`/`SystemExit` (jamais avalés) et un échec de `write_case_failure` lui-même (propagé, jamais avalé). Aucune agrégation inter-S dans ce lot.
 
 ## Signal de garde-fou (point essentiel du rapport de conception)
 
-Level0 ne lève jamais d'exception pour un dépassement de dimension : `SpectrumReport.status == "not_computed"` est son signal typé, exclusif, mais `run_single_case` (inchangé) ne le vérifie pas avant de déréférencer `.degeneracy.groups`. L'orchestrateur ne s'appuie donc jamais sur une exception Level0 ni sur un texte de message : il pré-vérifie, avant tout appel à `run_single_case`, `case.physical_dimension > case.spectrum_options.max_sparse_dimension` (uniquement si `case.spectrum_options.force is False`, seule valeur produite par `planning.py`). `max_dense_dimension` ne sélectionne que dense vs sparse, ce n'est jamais un seuil d'échec.
+Level0 ne lève jamais d'exception pour un dépassement de dimension : `SpectrumReport.status == "not_computed"` est son signal typé, exclusif, mais `run_single_case` (inchangé) ne le vérifie pas avant de déréférencer `.degeneracy.groups`. L'orchestrateur ne s'appuie donc jamais sur une exception Level0 ni sur un texte de message : il pré-vérifie, avant tout appel à `run_single_case`, `case.physical_dimension > case.spectrum_options.max_sparse_dimension`. Ce pré-contrôle n'est équivalent au comportement Level0 que si `case.spectrum_options.force is False` (seule valeur produite par `planning.py`) : un cas `force is not False` est rejeté explicitement **avant** ce contrôle, comme un échec ordinaire de configuration de campagne (`failed`), jamais comme `resource_guardrail_exceeded`, et sans jamais appeler `run_single_case`. `max_dense_dimension` ne sélectionne que dense vs sparse, ce n'est jamais un seuil d'échec.
 
 ## Périmètre autorisé (fichiers)
 
@@ -41,7 +43,7 @@ Comparaisons inter-S, `gamma_O`, verdicts de robustesse, `G_occ`, `path_phase_co
 
 `CASE_ORCHESTRATION_STATUSES = ("success", "skipped_existing_valid", "resource_guardrail_exceeded", "failed")`. `CaseOrchestrationOutcome(case_id, status, errors)` et `CampaignExecutionReport(case_outcomes, total_required, executed_success_count, reused_success_count, resource_guardrail_exceeded_count, failed_count, global_success)`, tous deux `frozen`/auto-vérifiants. `run_campaign(manifest, *, output_dir, repository_commit) -> CampaignExecutionReport` : construit `build_campaign_plan(manifest)` exactement une fois, aucun tri supplémentaire, aucune liste libre de cas acceptée ; `repository_commit` non vide obligatoire ; `global_success` vrai ssi tous les statuts sont `success`/`skipped_existing_valid`.
 
-`check_repository_cleanliness(repo_root) -> tuple[bool, tuple[str, ...]]` : fonction séparée, lecture seule (`git status --porcelain`), jamais appelée automatiquement par `run_campaign`, jamais de paramètre de contournement. Une future entrée de lancement scientifique normatif DOIT l'appeler et refuser de lancer si `is_clean` est faux. Le répertoire racine `results/` reste hors filtre.
+`check_repository_cleanliness(repo_root) -> tuple[bool, tuple[str, ...]]` : fonction séparée, lecture seule (`git status --porcelain`), jamais appelée automatiquement par `run_campaign`, jamais de paramètre de contournement. Une entrée de renommage (`old -> new`) est non propre si le chemin source OU le chemin destination commence par un préfixe normatif — les deux sont examinés indépendamment, jamais seulement la destination. Une future entrée de lancement scientifique normatif DOIT l'appeler et refuser de lancer si `is_clean` est faux. Le répertoire racine `results/` reste hors filtre.
 
 ## records.jsonl
 
