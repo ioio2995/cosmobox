@@ -5,28 +5,32 @@ Ce document est un contrat de reprise, pas une documentation scientifique. Il do
 ## Dernier commit accepté
 
 ```text
-c5bb0e6dc52caaa55ae9f8597860bbda5ceb69c2
+0ff65ac66b4aa054f739b350cd384c26ecd19752
 ```
 
-1B-8f — préflight réel avant première campagne normative — accepté à ce commit, sur `research/level1-correlators`. Verdict validé : `PRE-FLIGHT OK — campagne normative techniquement autorisable`.
+1B-8g — première exécution normative Level1B — accepté à ce commit, sur `research/level1-correlators`. Verdict validé : `CAMPAGNE NORMATIVE 1B — EXÉCUTION VALIDÉE` (11/11 cas `success`, 11/11 `validate_existing_case_run(...).is_valid == True`, 8 286 `ResultRecord` v2). Les 11 runs mono-cas sous `/workspaces/level1b_campaign_output/runs/` sont désormais **immuables** : aucun recalcul mono-cas, aucune réécriture.
+
+1B-9a — conception de la couche d'analyse inter-S sur artefacts normatifs — **conception acceptée, y compris son addendum**, aucun code livré par ce lot (design uniquement). Décisions gelées pour l'implémentation :
+
+- exactement 3 couples inter-S potentiels dans cette campagne : `triangle` reference S3→S2, `ring4` reference S3→S2, `ring5` reference S3→S2 (les cas `j_break` de `triangle`/`ring5`, à un seul point S, n'ont aucune comparaison admissible) ;
+- unité scientifique inter-S = **groupe spectral sérialisé** (déduplicé par `spectral_window_group_index`), jamais `target_id` — jamais reconstruit ni inventé ;
+- `spectral_window_group_index`/`representative_energy` : identité intra-cas uniquement, jamais dans un `SpectralGroupMatchKey`, jamais critère de matching inter-S (D022) ;
+- `twice_T is None` : précondition bloquante explicite pour cette première implémentation — lever une erreur d'analyse avant toute construction de `MatchKey`, jamais fabriquer de `MatchOutcome` pour ce cas, jamais modifier `matching.py` ;
+- aucun changement de `matching.py`/`robustness.py` dans aucun lot 1B-9 tant que non explicitement autorisé ;
+- `flavor_singular_value_ratio` est path-dependent (chemin minimal complet requis, pas seulement `(i,j)`) ;
+- `flavor_singlet` n'est pas éligible à un verdict de robustesse (liste fermée `ROBUSTNESS_OBSERVABLE_KINDS`).
 
 ## Lot actif
 
-1B-8g — première exécution normative Level1B.
+1B-9b — chargement validé et index immuable des artefacts mono-cas.
 
-**Le lancement scientifique réel est explicitement autorisé pour ce lot**, uniquement après cette transition de gouvernance et un dernier contrôle du nouveau HEAD (mini-préflight), en passant exclusivement par le point d'entrée normatif déjà accepté (`scripts/run_level1b_campaign.py` → `launch_normative_campaign`) — jamais un appel direct à `run_campaign`/`run_single_case`, jamais de SHA ou de chemin de manifeste fourni manuellement.
+**Ce lot ne fait aucun matching inter-S, aucun `gamma_O`, aucun verdict de robustesse.** Objectif exact : charger le manifeste, reconstruire `build_campaign_plan(manifest)`, valider les runs existants (`validate_existing_case_run`, inchangée), charger leurs documents v2 (`load_case_records`, inchangée), vérifier leur provenance croisée, regrouper les records par groupe spectral intra-cas (`spectral_window_group_index`), reconstruire exactement un `SpectralGroupMatchKey` par groupe, et fournir un index immuable (`CampaignArtifactIndex`) pour le lot suivant.
 
-**Aucune modification de code ou de science n'est autorisée pendant ce lot** — ni le runner, ni outputs.py, ni campaign.py, ni launch.py, ni le manifeste, ni les schémas.
+**Interdictions strictes de ce lot** : aucun appel à `match_spectral_group`/`evaluate_robustness`/`compute_gamma_o` ; aucun appel à `run_single_case`/`run_campaign`/`launch_normative_campaign` ; aucune modification de `src/cosmobox/level1/{matching,robustness,results,serialization}.py`, `scripts/level1b_campaign/*`, `experiments/level1/*`, `schemas/*` ; aucun fichier écrit sous `/workspaces/level1b_campaign_output` (artefacts mono-cas immuables) ; `twice_T is None` bloque explicitement l'index (jamais `ambiguous_cross_truncation_match`, jamais de `MatchOutcome` fabriqué).
 
-Sortie normative de ce lot : `/workspaces/level1b_campaign_output` (externe au dépôt, hors chemins normatifs, hors `results/`).
+Fichiers de ce lot : `scripts/level1b_analysis/__init__.py`, `scripts/level1b_analysis/loader.py` (`LoadedCase`, `CampaignLoadError`, `load_validated_cases`), `scripts/level1b_analysis/indexing.py` (`IndexedSpectralGroup`, `CampaignArtifactIndex`, `SpectralGroupIndexError`, `UnresolvedFlavorLabelError`, `build_campaign_artifact_index`), `tests/scripts/level1b_analysis/test_loader_and_indexing.py`.
 
-**Aucune analyse inter-S** (pas de `gamma_O`, pas de matching, pas de verdict de robustesse, pas de `G_occ`, pas de `path_phase_coherence`, aucune agrégation scientifique entre cas, aucune conclusion physique) pendant ce lot.
-
-**Aucun retry automatique en cas d'échec** : un cas `failed`/`resource_guardrail_exceeded`, un code de sortie CLI non nul, ou une exception non gérée sont rapportés tels quels — jamais corrigés ni relancés dans ce lot. La campagne n'est exécutée qu'une seule fois.
-
-Objectif exact de ce lot : répondre uniquement à « la campagne mono-cas normative s'est-elle exécutée intégralement et ses artefacts sont-ils valides (`run_status`, `validate_existing_case_run`) ? » — rien d'autre.
-
-## Référence : lanceur normatif 1B-8e (accepté, non modifié par 1B-8f)
+## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)
 
 Entrée de lancement explicite (`prepare_normative_launch`/`launch_normative_campaign` dans `scripts/level1b_campaign/launch.py`, plus une CLI mince `scripts/run_level1b_campaign.py`) qui vérifie toutes les préconditions normatives de la campagne puis appelle `run_campaign` (lot 1B-8d, inchangé) exactement comme celui-ci est déjà défini. Aucune logique scientifique nouvelle ; aucune reconstruction du plan (`run_campaign` construit déjà `build_campaign_plan(manifest)` exactement une fois).
 
