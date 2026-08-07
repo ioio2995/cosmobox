@@ -5,22 +5,22 @@ Ce document est un contrat de reprise, pas une documentation scientifique. Il do
 ## Dernier commit accepté
 
 ```text
-43a1fdb7b7a5261ea7bca6004fd8e9f56693c501
+4f04e62a5e0af5f2316071c066daa5d2220c61a9
 ```
 
-Correctif 1B-8d (force=True rejeté avant garde-fou ; détection de renommage source+destination) accepté à ce commit, sur `research/level1-correlators`.
+1B-8e — point d'entrée de lancement normatif (design + implémentation + correctif de normalisation des erreurs de précondition) accepté à ce commit, sur `research/level1-correlators`.
 
 ## Lot actif
 
-1B-8e — point d'entrée de lancement normatif.
+1B-8f — préflight réel avant première campagne normative.
 
-**Rapport de conception validé. Implémentation autorisée.** Aucune campagne scientifique réelle n'est lancée par ce lot.
+**Inspection opérationnelle uniquement.** Aucun code scientifique nouveau, aucune modification de formule, aucune exécution de `run_campaign`/`launch_normative_campaign`/`run_single_case`, aucune diagonalisation, aucun `records.jsonl`/`run.json` créé. Le seul changement de fichier autorisé pour ce lot est cette mise à jour de `current-task.md` elle-même, si un commit de préflight s'avère nécessaire.
 
-Livraison `92572f0d842742e0c4de9623cb4c8b72f425b0e2` : conforme sur l'architecture, **acceptation finale suspendue pour une seule correction bornée** (les erreurs des primitives de précondition elles-mêmes — `load_manifest()`, `check_repository_cleanliness()` — n'étaient pas normalisées en `NormativeLaunchError`). Le dernier commit accepté reste `43a1fdb7b7a5261ea7bca6004fd8e9f56693c501` jusqu'à acceptation du correctif. Aucune fonctionnalité nouvelle dans le correctif.
+Objectif : produire, sur le dépôt réel au commit accepté, le constat exact (état Git, manifeste chargé, plan de campagne complet, vérifications structurelles, proposition de répertoire de sortie externe non créé, estimation purement opérationnelle) qui permettra d'autoriser ou non le premier lancement scientifique réel dans un lot ultérieur. Verdict rendu séparément dans le rapport de préflight livré à l'utilisateur — pas dans ce document.
 
-## Objectif
+## Référence : lanceur normatif 1B-8e (accepté, non modifié par 1B-8f)
 
-Créer une entrée de lancement explicite (`prepare_normative_launch`/`launch_normative_campaign` dans `scripts/level1b_campaign/launch.py`, plus une CLI mince `scripts/run_level1b_campaign.py`) qui vérifie toutes les préconditions normatives de la campagne puis appelle `run_campaign` (lot 1B-8d, inchangé) exactement comme celui-ci est déjà défini. Aucune logique scientifique nouvelle ; aucune reconstruction du plan (`run_campaign` construit déjà `build_campaign_plan(manifest)` exactement une fois).
+Entrée de lancement explicite (`prepare_normative_launch`/`launch_normative_campaign` dans `scripts/level1b_campaign/launch.py`, plus une CLI mince `scripts/run_level1b_campaign.py`) qui vérifie toutes les préconditions normatives de la campagne puis appelle `run_campaign` (lot 1B-8d, inchangé) exactement comme celui-ci est déjà défini. Aucune logique scientifique nouvelle ; aucune reconstruction du plan (`run_campaign` construit déjà `build_campaign_plan(manifest)` exactement une fois).
 
 ## Préconditions et TOCTOU
 
