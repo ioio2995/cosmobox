@@ -5,18 +5,26 @@ Ce document est un contrat de reprise, pas une documentation scientifique. Il do
 ## Dernier commit accepté
 
 ```text
-4f04e62a5e0af5f2316071c066daa5d2220c61a9
+c5bb0e6dc52caaa55ae9f8597860bbda5ceb69c2
 ```
 
-1B-8e — point d'entrée de lancement normatif (design + implémentation + correctif de normalisation des erreurs de précondition) accepté à ce commit, sur `research/level1-correlators`.
+1B-8f — préflight réel avant première campagne normative — accepté à ce commit, sur `research/level1-correlators`. Verdict validé : `PRE-FLIGHT OK — campagne normative techniquement autorisable`.
 
 ## Lot actif
 
-1B-8f — préflight réel avant première campagne normative.
+1B-8g — première exécution normative Level1B.
 
-**Inspection opérationnelle uniquement.** Aucun code scientifique nouveau, aucune modification de formule, aucune exécution de `run_campaign`/`launch_normative_campaign`/`run_single_case`, aucune diagonalisation, aucun `records.jsonl`/`run.json` créé. Le seul changement de fichier autorisé pour ce lot est cette mise à jour de `current-task.md` elle-même, si un commit de préflight s'avère nécessaire.
+**Le lancement scientifique réel est explicitement autorisé pour ce lot**, uniquement après cette transition de gouvernance et un dernier contrôle du nouveau HEAD (mini-préflight), en passant exclusivement par le point d'entrée normatif déjà accepté (`scripts/run_level1b_campaign.py` → `launch_normative_campaign`) — jamais un appel direct à `run_campaign`/`run_single_case`, jamais de SHA ou de chemin de manifeste fourni manuellement.
 
-Objectif : produire, sur le dépôt réel au commit accepté, le constat exact (état Git, manifeste chargé, plan de campagne complet, vérifications structurelles, proposition de répertoire de sortie externe non créé, estimation purement opérationnelle) qui permettra d'autoriser ou non le premier lancement scientifique réel dans un lot ultérieur. Verdict rendu séparément dans le rapport de préflight livré à l'utilisateur — pas dans ce document.
+**Aucune modification de code ou de science n'est autorisée pendant ce lot** — ni le runner, ni outputs.py, ni campaign.py, ni launch.py, ni le manifeste, ni les schémas.
+
+Sortie normative de ce lot : `/workspaces/level1b_campaign_output` (externe au dépôt, hors chemins normatifs, hors `results/`).
+
+**Aucune analyse inter-S** (pas de `gamma_O`, pas de matching, pas de verdict de robustesse, pas de `G_occ`, pas de `path_phase_coherence`, aucune agrégation scientifique entre cas, aucune conclusion physique) pendant ce lot.
+
+**Aucun retry automatique en cas d'échec** : un cas `failed`/`resource_guardrail_exceeded`, un code de sortie CLI non nul, ou une exception non gérée sont rapportés tels quels — jamais corrigés ni relancés dans ce lot. La campagne n'est exécutée qu'une seule fois.
+
+Objectif exact de ce lot : répondre uniquement à « la campagne mono-cas normative s'est-elle exécutée intégralement et ses artefacts sont-ils valides (`run_status`, `validate_existing_case_run`) ? » — rien d'autre.
 
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié par 1B-8f)
 
