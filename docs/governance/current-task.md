@@ -5,45 +5,55 @@ Ce document est un contrat de reprise, pas une documentation scientifique. Il do
 ## Dernier commit accepté
 
 ```text
-514181cab2a2f9c4f0e28cec63b7ad75832a31d6
+43a1fdb7b7a5261ea7bca6004fd8e9f56693c501
 ```
 
-Persistance atomique et reprise par cas (lot 1B-8c) acceptée à ce commit, sur `research/level1-correlators`.
+Correctif 1B-8d (force=True rejeté avant garde-fou ; détection de renommage source+destination) accepté à ce commit, sur `research/level1-correlators`.
 
 ## Lot actif
 
-1B-8d — orchestration multi-cas avec reprise.
+1B-8e — point d'entrée de lancement normatif.
 
-**Rapport de conception validé. Implémentation autorisée.** Aucune campagne scientifique réelle ou complète n'est lancée par ce lot.
-
-Livraison `ff7c8a080332e26bece81ee6231ea54b0df9912c` : conforme sur l'essentiel, **acceptation suspendue pour deux corrections bornées** (force=True non rejeté avant garde-fou ; renommages Git non détectés sur le chemin source). Le dernier commit accepté reste `514181cab2a2f9c4f0e28cec63b7ad75832a31d6` jusqu'à acceptation du correctif. Aucune fonctionnalité nouvelle dans le correctif.
+**Rapport de conception validé. Implémentation autorisée.** Aucune campagne scientifique réelle n'est lancée par ce lot.
 
 ## Objectif
 
-Construire l'orchestrateur qui exécute le plan déterministe complet du manifeste (`experiments.level1.planning.build_campaign_plan`), cas par cas, dans l'ordre exact du plan, en réutilisant exclusivement `validate_existing_case_run`/`run_single_case`/`write_case_success`/`write_case_failure` (inchangés). Les erreurs isolées d'un cas sont enregistrées via `write_case_failure` sans interrompre les autres cas, sauf `KeyboardInterrupt`/`SystemExit` (jamais avalés) et un échec de `write_case_failure` lui-même (propagé, jamais avalé). Aucune agrégation inter-S dans ce lot.
+Créer une entrée de lancement explicite (`prepare_normative_launch`/`launch_normative_campaign` dans `scripts/level1b_campaign/launch.py`, plus une CLI mince `scripts/run_level1b_campaign.py`) qui vérifie toutes les préconditions normatives de la campagne puis appelle `run_campaign` (lot 1B-8d, inchangé) exactement comme celui-ci est déjà défini. Aucune logique scientifique nouvelle ; aucune reconstruction du plan (`run_campaign` construit déjà `build_campaign_plan(manifest)` exactement une fois).
 
-## Signal de garde-fou (point essentiel du rapport de conception)
+## Préconditions et TOCTOU
 
-Level0 ne lève jamais d'exception pour un dépassement de dimension : `SpectrumReport.status == "not_computed"` est son signal typé, exclusif, mais `run_single_case` (inchangé) ne le vérifie pas avant de déréférencer `.degeneracy.groups`. L'orchestrateur ne s'appuie donc jamais sur une exception Level0 ni sur un texte de message : il pré-vérifie, avant tout appel à `run_single_case`, `case.physical_dimension > case.spectrum_options.max_sparse_dimension`. Ce pré-contrôle n'est équivalent au comportement Level0 que si `case.spectrum_options.force is False` (seule valeur produite par `planning.py`) : un cas `force is not False` est rejeté explicitement **avant** ce contrôle, comme un échec ordinaire de configuration de campagne (`failed`), jamais comme `resource_guardrail_exceeded`, et sans jamais appeler `run_single_case`. `max_dense_dimension` ne sélectionne que dense vs sparse, ce n'est jamais un seuil d'échec.
+`repository_commit` n'est jamais un paramètre libre : il est dérivé exclusivement via `git rev-parse HEAD` depuis `repo_root` (40 hex minuscules exigés, jamais un SHA court). La branche attendue n'est jamais une constante codée dans `launch.py` : elle est comparée à `manifest.branch` (déjà `"research/level1-correlators"` dans le manifeste normatif actuel). Le manifeste est chargé exclusivement via `load_manifest()` sans argument — aucun `manifest_path` n'est jamais exposé. `check_repository_cleanliness` (campaign.py, inchangée sauf export public de sa liste de chemins) est réutilisée telle quelle, jamais réimplémentée.
+
+`launch_normative_campaign` effectue une SECONDE vérification (HEAD, branche, propreté) immédiatement avant `run_campaign`, après le premier passage complet de `prepare_normative_launch` — mitigation explicite et documentée honnêtement comme non atomique (aucun verrou Git introduit) : une fenêtre résiduelle subsiste entre cette seconde vérification et le premier appel interne de `run_campaign`. Le `repository_commit` transmis à `run_campaign` est exactement celui de cette seconde vérification.
+
+Toute erreur de précondition lève `NormativeLaunchError` (avec `dirty_paths` peuplé uniquement pour une erreur de propreté) **avant** tout appel à `run_campaign` — aucun `run.json` de cas n'est jamais créé pour ce type d'échec.
 
 ## Périmètre autorisé (fichiers)
 
 - `docs/governance/current-task.md` (ce fichier).
-- `scripts/level1b_campaign/campaign.py` (nouveau).
-- `tests/scripts/level1b_campaign/test_campaign.py` (nouveau).
+- `scripts/level1b_campaign/launch.py` (nouveau).
+- `tests/scripts/level1b_campaign/test_launch.py` (nouveau).
+- `scripts/run_level1b_campaign.py` (nouveau, CLI mince).
+- `scripts/level1b_campaign/campaign.py` : adaptation minimale unique (export public de `NORMATIVE_REPOSITORY_PATHS`, remplaçant l'ancienne constante privée `_CLEANLINESS_PATHS`, utilisée à la fois par `check_repository_cleanliness` et par `launch.py`).
 - Documents Level 1 directement concernés, mise à jour minimale, uniquement si nécessaire.
 
-Ne modifie pas : `runner.py`, `outputs.py`, `planning.py`, le manifeste, `results.py`, `serialization.py`, `assembly.py`, les schémas, `target_selection.py`, `local_observables.py`, `matching.py`, le niveau 0, D020/D021/D022.
+Ne modifie pas : `runner.py`, `outputs.py`, `planning.py`, le manifeste, `results.py`, `serialization.py`, `assembly.py`, les schémas, `target_selection.py`, `local_observables.py`, `matching.py`, le niveau 0, D020/D021/D022. `run_campaign` lui-même (logique interne) n'est pas modifié.
 
 ## Hors périmètre strict
 
-Comparaisons inter-S, `gamma_O`, verdicts de robustesse, `G_occ`, `path_phase_coherence`, agrégation scientifique entre cas, lecture de payload physique pour comparer des cas. Aucun fichier global de campagne (`campaign.json`, résumé/index global) : `CampaignExecutionReport` reste un objet Python en mémoire pour ce lot.
+Comparaisons inter-S, `gamma_O`, verdicts de robustesse, `G_occ`, `path_phase_coherence`, agrégation scientifique entre cas, lecture de payload physique pour comparer des cas. Aucun fichier global de campagne (`campaign.json`, résumé/index global) : `CampaignExecutionReport` reste un objet Python en mémoire.
 
-## API de l'orchestrateur (campaign.py)
+## API de l'orchestrateur (campaign.py, inchangée depuis 1B-8d/correctif)
 
-`CASE_ORCHESTRATION_STATUSES = ("success", "skipped_existing_valid", "resource_guardrail_exceeded", "failed")`. `CaseOrchestrationOutcome(case_id, status, errors)` et `CampaignExecutionReport(case_outcomes, total_required, executed_success_count, reused_success_count, resource_guardrail_exceeded_count, failed_count, global_success)`, tous deux `frozen`/auto-vérifiants. `run_campaign(manifest, *, output_dir, repository_commit) -> CampaignExecutionReport` : construit `build_campaign_plan(manifest)` exactement une fois, aucun tri supplémentaire, aucune liste libre de cas acceptée ; `repository_commit` non vide obligatoire ; `global_success` vrai ssi tous les statuts sont `success`/`skipped_existing_valid`.
+`CASE_ORCHESTRATION_STATUSES = ("success", "skipped_existing_valid", "resource_guardrail_exceeded", "failed")`. `CaseOrchestrationOutcome(case_id, status, errors)` et `CampaignExecutionReport(case_outcomes, total_required, executed_success_count, reused_success_count, resource_guardrail_exceeded_count, failed_count, global_success)`, tous deux `frozen`/auto-vérifiants. `run_campaign(manifest, *, output_dir, repository_commit) -> CampaignExecutionReport` : construit `build_campaign_plan(manifest)` exactement une fois, aucun tri supplémentaire, aucune liste libre de cas acceptée ; `repository_commit` non vide obligatoire ; `global_success` vrai ssi tous les statuts sont `success`/`skipped_existing_valid`. Un cas `spectrum_options.force is not False` est rejeté avant tout contrôle de garde-fou, comme `failed` ordinaire, jamais `resource_guardrail_exceeded`.
 
-`check_repository_cleanliness(repo_root) -> tuple[bool, tuple[str, ...]]` : fonction séparée, lecture seule (`git status --porcelain`), jamais appelée automatiquement par `run_campaign`, jamais de paramètre de contournement. Une entrée de renommage (`old -> new`) est non propre si le chemin source OU le chemin destination commence par un préfixe normatif — les deux sont examinés indépendamment, jamais seulement la destination. Une future entrée de lancement scientifique normatif DOIT l'appeler et refuser de lancer si `is_clean` est faux. Le répertoire racine `results/` reste hors filtre.
+`check_repository_cleanliness(repo_root) -> tuple[bool, tuple[str, ...]]` : fonction séparée, lecture seule (`git status --porcelain`), jamais appelée automatiquement par `run_campaign`, jamais de paramètre de contournement. Utilise désormais `NORMATIVE_REPOSITORY_PATHS` (publique) — seule source de vérité, réutilisée par `launch.py` pour les restrictions de sortie. Une entrée de renommage (`old -> new`) est non propre si le chemin source OU le chemin destination commence par un préfixe normatif. Le répertoire racine `results/` reste hors filtre.
+
+## API du lanceur normatif (launch.py, nouveau)
+
+`NormativeLaunchError(RuntimeError)` avec `dirty_paths: tuple[str, ...]` (vide sauf erreur de propreté). `NormativeLaunchContext(repository_commit, branch, manifest, output_dir)` — `frozen`, invariants auto-vérifiés (SHA 40 hex, branche non vide et != `"HEAD"`, `branch == manifest.branch`, `output_dir` absolu/résolu) ; ne duplique jamais `campaign_id`/`fingerprint` (accessibles via `context.manifest.campaign_id`/`context.manifest.fingerprint`). `prepare_normative_launch(repo_root, *, output_dir) -> NormativeLaunchContext` : vérifie tout une fois, n'appelle jamais `run_campaign`. `launch_normative_campaign(repo_root, *, output_dir) -> CampaignExecutionReport` : `prepare_normative_launch` puis seconde vérification HEAD/branche/propreté, puis `run_campaign`. `output_dir` relatif est résolu par rapport à `repo_root`, jamais au cwd implicite ; rejette `repo_root` lui-même, `repo_root/results`, et tout chemin sous `NORMATIVE_REPOSITORY_PATHS`.
+
+`scripts/run_level1b_campaign.py` : CLI mince (`--output-dir` obligatoire, `--repo-root` optionnel, défaut dérivé de l'emplacement du script) — aucune logique normative hors `launch.py`, aucun paramètre `repository_commit`/`manifest_path`/`branch`/`force`/contournement de propreté. Codes de sortie : `0` succès global, `1` campagne exécutée mais `global_success=False`, `2` `NormativeLaunchError`.
 
 ## records.jsonl
 

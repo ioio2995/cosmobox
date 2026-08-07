@@ -61,7 +61,18 @@ CASE_ORCHESTRATION_STATUSES = (
 _NON_ERROR_STATUSES = ("success", "skipped_existing_valid")
 _ERROR_STATUSES = ("resource_guardrail_exceeded", "failed")
 
-_CLEANLINESS_PATHS = ("src/", "docs/", "schemas/", "experiments/", "scripts/")
+NORMATIVE_REPOSITORY_PATHS = (
+    "src/",
+    "docs/",
+    "schemas/",
+    "experiments/",
+    "scripts/",
+)
+"""The single source of truth for which repository paths are normative
+for a Level1B campaign: check_repository_cleanliness below considers a
+tracked modification or untracked file under one of these unclean, and
+scripts.level1b_campaign.launch reuses this exact tuple to reject an
+output_dir that would place campaign outputs under one of them."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -367,7 +378,7 @@ def check_repository_cleanliness(repo_root: Path) -> tuple[bool, tuple[str, ...]
         else:
             candidates = (path,)
         for candidate in candidates:
-            if candidate.startswith(_CLEANLINESS_PATHS):
+            if candidate.startswith(NORMATIVE_REPOSITORY_PATHS):
                 dirty_paths.add(candidate)
 
     return (len(dirty_paths) == 0, tuple(sorted(dirty_paths)))
