@@ -2,6 +2,20 @@
 
 Ce document est un contrat de reprise, pas une documentation scientifique. Il doit être relu intégralement (avec les documents qu'il référence) avant toute action de code, commit ou push si le contexte conversationnel a été compacté ou paraît incomplet.
 
+## Lot outillage/performance CI-tests (parallèle, indépendant de la chaîne 1B — ne modifie ni ne remplace le lot actif 1B-9b ci-dessous)
+
+Diagnostic de performance du workflow de test, aucune logique scientifique modifiée.
+
+**GitHub Actions** : `on.push.branches` retiré de `research/**` (ne conservait que `["main", "research/**"]`, déclenchant la suite complète à chaque push sur la branche de travail active) — désormais `push`/`pull_request` limités à `main` uniquement, plus `workflow_dispatch: {}` ajouté pour un lancement manuel de la suite complète à tout moment. `actions/setup-python` gagne `cache: "pip"` (sûr, réduit le temps d'installation des dépendances à chaque exécution restante).
+
+**Baseline mesurée** (ce même environnement/venv, `pytest --durations=50`) : suite complète (1441 tests) = **293.56s** (`time` : real 4m56s, user 10m0s). **~77 % du temps total (≈225s/293s) est concentré dans 8 setups/appels de `tests/scripts/level1b_campaign/test_runner.py`** (diagonalisations réelles triangle/ring4 via `run_single_case`).
+
+**Constat majeur (hors périmètre de ce lot, nécessite une autorisation séparée)** : le vrai goulot n'est **pas** la diagonalisation ni BLAS — un profilage (`cProfile`) d'un seul `run_single_case` (triangle S1, 264 documents) montre **122,7s sur 123,1s** passées dans `serialization._validator()`, qui reconstruit un `Draft202012Validator` **et relance `check_schema()`** (validation du méta-schéma) à **chaque appel** de `validate_document` (528 appels pour ce seul cas), faute d'un `@lru_cache` — alors que la fonction sœur `_load_schema()`, juste au-dessus dans le même fichier, l'a déjà. Un test en mémoire (aucun fichier modifié) ajoutant `@lru_cache(maxsize=1)` à `_validator()` fait passer ce même `run_single_case` de **~123s à 0,54s** (≈228×). Capper les threads BLAS (`OMP_NUM_THREADS=1` etc.) n'a **aucun effet mesurable** sur `test_runner.py` (231s → 231s) : la thèse initiale de sur-souscription BLAS est écartée par la mesure. `pytest-xdist` (benchmarké localement, non ajouté aux dépendances) donne un gain modeste et non monotone sur `test_runner.py` seul (231s série capée → 197s à `-n4` capé → 247s à `-n8` capé, pire qu'à 4) à cause de fixtures module-scope reconstruites par worker — bien inférieur au gain potentiel de la correction du cache ci-dessus. **Recommandation** : corriger `_validator()` (`src/cosmobox/level1/serialization.py`, un seul décorateur, aucun changement de comportement) dans un lot dédié explicitement autorisé, puis re-benchmarker `xdist` sur le nouveau profil de coût.
+
+**Stratégie FAST/SUBSYSTEM/FULL proposée** (fondée sur les mesures ci-dessus, à réviser après la correction du cache) : FAST = fichier(s) de test directement concerné(s) par la modification en cours (hors `test_runner.py` sauf modification du runner) ; SUBSYSTEM = suite du sous-système + dépendances proches avant livraison d'un lot ; FULL = suite complète, réservée à un jalon important ou au déclenchement manuel de la CI (`workflow_dispatch`).
+
+**État local volontaire de `.gitignore`** : modification de Lionel (ajout de `results/`), non liée à ce lot, non stagée, non commitée, laissée telle quelle.
+
 ## Dernier commit accepté
 
 ```text
