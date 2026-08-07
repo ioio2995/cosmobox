@@ -15,17 +15,64 @@ before returning anything -- there is no partial analysis and no silent
 skip. This module performs no scientific computation and no inter-S
 matching; it only loads and cross-checks already-serialized documents
 against the manifest and the plan they were produced from.
+
+Deep immutability (1B-9b correctif): every document load_case_records
+returns is recursively frozen (_freeze below) before it is ever attached
+to a LoadedCase -- dict becomes types.MappingProxyType over a freshly
+built dict never referenced anywhere else, list/tuple becomes tuple,
+every scalar (str/int/float/bool/None) is returned unchanged. This never
+touches records.jsonl, load_case_records, or any numeric value; it only
+changes the in-memory container types a caller can observe through this
+module's own API, so that no external mutation -- of the original
+loaded object or of anything reachable through LoadedCase.documents --
+can ever silently alter an already-built LoadedCase.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 from experiments.level1.manifest import Manifest
 from experiments.level1.planning import CampaignCaseSpec, build_campaign_plan
 
 from scripts.level1b_campaign.outputs import load_case_records, validate_existing_case_run
+
+FrozenDocument = Mapping[str, object]
+"""A single v2 document, deeply frozen by _freeze -- a
+types.MappingProxyType at every dict level, tuples wherever the source
+JSON had a list, and unchanged scalars. Never a plain dict once it
+reaches this type."""
+
+_JSON_SCALAR_TYPES = (str, int, float, bool, type(None))
+
+
+def _freeze(value: object) -> object:
+    """Recursively converts a JSON-shaped value -- the only value space
+    load_case_records (json.loads under the hood) can ever produce, plus
+    tuple defensively -- into a deeply immutable equivalent: dict becomes
+    a types.MappingProxyType over a freshly built dict that is never
+    referenced anywhere else (so wrapping it is not merely cosmetic --
+    there is no other live reference through which to mutate the
+    underlying dict), list/tuple becomes tuple (whose own elements are
+    themselves frozen, recursively), and every scalar is returned
+    unchanged -- never transformed, never re-typed, never rounded."""
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, _JSON_SCALAR_TYPES):
+        return value
+    raise ValueError(f"cannot freeze value of type {type(value).__name__}: not a JSON-safe type")
+
+
+def _freeze_document(document: dict) -> FrozenDocument:
+    frozen = _freeze(document)
+    if not isinstance(frozen, MappingProxyType):
+        raise ValueError(f"document must be a dict at the top level, got {type(document)}")
+    return frozen
 
 
 class CampaignLoadError(RuntimeError):
@@ -38,18 +85,29 @@ class CampaignLoadError(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class LoadedCase:
     """One planned case's own CampaignCaseSpec together with the exact,
-    already-validated, already-canonically-ordered documents from its
-    runs/<case_id>/records.jsonl (via load_case_records, unmodified) --
-    never re-parsed, never re-ordered."""
+    already-validated, already-canonically-ordered, deeply frozen
+    documents from its runs/<case_id>/records.jsonl (via
+    load_case_records, unmodified) -- never re-parsed, never re-ordered.
+    documents are FrozenDocument (types.MappingProxyType at every dict
+    level, tuples for every JSON array): __post_init__ itself refuses to
+    accept anything else, so LoadedCase cannot be constructed -- by this
+    module or by a caller -- with a mutable document."""
 
     case: CampaignCaseSpec
-    documents: tuple[dict, ...]
+    documents: tuple[FrozenDocument, ...]
 
     def __post_init__(self) -> None:
         if not isinstance(self.case, CampaignCaseSpec):
             raise ValueError(f"case must be a CampaignCaseSpec, got {type(self.case)}")
         if not self.documents:
             raise ValueError(f"documents must be non-empty for case {self.case.case_id!r}")
+        for index, document in enumerate(self.documents):
+            if not isinstance(document, MappingProxyType):
+                raise ValueError(
+                    f"documents[{index}] for case {self.case.case_id!r} must be a deeply frozen "
+                    f"types.MappingProxyType, got {type(document)} -- construct LoadedCase only via "
+                    "load_validated_cases"
+                )
 
 
 def load_validated_cases(
@@ -89,7 +147,11 @@ def load_validated_cases(
                 f"{validation.reason}"
             )
 
-        documents = load_case_records(case_dir)
+        # load_case_records returns plain, mutable dicts -- frozen
+        # immediately, before any other check, so nothing downstream
+        # (including the schema_version check right below) ever holds a
+        # reference to a mutable document.
+        documents = tuple(_freeze_document(document) for document in load_case_records(case_dir))
         for index, document in enumerate(documents):
             if document["schema_version"] != manifest.schema_version:
                 raise CampaignLoadError(

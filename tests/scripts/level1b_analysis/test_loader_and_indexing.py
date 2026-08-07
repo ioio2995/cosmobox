@@ -4,6 +4,7 @@ import dataclasses
 import inspect
 import json
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -15,7 +16,7 @@ from cosmobox.level1.results import build_result_record as _build_result_record_
 from cosmobox.level1.serialization import serialize_result_record
 from experiments.level1 import manifest as manifest_module
 from experiments.level1 import planning as planning_module
-from scripts.level1b_campaign.outputs import CaseRunValidation, write_case_success
+from scripts.level1b_campaign.outputs import CaseRunValidation, load_case_records, write_case_success
 from scripts.level1b_campaign.runner import CaseExecutionResult
 from scripts.level1b_analysis import indexing as indexing_module
 from scripts.level1b_analysis import loader as loader_module
@@ -675,3 +676,151 @@ def test_index_never_writes_under_campaign_output_dir(monkeypatch, real_manifest
 
     assert (case_dir / "run.json").read_bytes() == before_run_json
     assert (case_dir / "records.jsonl").read_bytes() == before_records
+
+
+# ---------------------------------------------------------------------------
+# Deep immutability correctif (1B-9b correctif): every document exposed
+# through LoadedCase.documents / IndexedSpectralGroup.documents must be
+# unmodifiable at every nesting level, and mutating whatever the caller
+# separately holds a reference to (before or after loading) must never
+# alter the already-built LoadedCase/index.
+# ---------------------------------------------------------------------------
+
+
+def _loaded_documents(monkeypatch, real_manifest, case, tmp_path: Path, documents: list[dict]):
+    _write_case(tmp_path, case, documents)
+    _patch_plan(monkeypatch, (case,))
+    loaded = load_validated_cases(real_manifest, tmp_path, repository_commit=REPO_COMMIT)
+    return loaded[0].documents
+
+
+def test_top_level_document_mutation_is_impossible(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    loaded_documents = _loaded_documents(monkeypatch, real_manifest, triangle_s1, tmp_path, documents)
+
+    assert isinstance(loaded_documents[0], MappingProxyType)
+    with pytest.raises(TypeError):
+        loaded_documents[0]["record_kind"] = "tampered"
+
+
+def test_nested_identity_mutation_is_impossible(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    loaded_documents = _loaded_documents(monkeypatch, real_manifest, triangle_s1, tmp_path, documents)
+
+    with pytest.raises(TypeError):
+        loaded_documents[0]["identity"]["spin"] = 999
+
+
+def test_nested_spectral_group_mutation_is_impossible(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    loaded_documents = _loaded_documents(monkeypatch, real_manifest, triangle_s1, tmp_path, documents)
+
+    with pytest.raises(TypeError):
+        loaded_documents[0]["identity"]["spectral_group"]["twice_T"] = 999
+
+
+def test_hamiltonian_j_mutation_is_impossible(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    loaded_documents = _loaded_documents(monkeypatch, real_manifest, triangle_s1, tmp_path, documents)
+
+    J = loaded_documents[0]["identity"]["hamiltonian"]["J"]
+    assert isinstance(J, tuple)
+    with pytest.raises(TypeError):
+        J[0] = 999.0
+
+
+def test_provenance_mutation_is_impossible(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    loaded_documents = _loaded_documents(monkeypatch, real_manifest, triangle_s1, tmp_path, documents)
+
+    with pytest.raises(TypeError):
+        loaded_documents[0]["provenance"]["scientific_seed"] = 0
+
+
+def test_nested_payload_mutation_is_impossible(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    loaded_documents = _loaded_documents(monkeypatch, real_manifest, triangle_s1, tmp_path, documents)
+
+    translation_document = next(
+        d for d in loaded_documents if d["record_kind"] == "symmetry_label" and d["observable_kind"] == "translation_character"
+    )
+    assert isinstance(translation_document["payload"]["value"], MappingProxyType)
+    with pytest.raises(TypeError):
+        translation_document["payload"]["value"]["real"] = 999.0
+
+
+def test_freeze_document_is_isolated_from_later_mutation_of_the_source() -> None:
+    """Directly exercises loader._freeze_document's own isolation
+    guarantee: it builds an entirely new, non-aliased structure, so
+    mutating the original dict/list after freezing can never reach the
+    frozen copy."""
+    raw = {"identity": {"spin": 1, "nested": {"a": [1, 2, 3]}}, "record_kind": "raw_observable"}
+    frozen = loader_module._freeze_document(raw)
+
+    raw["identity"]["spin"] = 999
+    raw["identity"]["nested"]["a"].append(4)
+    raw["record_kind"] = "tampered"
+
+    assert frozen["identity"]["spin"] == 1
+    assert frozen["identity"]["nested"]["a"] == (1, 2, 3)
+    assert frozen["record_kind"] == "raw_observable"
+
+
+def test_loaded_case_documents_unaffected_by_mutating_the_original_source_list(
+    monkeypatch, real_manifest, triangle_s1, tmp_path: Path
+) -> None:
+    """Same guarantee at the load_validated_cases/LoadedCase level: the
+    list load_case_records "returns" is mutated by the test itself
+    immediately after loading -- the already-built LoadedCase must be
+    completely unaffected (no alias, no shared reference, of any kind)."""
+    source_documents = list(
+        _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    )
+    monkeypatch.setattr(
+        loader_module, "validate_existing_case_run", lambda *args, **kwargs: CaseRunValidation(is_valid=True, reason=None)
+    )
+    monkeypatch.setattr(loader_module, "load_case_records", lambda case_dir: source_documents)
+    _patch_plan(monkeypatch, (triangle_s1,))
+
+    loaded = load_validated_cases(real_manifest, tmp_path, repository_commit=REPO_COMMIT)
+    original_spin = loaded[0].documents[0]["identity"]["spin"]
+    original_count = len(loaded[0].documents)
+
+    source_documents[0]["identity"]["spin"] = 999999
+    source_documents[0]["record_kind"] = "tampered"
+    source_documents.append({"tampered": True})
+
+    assert loaded[0].documents[0]["identity"]["spin"] == original_spin
+    assert loaded[0].documents[0]["record_kind"] != "tampered"
+    assert len(loaded[0].documents) == original_count
+
+
+def test_document_order_preserved_after_freezing(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    _write_case(tmp_path, triangle_s1, documents)
+    _patch_plan(monkeypatch, (triangle_s1,))
+
+    case_dir = tmp_path / "runs" / triangle_s1.case_id
+    raw_order = [(d["record_kind"], d["observable_kind"]) for d in load_case_records(case_dir)]
+
+    loaded = load_validated_cases(real_manifest, tmp_path, repository_commit=REPO_COMMIT)
+    frozen_order = [(d["record_kind"], d["observable_kind"]) for d in loaded[0].documents]
+
+    assert frozen_order == raw_order
+
+
+def test_indexed_spectral_group_documents_are_also_deeply_frozen(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    _write_case(tmp_path, triangle_s1, documents)
+    _patch_plan(monkeypatch, (triangle_s1,))
+
+    index = build_campaign_artifact_index(real_manifest, tmp_path, repository_commit=REPO_COMMIT)
+    group_document = index.groups[0].documents[0]
+    assert isinstance(group_document, MappingProxyType)
+    with pytest.raises(TypeError):
+        group_document["identity"]["spin"] = 999
+
+
+def test_loaded_case_rejects_non_frozen_documents_at_construction(triangle_s1) -> None:
+    with pytest.raises(ValueError, match="MappingProxyType"):
+        LoadedCase(case=triangle_s1, documents=({"not": "frozen"},))

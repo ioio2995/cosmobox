@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 import numpy as np
 
@@ -40,7 +41,7 @@ from cosmobox.level1.results import SpectralGroupIdentity
 from experiments.level1.manifest import Manifest
 from experiments.level1.planning import CampaignCaseSpec
 
-from .loader import LoadedCase, load_validated_cases
+from .loader import FrozenDocument, LoadedCase, load_validated_cases
 
 _EXPECTED_N_FLAVORS = 2
 """D006, frozen everywhere in level1 -- ScientificIdentity.__post_init__
@@ -78,7 +79,7 @@ class IndexedSpectralGroup:
     spectral_group_identity: SpectralGroupIdentity
     spectral_window_group_index: int
     match_key: SpectralGroupMatchKey
-    documents: tuple[dict, ...]
+    documents: tuple[FrozenDocument, ...]
 
     def __post_init__(self) -> None:
         if self.case_id != self.case.case_id:
@@ -91,6 +92,13 @@ class IndexedSpectralGroup:
             )
         if not self.documents:
             raise ValueError(f"documents must be non-empty for case {self.case_id!r} group {self.spectral_window_group_index}")
+        for index, document in enumerate(self.documents):
+            if not isinstance(document, MappingProxyType):
+                raise ValueError(
+                    f"documents[{index}] for case {self.case_id!r} group {self.spectral_window_group_index} must "
+                    f"be a deeply frozen types.MappingProxyType, got {type(document)} -- construct "
+                    "IndexedSpectralGroup only via build_campaign_artifact_index"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,7 +147,7 @@ def _case_hamiltonian_identity_tuple(case: CampaignCaseSpec) -> tuple:
     )
 
 
-def _document_hamiltonian_identity_tuple(hamiltonian: dict) -> tuple:
+def _document_hamiltonian_identity_tuple(hamiltonian: FrozenDocument) -> tuple:
     return (
         tuple(float(value) for value in hamiltonian["J"]),
         hamiltonian["h_is_zero"],
@@ -149,7 +157,7 @@ def _document_hamiltonian_identity_tuple(hamiltonian: dict) -> tuple:
     )
 
 
-def _require_document_matches_case(document: dict, case: CampaignCaseSpec, expected_hamiltonian: tuple) -> None:
+def _require_document_matches_case(document: FrozenDocument, case: CampaignCaseSpec, expected_hamiltonian: tuple) -> None:
     identity = document["identity"]
     provenance = document["provenance"]
 
@@ -189,7 +197,7 @@ def _require_document_matches_case(document: dict, case: CampaignCaseSpec, expec
         )
 
 
-def _exactly_one_group_level_record(documents: tuple[dict, ...], observable_kind: str, case_id: str, group_index: int) -> dict:
+def _exactly_one_group_level_record(documents: tuple[FrozenDocument, ...], observable_kind: str, case_id: str, group_index: int) -> FrozenDocument:
     matches = [
         document
         for document in documents
@@ -205,14 +213,14 @@ def _exactly_one_group_level_record(documents: tuple[dict, ...], observable_kind
     return matches[0]
 
 
-def _symmetry_label_from_payload(payload: dict) -> SymmetryLabel:
+def _symmetry_label_from_payload(payload: FrozenDocument) -> SymmetryLabel:
     if payload["kind"] == "numeric":
         value = payload["value"]
         return SymmetryLabel(kind="numeric", value=complex(value["real"], value["imag"]))
     return SymmetryLabel(kind=payload["kind"], value=None)
 
 
-def _require_flavor_casimir_matches_twice_t(flavor_casimir_record: dict, twice_t: int, case_id: str, group_index: int) -> None:
+def _require_flavor_casimir_matches_twice_t(flavor_casimir_record: FrozenDocument, twice_t: int, case_id: str, group_index: int) -> None:
     payload = flavor_casimir_record["payload"]
     if payload["kind"] != "numeric" or payload["value"]["real"] != float(twice_t) or payload["value"]["imag"] != 0.0:
         raise SpectralGroupIndexError(
@@ -221,7 +229,7 @@ def _require_flavor_casimir_matches_twice_t(flavor_casimir_record: dict, twice_t
         )
 
 
-def _build_indexed_group(case: CampaignCaseSpec, group_index: int, documents: tuple[dict, ...]) -> IndexedSpectralGroup:
+def _build_indexed_group(case: CampaignCaseSpec, group_index: int, documents: tuple[FrozenDocument, ...]) -> IndexedSpectralGroup:
     reference_spectral_group = documents[0]["identity"]["spectral_group"]
     for document in documents[1:]:
         spectral_group = document["identity"]["spectral_group"]
@@ -276,7 +284,7 @@ def _index_case(loaded_case: LoadedCase) -> tuple[IndexedSpectralGroup, ...]:
     case = loaded_case.case
     expected_hamiltonian = _case_hamiltonian_identity_tuple(case)
 
-    documents_by_index: dict[int, list[dict]] = {}
+    documents_by_index: dict[int, list[FrozenDocument]] = {}
     for document in loaded_case.documents:
         _require_document_matches_case(document, case, expected_hamiltonian)
         group_index = document["identity"]["spectral_group"]["spectral_window_group_index"]
