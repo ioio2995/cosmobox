@@ -9,7 +9,7 @@ from types import MappingProxyType
 import pytest
 
 from cosmobox.level1.assembly import assemble_execution
-from cosmobox.level1.matching import SymmetryLabel
+from cosmobox.level1.matching import SpectralGroupMatchKey, SymmetryLabel
 from cosmobox.level1.restricted import COMPLETE_MULTIPLET
 from cosmobox.level1.results import HamiltonianIdentity, ScientificIdentity, SpectralGroupIdentity
 from cosmobox.level1.results import build_result_record as _build_result_record_impl
@@ -824,3 +824,103 @@ def test_indexed_spectral_group_documents_are_also_deeply_frozen(monkeypatch, re
 def test_loaded_case_rejects_non_frozen_documents_at_construction(triangle_s1) -> None:
     with pytest.raises(ValueError, match="MappingProxyType"):
         LoadedCase(case=triangle_s1, documents=({"not": "frozen"},))
+
+
+# ---------------------------------------------------------------------------
+# Deep-freeze correctif #2: a types.MappingProxyType ROOT is not enough --
+# every nested dict/list must also be frozen, and every mapping key must
+# be a str. A forged, only-partially-frozen document must be rejected at
+# construction, never silently re-frozen. _is_deeply_frozen (loader.py)
+# is the single shared primitive both LoadedCase and IndexedSpectralGroup
+# rely on -- imported here directly for the two dataclass-construction
+# tests, and exercised indirectly through both dataclasses' own
+# __post_init__ for the rest.
+# ---------------------------------------------------------------------------
+
+
+def _dummy_match_key(case) -> SpectralGroupMatchKey:
+    parameters = case.hamiltonian_parameters
+    return SpectralGroupMatchKey(
+        geometry=case.geometry,
+        hamiltonian_identity_without_spin=(
+            tuple(float(v) for v in parameters.J),
+            True,
+            float(parameters.t),
+            float(parameters.g_E),
+            float(parameters.K),
+        ),
+        sector_identity=case.sector_id,
+        status=COMPLETE_MULTIPLET,
+        multiplicity=1,
+        twice_T=0,
+        translation_label=SymmetryLabel(kind="not_applicable", value=None),
+        reflection_label=SymmetryLabel(kind="not_applicable", value=None),
+    )
+
+
+def test_loaded_case_rejects_mapping_proxy_root_with_mutable_nested_dict(triangle_s1) -> None:
+    forged = MappingProxyType({"identity": {"spin": 3}})  # nested plain dict, never frozen
+    with pytest.raises(ValueError, match="not deeply frozen"):
+        LoadedCase(case=triangle_s1, documents=(forged,))
+
+
+def test_loaded_case_rejects_mapping_proxy_root_with_mutable_nested_list(triangle_s1) -> None:
+    forged = MappingProxyType({"path": [0, 1]})  # nested plain list, never frozen
+    with pytest.raises(ValueError, match="not deeply frozen"):
+        LoadedCase(case=triangle_s1, documents=(forged,))
+
+
+def test_indexed_spectral_group_rejects_mapping_proxy_root_with_mutable_nested_dict(triangle_s1) -> None:
+    group = _group(0, twice_T=0)
+    forged = MappingProxyType({"identity": {"spin": 3}})
+    with pytest.raises(ValueError, match="not deeply frozen"):
+        IndexedSpectralGroup(
+            case_id=triangle_s1.case_id,
+            case=triangle_s1,
+            spectral_group_identity=group,
+            spectral_window_group_index=0,
+            match_key=_dummy_match_key(triangle_s1),
+            documents=(forged,),
+        )
+
+
+def test_indexed_spectral_group_rejects_mapping_proxy_root_with_mutable_nested_list(triangle_s1) -> None:
+    group = _group(0, twice_T=0)
+    forged = MappingProxyType({"path": [0, 1]})
+    with pytest.raises(ValueError, match="not deeply frozen"):
+        IndexedSpectralGroup(
+            case_id=triangle_s1.case_id,
+            case=triangle_s1,
+            spectral_group_identity=group,
+            spectral_window_group_index=0,
+            match_key=_dummy_match_key(triangle_s1),
+            documents=(forged,),
+        )
+
+
+def test_loaded_case_rejects_non_string_mapping_key_even_when_fully_mapping_proxy_shaped(triangle_s1) -> None:
+    """Every level is a real types.MappingProxyType (never a plain dict
+    or list) -- only the innermost key is not a str. Still rejected: the
+    contract requires str keys throughout, not merely "no plain dict/list
+    anywhere"."""
+    forged = MappingProxyType({"identity": MappingProxyType({1: "not-a-string-key"})})
+    with pytest.raises(ValueError, match="not deeply frozen"):
+        LoadedCase(case=triangle_s1, documents=(forged,))
+
+
+def test_loader_is_deeply_frozen_accepts_a_real_frozen_document(monkeypatch, real_manifest, triangle_s1, tmp_path: Path) -> None:
+    documents = _default_group_documents(triangle_s1, _group(0, twice_T=1), manifest=real_manifest, twice_T_label=1.0)
+    _write_case(tmp_path, triangle_s1, documents)
+    _patch_plan(monkeypatch, (triangle_s1,))
+
+    loaded = load_validated_cases(real_manifest, tmp_path, repository_commit=REPO_COMMIT)
+    for document in loaded[0].documents:
+        assert loader_module._is_deeply_frozen(document)
+
+
+def test_is_deeply_frozen_rejects_plain_dict_and_list_directly() -> None:
+    assert loader_module._is_deeply_frozen(MappingProxyType({"a": (1, 2, "x", None, True)})) is True
+    assert loader_module._is_deeply_frozen({"a": 1}) is False
+    assert loader_module._is_deeply_frozen([1, 2, 3]) is False
+    assert loader_module._is_deeply_frozen(MappingProxyType({"a": {"b": 1}})) is False
+    assert loader_module._is_deeply_frozen(MappingProxyType({"a": (1, [2, 3])})) is False

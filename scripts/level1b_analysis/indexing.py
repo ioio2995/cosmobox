@@ -32,7 +32,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from types import MappingProxyType
 
 import numpy as np
 
@@ -41,7 +40,7 @@ from cosmobox.level1.results import SpectralGroupIdentity
 from experiments.level1.manifest import Manifest
 from experiments.level1.planning import CampaignCaseSpec
 
-from .loader import FrozenDocument, LoadedCase, load_validated_cases
+from .loader import FrozenDocument, LoadedCase, _is_deeply_frozen, load_validated_cases
 
 _EXPECTED_N_FLAVORS = 2
 """D006, frozen everywhere in level1 -- ScientificIdentity.__post_init__
@@ -93,11 +92,12 @@ class IndexedSpectralGroup:
         if not self.documents:
             raise ValueError(f"documents must be non-empty for case {self.case_id!r} group {self.spectral_window_group_index}")
         for index, document in enumerate(self.documents):
-            if not isinstance(document, MappingProxyType):
+            if not _is_deeply_frozen(document):
                 raise ValueError(
-                    f"documents[{index}] for case {self.case_id!r} group {self.spectral_window_group_index} must "
-                    f"be a deeply frozen types.MappingProxyType, got {type(document)} -- construct "
-                    "IndexedSpectralGroup only via build_campaign_artifact_index"
+                    f"documents[{index}] for case {self.case_id!r} group {self.spectral_window_group_index} is "
+                    "not deeply frozen (a types.MappingProxyType root is not enough -- every nested dict/list "
+                    "must also be frozen, and every mapping key must be a str) -- construct IndexedSpectralGroup "
+                    "only via build_campaign_artifact_index, never with a partially frozen or forged document"
                 )
 
 

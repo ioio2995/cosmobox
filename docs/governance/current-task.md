@@ -29,10 +29,18 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-0ff65ac66b4aa054f739b350cd384c26ecd19752
+f67642b542be964febcffee31b51f5678f2d2a77
 ```
 
-1B-8g — première exécution normative Level1B — accepté à ce commit, sur `research/level1-correlators`. Verdict validé : `CAMPAGNE NORMATIVE 1B — EXÉCUTION VALIDÉE` (11/11 cas `success`, 11/11 `validate_existing_case_run(...).is_valid == True`, 8 286 `ResultRecord` v2). Les 11 runs mono-cas sous `/workspaces/level1b_campaign_output/runs/` sont désormais **immuables** : aucun recalcul mono-cas, aucune réécriture.
+Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-pick) :
+
+- `0ff65ac66b4aa054f739b350cd384c26ecd19752` — 1B-8g, première exécution normative Level1B. Verdict validé : `CAMPAGNE NORMATIVE 1B — EXÉCUTION VALIDÉE` (11/11 cas `success`, 11/11 `validate_existing_case_run(...).is_valid == True`, 8 286 `ResultRecord` v2). Les 11 runs mono-cas sous `/workspaces/level1b_campaign_output/runs/` sont **immuables** : aucun recalcul mono-cas, aucune réécriture.
+- `3e4b393c8fa5dc4a2cb06353502b80593b060376` — livraison initiale du sous-lot 1B-9b (voir « Lot actif » ci-dessous : acceptation de 1B-9b lui-même reste distincte de l'acceptation de ces commits dans l'historique).
+- `efb917f6eb6f3a12101526ba93a734044c097741` — premier correctif d'immutabilité de 1B-9b (gel profond `_freeze`/`_freeze_document`, accepté sur le fond, avec un défaut résiduel borné décrit ci-dessous).
+- `8c7f92e41f375390e73c983fb39065dcf08b2b79` — lot CI/performance, **accepté**, indépendant de la chaîne 1B (voir section dédiée ci-dessus).
+- `f67642b542be964febcffee31b51f5678f2d2a77` — PERF-VALIDATOR-CACHE, **accepté**, indépendant de la chaîne 1B (voir section dédiée ci-dessus).
+
+**La livraison scientifique/fonctionnelle 1B-9b elle-même n'est pas encore acceptée** — elle attend uniquement l'audit du micro-correctif de validation récursive décrit dans « Lot actif » (le gel profond de premier niveau était déjà correct ; seule la vérification de construction publique de `LoadedCase`/`IndexedSpectralGroup` était trop superficielle).
 
 1B-9a — conception de la couche d'analyse inter-S sur artefacts normatifs — **conception acceptée, y compris son addendum**, aucun code livré par ce lot (design uniquement). Décisions gelées pour l'implémentation :
 
@@ -50,11 +58,15 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 
 **Ce lot ne fait aucun matching inter-S, aucun `gamma_O`, aucun verdict de robustesse.** Objectif exact : charger le manifeste, reconstruire `build_campaign_plan(manifest)`, valider les runs existants (`validate_existing_case_run`, inchangée), charger leurs documents v2 (`load_case_records`, inchangée), vérifier leur provenance croisée, regrouper les records par groupe spectral intra-cas (`spectral_window_group_index`), reconstruire exactement un `SpectralGroupMatchKey` par groupe, et fournir un index immuable (`CampaignArtifactIndex`) pour le lot suivant.
 
-Livraison `3e4b393c8fa5dc4a2cb06353502b80593b060376` : conforme sur le chargement, la provenance et la reconstruction de `SpectralGroupMatchKey`, **acceptation suspendue pour une seule correction bornée** — `LoadedCase.documents`/`IndexedSpectralGroup.documents` exposaient des `tuple[dict, ...]` avec dictionnaires imbriqués mutables, incompatible avec un lot explicitement nommé « index immuable ». Le dernier commit accepté reste `0ff65ac66b4aa054f739b350cd384c26ecd19752` jusqu'à acceptation du correctif. Correctif strictement borné à l'immutabilité profonde des documents exposés (aucune fonctionnalité nouvelle) : chaque document est désormais recursivement gelé (`loader._freeze`/`_freeze_document` — `dict` → `types.MappingProxyType` sur un dict fraîchement construit jamais référencé ailleurs, `list`/`tuple` → `tuple`, scalaires inchangés) immédiatement après `load_case_records`, avant toute autre vérification ; `LoadedCase`/`IndexedSpectralGroup` refusent structurellement à la construction tout document qui ne serait pas un `types.MappingProxyType`. Aucune transformation de valeur numérique, aucun changement du format sur disque, `records.jsonl`/`load_case_records` inchangés.
+**Historique de ce sous-lot** : livraison initiale `3e4b393c8fa5dc4a2cb06353502b80593b060376` (chargement, provenance, reconstruction de `SpectralGroupMatchKey` — conformes) → premier correctif d'immutabilité `efb917f6eb6f3a12101526ba93a734044c097741` (gel profond `_freeze`/`_freeze_document` accepté sur le fond, mais `LoadedCase`/`IndexedSpectralGroup` ne vérifiaient que le type du document RACINE, `types.MappingProxyType`, sans prouver que son contenu imbriqué était lui-même gelé — un document forgé « partiellement gelé », `MappingProxyType` racine enveloppant un `dict`/`list` imbriqué encore mutable, pouvait passer la garde) → **micro-correctif de validation récursive (ce commit)**.
+
+**Micro-correctif de validation récursive** : `loader._is_deeply_frozen(value)` ajoutée comme primitive récursive unique, partagée par `loader.LoadedCase` et `indexing.IndexedSpectralGroup` (import direct, aucune duplication de logique) — accepte uniquement, récursivement : `types.MappingProxyType` (toutes les clés `str`, toutes les valeurs elles-mêmes conformes), `tuple` (tous les éléments conformes), ou un scalaire JSON (`str`/`int`/`float`/`bool`/`None`). Tout `dict`/`list` imbriqué, ou toute clé de mapping non-`str`, rend le résultat `False` — y compris sous une racine `MappingProxyType`. Les deux `__post_init__` remplacent leur ancien contrôle superficiel (`isinstance(document, MappingProxyType)`) par `_is_deeply_frozen(document)` : un document réellement produit par `_freeze_document()` est toujours accepté ; un document forgé partiellement gelé est **rejeté à la construction**, jamais re-gelé silencieusement. Aucune fonctionnalité nouvelle, aucun changement de format sur disque, `records.jsonl`/`load_case_records`/`serialization.py` inchangés.
 
 **Interdictions strictes de ce lot** : aucun appel à `match_spectral_group`/`evaluate_robustness`/`compute_gamma_o` ; aucun appel à `run_single_case`/`run_campaign`/`launch_normative_campaign` ; aucune modification de `src/cosmobox/level1/{matching,robustness,results,serialization}.py`, `scripts/level1b_campaign/*`, `experiments/level1/*`, `schemas/*` ; aucun fichier écrit sous `/workspaces/level1b_campaign_output` (artefacts mono-cas immuables) ; `twice_T is None` bloque explicitement l'index (jamais `ambiguous_cross_truncation_match`, jamais de `MatchOutcome` fabriqué).
 
-Fichiers de ce lot : `scripts/level1b_analysis/__init__.py`, `scripts/level1b_analysis/loader.py` (`LoadedCase`, `CampaignLoadError`, `FrozenDocument`, `load_validated_cases`), `scripts/level1b_analysis/indexing.py` (`IndexedSpectralGroup`, `CampaignArtifactIndex`, `SpectralGroupIndexError`, `UnresolvedFlavorLabelError`, `build_campaign_artifact_index`), `tests/scripts/level1b_analysis/test_loader_and_indexing.py`.
+Fichiers de ce lot : `scripts/level1b_analysis/__init__.py`, `scripts/level1b_analysis/loader.py` (`LoadedCase`, `CampaignLoadError`, `FrozenDocument`, `_is_deeply_frozen`, `load_validated_cases`), `scripts/level1b_analysis/indexing.py` (`IndexedSpectralGroup`, `CampaignArtifactIndex`, `SpectralGroupIndexError`, `UnresolvedFlavorLabelError`, `build_campaign_artifact_index`), `tests/scripts/level1b_analysis/test_loader_and_indexing.py`.
+
+**Aucune fonctionnalité 1B-9c n'est autorisée** — ce micro-correctif ferme 1B-9b, il n'ouvre rien de nouveau.
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 

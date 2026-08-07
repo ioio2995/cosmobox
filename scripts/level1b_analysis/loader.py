@@ -26,6 +26,16 @@ changes the in-memory container types a caller can observe through this
 module's own API, so that no external mutation -- of the original
 loaded object or of anything reachable through LoadedCase.documents --
 can ever silently alter an already-built LoadedCase.
+
+Deep immutability, second correctif: LoadedCase.__post_init__ (and
+scripts.level1b_analysis.indexing.IndexedSpectralGroup's own, which
+imports and reuses the exact same primitive) no longer accepts a
+document merely because its ROOT happens to be a types.MappingProxyType
+-- a forged, only-partially-frozen document (a MappingProxyType root
+wrapping a still-mutable nested dict or list) is rejected by
+_is_deeply_frozen below, never silently re-frozen on the caller's
+behalf. Only a document that is deeply frozen at every level, exactly
+as _freeze itself would have produced, is ever accepted.
 """
 
 from __future__ import annotations
@@ -75,6 +85,31 @@ def _freeze_document(document: dict) -> FrozenDocument:
     return frozen
 
 
+def _is_deeply_frozen(value: object) -> bool:
+    """The single source of truth for what "deeply frozen" means for a
+    document exposed through this module's public API -- shared by
+    LoadedCase and IndexedSpectralGroup (scripts.level1b_analysis.
+    indexing) so their __post_init__ invariants can never silently
+    drift apart into two different definitions.
+
+    True iff `value` is built exclusively from the shapes _freeze itself
+    ever produces: types.MappingProxyType (every key a str, every value
+    itself deeply frozen, recursively), tuple (every element itself
+    deeply frozen, recursively), or a bare JSON scalar
+    (str/int/float/bool/None). A plain dict or list anywhere in the
+    structure, or a non-str mapping key, makes this False -- including a
+    types.MappingProxyType root whose OWN nested values are still plain,
+    mutable dict/list (a "partially frozen" forgery is rejected, never
+    silently re-frozen here: __post_init__ callers of this function
+    raise on False, they never call _freeze on the caller's behalf).
+    """
+    if isinstance(value, MappingProxyType):
+        return all(isinstance(key, str) and _is_deeply_frozen(item) for key, item in value.items())
+    if isinstance(value, tuple):
+        return all(_is_deeply_frozen(item) for item in value)
+    return isinstance(value, _JSON_SCALAR_TYPES)
+
+
 class CampaignLoadError(RuntimeError):
     """Raised whenever a planned case's existing run is not exactly
     valid, or a loaded document disagrees with the manifest on a field
@@ -102,11 +137,12 @@ class LoadedCase:
         if not self.documents:
             raise ValueError(f"documents must be non-empty for case {self.case.case_id!r}")
         for index, document in enumerate(self.documents):
-            if not isinstance(document, MappingProxyType):
+            if not _is_deeply_frozen(document):
                 raise ValueError(
-                    f"documents[{index}] for case {self.case.case_id!r} must be a deeply frozen "
-                    f"types.MappingProxyType, got {type(document)} -- construct LoadedCase only via "
-                    "load_validated_cases"
+                    f"documents[{index}] for case {self.case.case_id!r} is not deeply frozen (a "
+                    "types.MappingProxyType root is not enough -- every nested dict/list must also be "
+                    "frozen, and every mapping key must be a str) -- construct LoadedCase only via "
+                    "load_validated_cases, never with a partially frozen or forged document"
                 )
 
 
