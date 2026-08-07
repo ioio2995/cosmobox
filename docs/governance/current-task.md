@@ -2,7 +2,7 @@
 
 Ce document est un contrat de reprise, pas une documentation scientifique. Il doit être relu intégralement (avec les documents qu'il référence) avant toute action de code, commit ou push si le contexte conversationnel a été compacté ou paraît incomplet.
 
-## Lot outillage/performance CI-tests (parallèle, indépendant de la chaîne 1B — ne modifie ni ne remplace le lot actif 1B-9b ci-dessous)
+## Lot outillage/performance CI-tests (parallèle, indépendant de la chaîne 1B)
 
 Diagnostic de performance du workflow de test, aucune logique scientifique modifiée.
 
@@ -24,49 +24,62 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 
 **État local volontaire de `.gitignore`** : modification de Lionel (ajout de `results/`), non liée à ce lot, non stagée, non commitée, laissée telle quelle.
 
-**1B-9b** : le correctif d'immutabilité reste suspendu, indépendamment de ce lot outillage.
+**1B-9b** : accepté définitivement depuis, voir « Dernier commit accepté » et « Lot 1B-9b » ci-dessous.
 
 ## Dernier commit accepté
 
 ```text
-f67642b542be964febcffee31b51f5678f2d2a77
+540b08096b7d67278a6f2eea8ce93dbf039887fe
 ```
 
 Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-pick) :
 
 - `0ff65ac66b4aa054f739b350cd384c26ecd19752` — 1B-8g, première exécution normative Level1B. Verdict validé : `CAMPAGNE NORMATIVE 1B — EXÉCUTION VALIDÉE` (11/11 cas `success`, 11/11 `validate_existing_case_run(...).is_valid == True`, 8 286 `ResultRecord` v2). Les 11 runs mono-cas sous `/workspaces/level1b_campaign_output/runs/` sont **immuables** : aucun recalcul mono-cas, aucune réécriture.
-- `3e4b393c8fa5dc4a2cb06353502b80593b060376` — livraison initiale du sous-lot 1B-9b (voir « Lot actif » ci-dessous : acceptation de 1B-9b lui-même reste distincte de l'acceptation de ces commits dans l'historique).
-- `efb917f6eb6f3a12101526ba93a734044c097741` — premier correctif d'immutabilité de 1B-9b (gel profond `_freeze`/`_freeze_document`, accepté sur le fond, avec un défaut résiduel borné décrit ci-dessous).
+- `3e4b393c8fa5dc4a2cb06353502b80593b060376` — livraison initiale du sous-lot 1B-9b (chargement, provenance, reconstruction de `SpectralGroupMatchKey`).
+- `efb917f6eb6f3a12101526ba93a734044c097741` — premier correctif d'immutabilité de 1B-9b (gel profond `_freeze`/`_freeze_document`, accepté sur le fond, avec un défaut résiduel borné corrigé ci-dessous).
 - `8c7f92e41f375390e73c983fb39065dcf08b2b79` — lot CI/performance, **accepté**, indépendant de la chaîne 1B (voir section dédiée ci-dessus).
 - `f67642b542be964febcffee31b51f5678f2d2a77` — PERF-VALIDATOR-CACHE, **accepté**, indépendant de la chaîne 1B (voir section dédiée ci-dessus).
+- `540b08096b7d67278a6f2eea8ce93dbf039887fe` — second correctif d'immutabilité de 1B-9b (`_is_deeply_frozen`, validation récursive de la forme gelée), **accepté**. **1B-9b est désormais accepté définitivement dans son ensemble** (livraison initiale + les deux correctifs).
 
-**La livraison scientifique/fonctionnelle 1B-9b elle-même n'est pas encore acceptée** — elle attend uniquement l'audit du micro-correctif de validation récursive décrit dans « Lot actif » (le gel profond de premier niveau était déjà correct ; seule la vérification de construction publique de `LoadedCase`/`IndexedSpectralGroup` était trop superficielle).
-
-1B-9a — conception de la couche d'analyse inter-S sur artefacts normatifs — **conception acceptée, y compris son addendum**, aucun code livré par ce lot (design uniquement). Décisions gelées pour l'implémentation :
+1B-9a — conception de la couche d'analyse inter-S sur artefacts normatifs — **conception acceptée, y compris son addendum**, aucun code livré par ce lot (design uniquement). Décisions gelées pour l'implémentation, reprises et mises en œuvre par 1B-9c ci-dessous :
 
 - exactement 3 couples inter-S potentiels dans cette campagne : `triangle` reference S3→S2, `ring4` reference S3→S2, `ring5` reference S3→S2 (les cas `j_break` de `triangle`/`ring5`, à un seul point S, n'ont aucune comparaison admissible) ;
 - unité scientifique inter-S = **groupe spectral sérialisé** (déduplicé par `spectral_window_group_index`), jamais `target_id` — jamais reconstruit ni inventé ;
 - `spectral_window_group_index`/`representative_energy` : identité intra-cas uniquement, jamais dans un `SpectralGroupMatchKey`, jamais critère de matching inter-S (D022) ;
-- `twice_T is None` : précondition bloquante explicite pour cette première implémentation — lever une erreur d'analyse avant toute construction de `MatchKey`, jamais fabriquer de `MatchOutcome` pour ce cas, jamais modifier `matching.py` ;
+- `twice_T is None` : bloqué dès la construction de `CampaignArtifactIndex` (1B-9b) — 1B-9c peut considérer cet invariant garanti, aucun nouveau statut de matching pour ce cas ;
 - aucun changement de `matching.py`/`robustness.py` dans aucun lot 1B-9 tant que non explicitement autorisé ;
 - `flavor_singular_value_ratio` est path-dependent (chemin minimal complet requis, pas seulement `(i,j)`) ;
 - `flavor_singlet` n'est pas éligible à un verdict de robustesse (liste fermée `ROBUSTNESS_OBSERVABLE_KINDS`).
 
+## Lot 1B-9b (accepté définitivement au commit `540b08096b7d67278a6f2eea8ce93dbf039887fe`)
+
+Chargement validé et index immuable des artefacts mono-cas. Aucun matching inter-S, aucun `gamma_O`, aucun verdict de robustesse. Charge le manifeste, reconstruit `build_campaign_plan(manifest)`, valide les runs existants (`validate_existing_case_run`, inchangée), charge leurs documents v2 (`load_case_records`, inchangée), vérifie leur provenance croisée, regroupe les records par groupe spectral intra-cas (`spectral_window_group_index`), reconstruit exactement un `SpectralGroupMatchKey` par groupe, et fournit un index immuable (`CampaignArtifactIndex`).
+
+**Historique de ce sous-lot** : livraison initiale `3e4b393c8fa5dc4a2cb06353502b80593b060376` → premier correctif d'immutabilité `efb917f6eb6f3a12101526ba93a734044c097741` (gel profond `_freeze`/`_freeze_document` accepté sur le fond, mais `LoadedCase`/`IndexedSpectralGroup` ne vérifiaient que le type du document RACINE, `types.MappingProxyType`, sans prouver que son contenu imbriqué était lui-même gelé) → second correctif de validation récursive `540b08096b7d67278a6f2eea8ce93dbf039887fe` : `loader._is_deeply_frozen(value)` ajoutée comme primitive récursive unique, partagée par `loader.LoadedCase` et `indexing.IndexedSpectralGroup` (import direct, aucune duplication de logique) — accepte uniquement, récursivement : `types.MappingProxyType` (toutes les clés `str`, toutes les valeurs elles-mêmes conformes), `tuple` (tous les éléments conformes), ou un scalaire JSON (`str`/`int`/`float`/`bool`/`None`). Un document forgé partiellement gelé est **rejeté à la construction**, jamais re-gelé silencieusement.
+
+Fichiers de ce lot : `scripts/level1b_analysis/loader.py` (`LoadedCase`, `CampaignLoadError`, `FrozenDocument`, `_is_deeply_frozen`, `load_validated_cases`), `scripts/level1b_analysis/indexing.py` (`IndexedSpectralGroup`, `CampaignArtifactIndex`, `SpectralGroupIndexError`, `UnresolvedFlavorLabelError`, `build_campaign_artifact_index`), `tests/scripts/level1b_analysis/test_loader_and_indexing.py`.
+
 ## Lot actif
 
-1B-9b — chargement validé et index immuable des artefacts mono-cas.
+1B-9c — matching inter-S sur index normatif.
 
-**Ce lot ne fait aucun matching inter-S, aucun `gamma_O`, aucun verdict de robustesse.** Objectif exact : charger le manifeste, reconstruire `build_campaign_plan(manifest)`, valider les runs existants (`validate_existing_case_run`, inchangée), charger leurs documents v2 (`load_case_records`, inchangée), vérifier leur provenance croisée, regrouper les records par groupe spectral intra-cas (`spectral_window_group_index`), reconstruire exactement un `SpectralGroupMatchKey` par groupe, et fournir un index immuable (`CampaignArtifactIndex`) pour le lot suivant.
+**Ce lot ne calcule aucun `gamma_O`, aucune différence/amplitude de robustesse, aucun verdict `robust`/`non_robust`, aucun `G_occ`, aucun `path_phase_coherence`, aucune comparaison `rho_QQ`/`C_TT_conn`/`flavor_singular_value_ratio`.** Objectif exact : prendre le `CampaignArtifactIndex` accepté (1B-9b) et produire uniquement les appariements spectraux inter-S admissibles via la primitive scientifique existante `match_spectral_group` (`src/cosmobox/level1/matching.py`, inchangée) — répond uniquement à « quels groupes S_high correspondent exactement à quels groupes S_low ? ». Aucun observable inter-S n'est calculé.
 
-**Historique de ce sous-lot** : livraison initiale `3e4b393c8fa5dc4a2cb06353502b80593b060376` (chargement, provenance, reconstruction de `SpectralGroupMatchKey` — conformes) → premier correctif d'immutabilité `efb917f6eb6f3a12101526ba93a734044c097741` (gel profond `_freeze`/`_freeze_document` accepté sur le fond, mais `LoadedCase`/`IndexedSpectralGroup` ne vérifiaient que le type du document RACINE, `types.MappingProxyType`, sans prouver que son contenu imbriqué était lui-même gelé — un document forgé « partiellement gelé », `MappingProxyType` racine enveloppant un `dict`/`list` imbriqué encore mutable, pouvait passer la garde) → **micro-correctif de validation récursive (ce commit)**.
+**Construction des couples** : deux `CampaignCaseSpec` forment un couple admissible ssi même `geometry`, même `hamiltonian_identity_without_spin` (réutilise `indexing._case_hamiltonian_identity_tuple`, jamais dupliqué), même `sector_id` ; les deux plus grands `spin` disponibles pour cette identité deviennent `(S_high, S_low)`. Une identité avec moins de deux spins ne produit aucun couple (pas d'erreur). Sépare naturellement `reference`/`j_break` sans filtrage par nom : `j_break` change une valeur de `J`, donc `hamiltonian_identity_without_spin` diffère et le cas reste seul dans son identité.
 
-**Micro-correctif de validation récursive** : `loader._is_deeply_frozen(value)` ajoutée comme primitive récursive unique, partagée par `loader.LoadedCase` et `indexing.IndexedSpectralGroup` (import direct, aucune duplication de logique) — accepte uniquement, récursivement : `types.MappingProxyType` (toutes les clés `str`, toutes les valeurs elles-mêmes conformes), `tuple` (tous les éléments conformes), ou un scalaire JSON (`str`/`int`/`float`/`bool`/`None`). Tout `dict`/`list` imbriqué, ou toute clé de mapping non-`str`, rend le résultat `False` — y compris sous une racine `MappingProxyType`. Les deux `__post_init__` remplacent leur ancien contrôle superficiel (`isinstance(document, MappingProxyType)`) par `_is_deeply_frozen(document)` : un document réellement produit par `_freeze_document()` est toujours accepté ; un document forgé partiellement gelé est **rejeté à la construction**, jamais re-gelé silencieusement. Aucune fonctionnalité nouvelle, aucun changement de format sur disque, `records.jsonl`/`load_case_records`/`serialization.py` inchangés.
+**`structurally_applicable`** : toujours `True` pour les couples produits par ce lot — la construction du couple garantit déjà même geometry/hamiltonian identity/sector, donc la comparabilité structurelle est établie par construction, pas par une heuristique indépendante.
 
-**Interdictions strictes de ce lot** : aucun appel à `match_spectral_group`/`evaluate_robustness`/`compute_gamma_o` ; aucun appel à `run_single_case`/`run_campaign`/`launch_normative_campaign` ; aucune modification de `src/cosmobox/level1/{matching,robustness,results,serialization}.py`, `scripts/level1b_campaign/*`, `experiments/level1/*`, `schemas/*` ; aucun fichier écrit sous `/workspaces/level1b_campaign_output` (artefacts mono-cas immuables) ; `twice_T is None` bloque explicitement l'index (jamais `ambiguous_cross_truncation_match`, jamais de `MatchOutcome` fabriqué).
+**`low_window_truncated`** : reconstruit uniquement depuis `CampaignCaseSpec` du cas low : `spectral_window < physical_dimension`. Rigoureusement équivalent au contrat Level0 (`DegeneracyReport.window_truncated = (n < dimension)`) car `reports.py` demande toujours exactement `k = min(n_eigenvalues, dimension)` avec `n_eigenvalues == case.spectral_window` (`planning.py`). Aucun nouveau champ, `ResultRecord` v2 et `serialization.py` inchangés.
 
-Fichiers de ce lot : `scripts/level1b_analysis/__init__.py`, `scripts/level1b_analysis/loader.py` (`LoadedCase`, `CampaignLoadError`, `FrozenDocument`, `_is_deeply_frozen`, `load_validated_cases`), `scripts/level1b_analysis/indexing.py` (`IndexedSpectralGroup`, `CampaignArtifactIndex`, `SpectralGroupIndexError`, `UnresolvedFlavorLabelError`, `build_campaign_artifact_index`), `tests/scripts/level1b_analysis/test_loader_and_indexing.py`.
+**Résolution `MatchOutcome.matched_group` → `IndexedSpectralGroup` low concret** : exige exactement un groupe low dont `match_key == outcome.matched_group` (égalité de dataclass) ; 0 ou >1 → `InterSMatchingError` (jamais choisi par énergie/index/ordre/proximité).
 
-**Aucune fonctionnalité 1B-9c n'est autorisée** — ce micro-correctif ferme 1B-9b, il n'ouvre rien de nouveau.
+**Interdictions strictes de ce lot** : aucun appel à `evaluate_robustness`/`compute_gamma_o`/`run_single_case`/`run_campaign`/`launch_normative_campaign`/`run_level1b_campaign` ; aucune diagonalisation, aucune reconstruction d'eigenvectors ; aucune modification de `src/cosmobox/level1/{matching,robustness,results,serialization}.py`, `scripts/level1b_campaign/*`, `experiments/level1/*`, `schemas/*`, `.github/workflows/*` ; aucun fichier écrit sous `/workspaces/level1b_campaign_output` ; aucun `target_id` dans l'API.
+
+Fichiers de ce lot : `scripts/level1b_analysis/__init__.py` (docstring, ajustement mineur), `scripts/level1b_analysis/inter_s.py` (`InterSGroupMatch`, `InterSMatchingReport`, `InterSMatchingError`, `build_inter_s_matching_report`), `tests/scripts/level1b_analysis/test_inter_s.py`.
+
+**Smoke-test réel mesuré** (`/workspaces/level1b_campaign_output`, lecture seule, non hardcodé) : 3 couples, 7 groupes high analysés, 7/7 `exact_label_match` — `triangle`/`ring4`/`ring5` reference S3→S2, 2/2/3 groupes respectivement.
+
+**Aucune fonctionnalité 1B-9d n'est autorisée** — ce lot ferme le matching inter-S structurel, il n'ouvre rien de nouveau (pas de robustesse, pas de gamma).
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
