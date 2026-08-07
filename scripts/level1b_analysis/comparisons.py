@@ -50,6 +50,30 @@ path are NOT comparable. spectral_window_group_index, representative_
 energy, target_id, and spin are never part of this key -- the group
 pairing itself (InterSGroupMatch) already fixes those.
 
+flavor_singular_value_ratio carries an additional, stronger requirement
+than mere high/low equality of normalization: 1B-9a/1B-9d freeze
+identity.normalization == "raw_G" (FLAVOR_SINGULAR_VALUE_RATIO_
+NORMALIZATION) on EACH side individually, checked once a candidate pair
+is otherwise found -- two documents that happen to agree with each
+other on some other value, including both being None, are a structural
+inconsistency of the artifact and raise InterSObservableComparisonError,
+never silently accepted as comparable and never corrected to the
+expected constant.
+
+Public-constructor hardening (second correctif):
+InterSObservableComparisonReport.comparisons rejects anything that is
+not literally a tuple (a caller-supplied list stays mutable underneath
+frozen=True and is never silently converted) and requires every element
+to be a GammaOComparison/ScalarObservableComparison.
+ScalarObservableComparison additionally requires every non-null
+high_value/low_value to be exactly a finite float (never bool, str, NaN,
+or +-inf) and every set null_reason to be a genuinely non-empty str; for
+observable_kind == "C_TT_conn" specifically, high_value/low_value must
+never be None and both null_reason fields must always be None (its
+native payload is a bare, always-present float -- results.py's own
+RAW_OBSERVABLE_KINDS contract). GammaOComparison mirrors the same
+finite-value principle for its complex high_value/low_value.
+
 Cardinality: for each already-matched (high_group, low_group) and each
 of the 4 target observable_kinds, the low side is indexed once by its
 own comparability key; a genuine duplicate low key (two low documents
@@ -86,6 +110,7 @@ accepted public names, never modified.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from cosmobox.level1.local_observables import NormalizedMoment
@@ -104,6 +129,14 @@ TARGET_OBSERVABLE_KINDS = (GAMMA_O_OBSERVABLE_KIND,) + SCALAR_OBSERVABLE_KINDS
 excludes G_occ, path_phase_coherence, flavor_singlet, raw_G,
 flavor_singular_values, symmetry labels, and orbit statistics -- none of
 those are in scope for 1B-9d."""
+
+FLAVOR_SINGULAR_VALUE_RATIO_NORMALIZATION = "raw_G"
+"""flavor_singular_value_ratio's own frozen 1B-9a/1B-9d contract: not
+merely "high.normalization == low.normalization" (which the shared
+comparability key already guarantees), but each side individually equal
+to this exact constant. Two documents that happen to agree on some
+other value -- including both being None -- are a structural
+inconsistency of the artifact, never a valid comparison."""
 
 
 class InterSObservableComparisonError(RuntimeError):
@@ -208,8 +241,33 @@ class GammaOComparison:
             raise ValueError(f"high_value must be exactly complex, got {type(self.high_value)}")
         if type(self.low_value) is not complex:
             raise ValueError(f"low_value must be exactly complex, got {type(self.low_value)}")
+        if not (math.isfinite(self.high_value.real) and math.isfinite(self.high_value.imag)):
+            raise ValueError(f"high_value must be finite, got {self.high_value}")
+        if not (math.isfinite(self.low_value.real) and math.isfinite(self.low_value.imag)):
+            raise ValueError(f"low_value must be finite, got {self.low_value}")
         if not isinstance(self.gamma_o, NormalizedMoment):
             raise ValueError(f"gamma_o must be a NormalizedMoment, got {type(self.gamma_o)}")
+
+
+def _require_scalar_value(name: str, value: object, null_reason: object) -> None:
+    """Defends ScalarObservableComparison's own public constructor: value
+    is None iff null_reason is set (unchanged), a non-null value must be
+    exactly a finite float (never a bool, str, or non-finite float --
+    the serialized contract for these three observables never produces
+    anything else), and a set null_reason must be a genuinely non-empty
+    str. This never re-litigates which null_reason string is scientifically
+    valid for a given observable_kind -- the source document already
+    passed schema validation before this module ever saw it; this only
+    guards the dataclass's own public constructor against an
+    out-of-contract direct call."""
+    if (value is None) != (null_reason is not None):
+        raise ValueError(f"{name} is None if and only if the matching null_reason is set")
+    if value is not None and type(value) is not float:
+        raise ValueError(f"{name} must be exactly a float, got {type(value)}")
+    if value is not None and not math.isfinite(value):
+        raise ValueError(f"{name} must be finite, got {value}")
+    if null_reason is not None and (not isinstance(null_reason, str) or not null_reason):
+        raise ValueError(f"null_reason for {name} must be a non-empty str, got {null_reason!r}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,10 +306,18 @@ class ScalarObservableComparison:
             raise ValueError(f"low_group.case_id ({self.low_group.case_id!r}) != low_case_id ({self.low_case_id!r})")
         if self.path is not None and not isinstance(self.path, tuple):
             raise ValueError(f"path must be a tuple or None, got {type(self.path)}")
-        if (self.high_value is None) != (self.high_null_reason is not None):
-            raise ValueError("high_value is None if and only if high_null_reason is set")
-        if (self.low_value is None) != (self.low_null_reason is not None):
-            raise ValueError("low_value is None if and only if low_null_reason is set")
+
+        _require_scalar_value("high_value", self.high_value, self.high_null_reason)
+        _require_scalar_value("low_value", self.low_value, self.low_null_reason)
+
+        if self.observable_kind == "C_TT_conn":
+            # Its native payload is a bare, always-present float
+            # (results.py's RAW_OBSERVABLE_KINDS contract) -- there is no
+            # null_reason concept for it at all.
+            if self.high_value is None or self.low_value is None:
+                raise ValueError("C_TT_conn's high_value/low_value must never be None (its native payload is a bare float)")
+            if self.high_null_reason is not None or self.low_null_reason is not None:
+                raise ValueError("C_TT_conn's high_null_reason/low_null_reason must always be None")
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,11 +344,49 @@ class InterSObservableComparisonReport:
             raise ValueError("manifest_fingerprint must be non-empty")
         if not self.repository_commit:
             raise ValueError("repository_commit must be non-empty")
+        if not isinstance(self.comparisons, tuple):
+            raise ValueError(f"comparisons must be a tuple, got {type(self.comparisons)} -- never silently converted")
+        for index, comparison in enumerate(self.comparisons):
+            if not isinstance(comparison, (GammaOComparison, ScalarObservableComparison)):
+                raise ValueError(
+                    f"comparisons[{index}] must be a GammaOComparison or ScalarObservableComparison, got {type(comparison)}"
+                )
+
+
+def _require_valid_flavor_ratio_normalization(
+    high_document: FrozenDocument, low_document: FrozenDocument, *, high_case_id: str, low_case_id: str, high_group_index: int, low_group_index: int
+) -> None:
+    """flavor_singular_value_ratio's own frozen requirement is stronger
+    than "high.normalization == low.normalization" (already guaranteed
+    by the shared comparability key that found this pair): each side
+    must individually equal FLAVOR_SINGULAR_VALUE_RATIO_NORMALIZATION.
+    Two documents that happen to agree on some other value -- including
+    both being None -- are rejected as a structural inconsistency of the
+    artifact, never silently accepted as a valid comparison and never
+    corrected to the expected constant."""
+    high_normalization = high_document["identity"]["normalization"]
+    low_normalization = low_document["identity"]["normalization"]
+    if high_normalization != FLAVOR_SINGULAR_VALUE_RATIO_NORMALIZATION or low_normalization != FLAVOR_SINGULAR_VALUE_RATIO_NORMALIZATION:
+        raise InterSObservableComparisonError(
+            f"high case {high_case_id!r} group index {high_group_index} / low case {low_case_id!r} group index "
+            f"{low_group_index}: flavor_singular_value_ratio requires identity.normalization == "
+            f"{FLAVOR_SINGULAR_VALUE_RATIO_NORMALIZATION!r} on both sides, got high={high_normalization!r} "
+            f"low={low_normalization!r}"
+        )
 
 
 def _build_comparison(
     match: InterSGroupMatch, observable_kind: str, key: tuple, high_document: FrozenDocument, low_document: FrozenDocument
 ) -> GammaOComparison | ScalarObservableComparison:
+    if observable_kind == "flavor_singular_value_ratio":
+        _require_valid_flavor_ratio_normalization(
+            high_document,
+            low_document,
+            high_case_id=match.high_case_id,
+            low_case_id=match.low_case_id,
+            high_group_index=match.high_group.spectral_window_group_index,
+            low_group_index=match.low_group.spectral_window_group_index,
+        )
     path, flavor_component, normalization = key
     if observable_kind == GAMMA_O_OBSERVABLE_KIND:
         high_value = _reconstruct_complex(high_document["payload"])

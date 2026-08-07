@@ -412,6 +412,32 @@ def test_flavor_ratio_normalization_axis_is_enforced(triangle_s2, triangle_s3) -
         build_inter_s_observable_comparison_report(_fake_report(_fake_match(triangle_s3, triangle_s2, high_group, low_group)))
 
 
+def test_flavor_ratio_both_sides_none_normalization_is_rejected_even_though_equal(triangle_s2, triangle_s3) -> None:
+    # high == low == None: the shared comparability key alone would find
+    # this pair (both sides agree with each other), but 1B-9a/1B-9d
+    # freeze normalization == "raw_G" specifically -- agreement on some
+    # OTHER value, including both being None, is a structural
+    # inconsistency of the artifact, never a valid comparison.
+    high_group = _fake_group(triangle_s3, documents=(_flavor_ratio_doc(value=0.9, path=(0, 1), normalization=None),))
+    low_group = _fake_group(triangle_s2, documents=(_flavor_ratio_doc(value=0.8, path=(0, 1), normalization=None),))
+    with pytest.raises(InterSObservableComparisonError, match="raw_G"):
+        build_inter_s_observable_comparison_report(_fake_report(_fake_match(triangle_s3, triangle_s2, high_group, low_group)))
+
+
+def test_flavor_ratio_both_sides_same_wrong_normalization_is_rejected(triangle_s2, triangle_s3) -> None:
+    high_group = _fake_group(triangle_s3, documents=(_flavor_ratio_doc(value=0.9, path=(0, 1), normalization="wrong"),))
+    low_group = _fake_group(triangle_s2, documents=(_flavor_ratio_doc(value=0.8, path=(0, 1), normalization="wrong"),))
+    with pytest.raises(InterSObservableComparisonError, match="raw_G"):
+        build_inter_s_observable_comparison_report(_fake_report(_fake_match(triangle_s3, triangle_s2, high_group, low_group)))
+
+
+def test_flavor_ratio_both_sides_raw_g_normalization_is_accepted(triangle_s2, triangle_s3) -> None:
+    high_group = _fake_group(triangle_s3, documents=(_flavor_ratio_doc(value=0.9, path=(0, 1), normalization="raw_G"),))
+    low_group = _fake_group(triangle_s2, documents=(_flavor_ratio_doc(value=0.8, path=(0, 1), normalization="raw_G"),))
+    report = build_inter_s_observable_comparison_report(_fake_report(_fake_match(triangle_s3, triangle_s2, high_group, low_group)))
+    assert len(report.comparisons) == 1
+
+
 # ---------------------------------------------------------------------------
 # 14/15/16. null high/low conserved exactly, never replaced by 0 or an
 # epsilon.
@@ -554,6 +580,128 @@ def test_comparisons_module_never_imports_forbidden_entry_points() -> None:
     for token in _FORBIDDEN_IMPORT_TOKENS:
         assert token not in import_lines, f"comparisons.py must never import {token!r}"
     assert "def evaluate_robustness" not in source
+
+
+# ---------------------------------------------------------------------------
+# Second correctif: public-constructor hardening.
+# InterSObservableComparisonReport.comparisons must really be a tuple of
+# only GammaOComparison/ScalarObservableComparison; ScalarObservableComparison
+# must really hold finite floats (never str/bool/NaN/+-inf) and a
+# genuinely non-empty null_reason; C_TT_conn specifically must never
+# carry a null value or a null_reason.
+# ---------------------------------------------------------------------------
+
+
+def _real_scalar_comparison(triangle_s2, triangle_s3) -> ScalarObservableComparison:
+    high_group = _fake_group(triangle_s3, documents=(_rho_qq_doc(value=0.5, path=(0, 1)),))
+    low_group = _fake_group(triangle_s2, documents=(_rho_qq_doc(value=0.4, path=(0, 1)),))
+    return build_inter_s_observable_comparison_report(_fake_report(_fake_match(triangle_s3, triangle_s2, high_group, low_group))).comparisons[0]
+
+
+def test_report_rejects_a_list_for_comparisons(triangle_s2, triangle_s3) -> None:
+    comparison = _real_scalar_comparison(triangle_s2, triangle_s3)
+    with pytest.raises(ValueError, match="must be a tuple"):
+        InterSObservableComparisonReport(
+            campaign_id="c", manifest_fingerprint="f" * 64, repository_commit=REPO_COMMIT, comparisons=[comparison]
+        )
+
+
+def test_report_rejects_a_non_comparison_element(triangle_s2, triangle_s3) -> None:
+    with pytest.raises(ValueError, match="GammaOComparison or ScalarObservableComparison"):
+        InterSObservableComparisonReport(
+            campaign_id="c", manifest_fingerprint="f" * 64, repository_commit=REPO_COMMIT, comparisons=("not-a-comparison",)
+        )
+
+
+def _scalar_kwargs(triangle_s2, triangle_s3, **overrides) -> dict:
+    high_group = _fake_group(triangle_s3, documents=(_c_tt_conn_doc(-0.1, path=(0, 1)),))
+    low_group = _fake_group(triangle_s2, documents=(_c_tt_conn_doc(-0.2, path=(0, 1)),))
+    kwargs = dict(
+        high_case_id=triangle_s3.case_id,
+        low_case_id=triangle_s2.case_id,
+        high_group=high_group,
+        low_group=low_group,
+        observable_kind="C_TT_conn",
+        path=(0, 1),
+        flavor_component=None,
+        normalization=None,
+        high_value=-0.1,
+        low_value=-0.2,
+        high_null_reason=None,
+        low_null_reason=None,
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_scalar_comparison_rejects_string_value(triangle_s2, triangle_s3) -> None:
+    with pytest.raises(ValueError, match="must be exactly a float"):
+        ScalarObservableComparison(**_scalar_kwargs(triangle_s2, triangle_s3, high_value="abc"))
+
+
+def test_scalar_comparison_rejects_bool_value(triangle_s2, triangle_s3) -> None:
+    with pytest.raises(ValueError, match="must be exactly a float"):
+        ScalarObservableComparison(**_scalar_kwargs(triangle_s2, triangle_s3, high_value=True))
+
+
+def test_scalar_comparison_rejects_nan(triangle_s2, triangle_s3) -> None:
+    with pytest.raises(ValueError, match="must be finite"):
+        ScalarObservableComparison(**_scalar_kwargs(triangle_s2, triangle_s3, high_value=float("nan")))
+
+
+def test_scalar_comparison_rejects_positive_and_negative_infinity(triangle_s2, triangle_s3) -> None:
+    with pytest.raises(ValueError, match="must be finite"):
+        ScalarObservableComparison(**_scalar_kwargs(triangle_s2, triangle_s3, high_value=float("inf")))
+    with pytest.raises(ValueError, match="must be finite"):
+        ScalarObservableComparison(**_scalar_kwargs(triangle_s2, triangle_s3, low_value=float("-inf")))
+
+
+def test_c_tt_conn_rejects_a_null_value(triangle_s2, triangle_s3) -> None:
+    with pytest.raises(ValueError, match="C_TT_conn"):
+        ScalarObservableComparison(**_scalar_kwargs(triangle_s2, triangle_s3, high_value=None, high_null_reason="anything"))
+
+
+def test_c_tt_conn_accepts_a_finite_value_with_no_null_reason(triangle_s2, triangle_s3) -> None:
+    comparison = ScalarObservableComparison(**_scalar_kwargs(triangle_s2, triangle_s3))
+    assert comparison.high_value == -0.1
+    assert comparison.high_null_reason is None
+
+
+def test_rho_qq_valid_null_is_accepted(triangle_s2, triangle_s3) -> None:
+    high_group = _fake_group(triangle_s3, documents=(_rho_qq_doc(null_reason="zero_local_charge_variance", path=(0, 1)),))
+    low_group = _fake_group(triangle_s2, documents=(_rho_qq_doc(value=0.4, path=(0, 1)),))
+    kwargs = _scalar_kwargs(
+        triangle_s2, triangle_s3, high_group=high_group, low_group=low_group, observable_kind="rho_QQ",
+        high_value=None, high_null_reason="zero_local_charge_variance", low_value=0.4, low_null_reason=None,
+    )
+    comparison = ScalarObservableComparison(**kwargs)
+    assert comparison.high_value is None
+    assert comparison.high_null_reason == "zero_local_charge_variance"
+
+
+def test_flavor_ratio_valid_null_with_raw_g_normalization_is_accepted(triangle_s2, triangle_s3) -> None:
+    high_group = _fake_group(triangle_s3, documents=(_flavor_ratio_doc(value=0.9, path=(0, 1), normalization="raw_G"),))
+    low_group = _fake_group(
+        triangle_s2, documents=(_flavor_ratio_doc(null_reason="normalization_denominator_below_floor", path=(0, 1), normalization="raw_G"),)
+    )
+    kwargs = _scalar_kwargs(
+        triangle_s2, triangle_s3, high_group=high_group, low_group=low_group, observable_kind="flavor_singular_value_ratio",
+        normalization="raw_G", high_value=0.9, high_null_reason=None,
+        low_value=None, low_null_reason="normalization_denominator_below_floor",
+    )
+    comparison = ScalarObservableComparison(**kwargs)
+    assert comparison.low_value is None
+    assert comparison.low_null_reason == "normalization_denominator_below_floor"
+
+
+def test_builder_still_produces_a_real_immutable_tuple(triangle_s2, triangle_s3) -> None:
+    comparison = _real_scalar_comparison(triangle_s2, triangle_s3)
+    # Rebuild the report exactly as the nominal builder does, confirming
+    # the hardened __post_init__ accepts its own real output unchanged.
+    report = InterSObservableComparisonReport(
+        campaign_id="c", manifest_fingerprint="f" * 64, repository_commit=REPO_COMMIT, comparisons=(comparison,)
+    )
+    assert type(report.comparisons) is tuple
 
 
 # ---------------------------------------------------------------------------
