@@ -612,6 +612,10 @@ V17 et V18 doivent passer avant toute exécution scientifique officielle.
 
 **Séparation mono-cas / inter-S** : `productions` (manifeste) distingue `single_case_observables`/`single_case_diagnostics`/`path_statistics`/`orbit_statistics` (un seul cas diagonalisé) de `inter_s_observables` (`gamma_O` primaire, verdicts de robustesse, `G_occ`/`path_phase_coherence` marqués `unproduced` faute de producteur physique) — `gamma_O` n'est jamais listé parmi les observables mono-cas. Le bloc `robustness` du manifeste porte la liste secondaire complète (`G_occ`, `rho_QQ`, `C_TT_conn`, `flavor_singular_value_ratio`, `path_phase_coherence`), exactement celle du manifeste humain.
 
+### 9.5 Runner mono-cas (lot 1B-8)
+
+`scripts/level1b_campaign/runner.py::run_single_case(manifest, case, *, repository_commit)` exécute un seul `CampaignCaseSpec` (diagonalisation Level0, séquence complète des groupes spectraux, sélection des cibles via `target_selection.py` inchangé, productions mono-cas D020/`raw_G`/diagnostics/labels/`O_ij_raw`/orbites, sérialisation v2, assemblage) et retourne un résultat en mémoire — aucune écriture disque, aucune boucle multi-cas, aucune comparaison inter-S. Vérifie explicitement que le cas appartient au manifeste fourni (seeds re-dérivés via `planning.derive_case_seed`, `target_groups` comparés). Chaque identité de groupe spectral est construite exclusivement via `results.build_spectral_group_identity(group, group_state, spectral_window_group_index=group_index, twice_T=twice_T)` (D022), `group_index` provenant de l'énumération de la séquence complète et non filtrée des groupes, jamais d'un rang de cible ou d'une liste filtrée. `gamma_O`, `G_occ`, `path_phase_coherence`, tout `MatchOutcome` et tout verdict de robustesse restent hors périmètre de ce runner.
+
 ---
 
 ## 10. Règles de revue entre lots
