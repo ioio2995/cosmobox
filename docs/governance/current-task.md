@@ -5,114 +5,85 @@ Ce document est un contrat de reprise, pas une documentation scientifique. Il do
 ## Dernier commit accepté
 
 ```text
-63d3db6018cb5f2d1ccd5b4a34a5bf3d6ebd9a42
+b2cb6b1cd3c94e36e5da50063d095b95a1030015
 ```
 
-D022 accepté à ce commit, sur `research/level1-correlators`. Reste le dernier commit accepté tant que le correctif ci-dessous n'est pas lui-même accepté.
-
-## Livraison en attente de correction
-
-```text
-de9acab27bc7be96aabcbc70772ed8ce383d2bd5
-```
-
-Runner mono-cas livré à ce commit, mais **acceptation finale suspendue** : défaut contractuel dans `_verify_case_belongs_to_manifest` (un `CampaignCaseSpec` auto-cohérent mais absent du plan pouvait être accepté) et construction des identités D022 non strictement séparée de la sélection des cibles.
+Runner mono-cas (lot 1B-8, y compris son correctif) accepté à ce commit, sur `research/level1-correlators`.
 
 ## Lot actif
 
-Correctif final du runner mono-cas (lot 1B-8).
+1B-8c — persistance atomique et reprise par cas.
 
-Aucune fonctionnalité nouvelle. Deux corrections strictement bornées :
-
-1. `run_single_case` doit rejeter tout `CampaignCaseSpec` qui n'est pas exactement celui produit par `build_campaign_plan(manifest)` pour son `case_id` — jamais seulement auto-cohérent.
-2. Les identités `SpectralGroupIdentity` (D022) de tous les groupes doivent être construites une fois, avant tout appel à `select_target_group`, jamais reconstruites après sélection.
+**Rapport de conception validé. Implémentation autorisée.** Aucune campagne complète.
 
 ## Objectif
 
-Livrer l'exécution complète d'un seul `CampaignCaseSpec`, depuis la diagonalisation jusqu'à l'assemblage déterministe des documents v2 en mémoire. Ce lot ne livre pas encore : la boucle sur toute la campagne, la reprise depuis des fichiers, `run.json`, l'écriture JSONL atomique, ni les comparaisons inter-S.
+Ajouter la couche de persistance d'un résultat mono-cas déjà produit par `run_single_case` (lot 1B-8), sans modifier le calcul scientifique. Aucune campagne scientifique complète n'est lancée par ce lot.
 
-## Identité spectrale (D022)
+Format obligatoire :
 
-Chaque identité de groupe doit être construite exclusivement via :
-
-```python
-build_spectral_group_identity(
-    group, group_state,
-    spectral_window_group_index=group_index,
-    twice_T=twice_T,
-)
+```text
+runs/<case_id>/records.jsonl
+runs/<case_id>/run.json
 ```
 
-`group_index` provient de l'énumération de la séquence **complète et non filtrée** des groupes spectraux du cas :
-
-```python
-for group_index, group in enumerate(degeneracy_report.groups):
-```
-
-Cette énumération a lieu **avant** toute sélection des cibles, tout filtrage complet/partiel, tout filtrage par saveur, et toute suppression de groupes absents des productions. L'indice n'est jamais reconstruit depuis `target_id`, l'ordre des cibles, une liste filtrée, ou un rang après sélection. Deux cibles qui résolvent vers le même groupe physique réutilisent la même `SpectralGroupIdentity` (même objet de contenu), jamais deux identités artificiellement différentes.
-
-## Périmètre autorisé (fichiers) -- correctif
+## Périmètre autorisé (fichiers)
 
 - `docs/governance/current-task.md` (ce fichier).
-- `scripts/level1b_campaign/runner.py`.
-- `tests/scripts/level1b_campaign/test_runner.py`.
-- `docs/levels/level1/implementation-design.md`, uniquement si une phrase sur l'appartenance stricte au plan est nécessaire.
+- `scripts/level1b_campaign/outputs.py` (nouveau).
+- `tests/scripts/level1b_campaign/test_outputs.py` (nouveau).
+- Documents Level 1 directement concernés, mise à jour minimale.
 
-Aucun fichier hors cette liste. Aucune fonctionnalité nouvelle -- ce correctif ne fait que fermer les deux défauts décrits ci-dessus.
+`scripts/level1b_campaign/runner.py` n'est **pas** modifié par ce lot (confirmé au rapport de conception : `CaseExecutionResult` porte déjà tout ce dont la couche de persistance a besoin).
 
 ## Hors périmètre strict
 
-Ne pas modifier : `results.py`, `serialization.py`, `assembly.py`, les schémas (`schemas/level1/*`), le manifeste JSON (`experiments/level1/preregistered-manifest-v1.json`), `target_selection.py`, `local_observables.py`, `matching.py`, le niveau 0, D020, D021, D022. Toute nouvelle lacune découverte dans ces composants **bloque le runner** (signalement explicite) plutôt que d'être contournée localement.
+Boucle multi-cas, lancement complet de la campagne, comparaisons inter-S, `gamma_O`, verdicts de robustesse, `G_occ`, `path_phase_coherence`. Ne pas modifier : `results.py`, `serialization.py`, `assembly.py`, les schémas, le manifeste, le niveau 0, `target_selection.py`, `local_observables.py`, `matching.py`, D020, D021, D022.
 
-Le runner mono-cas ne doit jamais produire : `gamma_O`, `G_occ`, `path_phase_coherence`, un `MatchOutcome` inter-S, un verdict `robuste`/`non_robuste`, une comparaison entre deux valeurs de `S`, ou une conclusion scientifique globale.
+## records.jsonl
 
-## Pipeline d'exécution (13 étapes)
+Contient exactement les documents v2 retournés par `run_single_case().documents`, un document JSON par ligne, dans l'ordre déterministe déjà fourni par `assemble_execution` — jamais réordonnés. Canonicalisation de chaque ligne : `json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False)`, terminée par `\n`.
 
-1. Recevoir un `Manifest` déjà validé et un `CampaignCaseSpec` issu du plan.
-2. Vérifier que le cas appartient bien à ce manifeste.
-3. Construire la géométrie et le Hamiltonien du cas.
-4. Exécuter le rapport Level0 avec eigenvectors et les `SpectrumOptions` du cas.
-5. Construire la séquence complète des groupes spectraux (`DegeneracyReport.groups`).
-6. Extraire un `SpectralGroupState` pour chaque groupe (dans le même ordre, avant tout filtrage).
-7. Calculer les labels nécessaires à la sélection (`twice_T` via le Casimir de saveur).
-8. Sélectionner les groupes cibles via `target_selection.py` (inchangé).
-9. Produire les résultats mono-cas autorisés (voir liste ci-dessous) pour chaque groupe sélectionné.
-10. Sérialiser chaque `ResultRecord` en v2.
-11. Valider chaque document.
-12. Appeler `assemble_execution`.
-13. Retourner un résultat typé en mémoire (documents assemblés + rapport d'assemblage).
+`records_sha256` : SHA-256 sur les octets exacts du fichier `records.jsonl` final (retours à la ligne inclus). `record_count` : nombre exact de lignes/documents.
 
-## Cibles
+## run.json
 
-- `selected` et `meets_normative_requirements=True` : produire les résultats normatifs.
-- `selected` mais `partial_subspace` : produire uniquement les résultats exploratoires, statut partiel propagé sans promotion.
-- `not_in_window` : conserver un statut d'exécution explicite, jamais substituer un autre groupe.
-- `ambiguous` : conserver un statut explicite, jamais choisir arbitrairement.
-- `structurally_not_applicable` : ne produire aucune observable physique pour cette cible.
+Contient au minimum : `case_id`, `campaign_id`, `manifest_fingerprint`, `repository_commit`, `run_status`, `record_count`, `records_sha256`, `errors`.
 
-## Productions mono-cas obligatoires
+Statuts finaux autorisés pour ce sous-lot : `success`, `resource_guardrail_exceeded`, `failed`. `running` n'existe que comme état interne/temporaire, jamais comme marqueur de complétion. `skipped_existing_valid` est un résultat de la logique de reprise, pas un statut stocké dans `run.json` — un `run.json` valide réutilisé n'est jamais réécrit.
 
-Pour chaque groupe sélectionné et chaque paire ordonnée distincte (`pair_selection = all_ordered_distinct_pairs`) : `C_QQ_raw`, `rho_QQ`, `C_TT_raw`, `C_TT_conn` (D020, `*_group`), `raw_G`, `flavor_singlet`, `flavor_frobenius_squared`, `flavor_singular_values`, `flavor_singular_value_ratio`.
+## Ordre d'écriture (succès)
 
-`rho_QQ` : `connected`/`variance_i`/`variance_j` calculés avec le **même** `group_state`, statuts des trois vérifiés identiques, puis `normalized_charge_correlator(connected.value, variance_i.value, variance_j.value)` — aucun epsilon artificiel.
+1. `records.jsonl` écrit dans un fichier temporaire du même répertoire/filesystem ;
+2. flush ;
+3. fsync ;
+4. `os.replace()` vers `records.jsonl` ;
+5. `run.json` temporaire ;
+6. flush ;
+7. fsync ;
+8. `os.replace()` vers `run.json` (marqueur de complétion, toujours écrit en dernier).
 
-Pour chaque paire ordonnée, `path_selection = all_minimal_paths` : énumérer tous les chemins minimaux, conserver un résultat individuel par chemin (jamais un chemin choisi arbitrairement), produire `O_ij_raw` et les dérivés de saveur, ne calculer aucune statistique agrégée de chemin non gelée.
+Aucun fichier temporaire ou partiel n'est jamais considéré valide.
 
-Labels/diagnostics lorsque les primitives et l'applicabilité le permettent : `twice_T`, caractère de translation, caractère de réflexion (états `numeric`/`not_applicable`/`unavailable` respectés exactement, jamais un `None` nu), diagnostic restreint hermitien, diagnostic restreint non hermitien.
+## Validation d'un run existant (reprise)
 
-Orbites : uniquement via `ValidatedOrbit` (jamais une moyenne non validée) ; `orbit_mean`, `orbit_max_pairwise_spread`, `orbit_covariance_defect` ; jamais de moyenne entre orbites distinctes, chemins de longueurs différentes, groupes différents, ou définitions d'observables différentes.
+Réutilisable seulement si : `run.json` existe et est un JSON valide ; `run_status == "success"` ; `case_id`/`campaign_id`/`manifest_fingerprint`/`repository_commit` correspondent exactement ; `records.jsonl` existe, son SHA-256 correspond à `records_sha256`, son nombre de lignes correspond à `record_count` ; chaque ligne est un JSON objet valide passant `validate_document` et portant le même `campaign_id`/`manifest_fingerprint`/`repository_commit` ; l'assemblage de l'ensemble ne produit ni contradiction ni divergence de métadonnées, et l'ordre assemblé est identique à l'ordre du fichier. Au moindre échec : non réutilisable — jamais réparé silencieusement. Retourne `CaseRunValidation(is_valid, reason)`, jamais une exception, pour une simple invalidité de run réutilisable.
 
-## Provenance
+## API finalisée (décisions du rapport de conception validé)
 
-Chaque document porte exactement : le commit du dépôt réellement utilisé, `manifest_fingerprint`, `campaign_id`, `scientific_seed` du cas, `solver_seed` réellement utilisé, `validation_rotation_seed = null` sauf validation aléatoire réellement rejouée, le statut spectral réel, le type/module producteurs réels. `target_id` n'entre jamais dans `SpectralGroupIdentity`.
+`output_dir` désigne le parent de `runs/` : toute fonction construit elle-même `<output_dir>/runs/<case_id>/` ; l'appelant ne fournit jamais directement un chemin `runs/<case_id>` à une fonction d'écriture. `load_case_records(case_dir)` est la seule exception : elle reçoit le répertoire précis du cas.
 
-## Régression obligatoire
+`write_case_success(output_dir, result)` dérive `case_id`/`campaign_id`/`manifest_fingerprint`/`repository_commit` exclusivement de `result` (jamais des paramètres libres), et vérifie défensivement avant toute écriture : documents non vides, chacun valide (`validate_document`), métadonnées homogènes, `assemble_execution` réussit sans doublon et égal à `tuple(result.documents)`.
 
-Triangle S=2 `j_break` : groupes 0 et 1 présents, multiplicité 2 pour les deux, `twice_T=1` pour les deux, identités spectrales d'indices 0 et 1 distinctes, caractères réellement distincts lorsqu'applicables, assemblage réussi sans `AssemblyContradiction`. Les énergies décimales exactes ne sont jamais figées — seuls leur ordre et leur finitude sont vérifiés.
+`write_case_failure(output_dir, case_id, *, campaign_id, manifest_fingerprint, repository_commit, run_status, errors)` : `run_status` ∈ {`failed`, `resource_guardrail_exceeded`} exclusivement, `errors: list[str]` non vide. **N'écrit jamais `records.jsonl`** — un échec n'a pas de résultats exploitables. Si un ancien `records.jsonl` existe (run antérieur), il est supprimé avant l'écriture du nouveau `run.json` d'échec, pour qu'il ne soit jamais pris à tort pour les résultats du nouveau run. `record_count=0`, `records_sha256=null`.
+
+## Garde-fous
+
+Seuls `max_dense_dimension = 2000` et `max_sparse_dimension = 200000` restent normatifs ; aucun nouveau seuil mémoire/temps inventé. `resource_guardrail_exceeded`/`failed` appartiennent à `run.json`, jamais à un `ResultRecord` synthétique.
 
 ## Règle « un mandat = un commit »
 
-Toute la portée de ce mandat est livrée en un seul commit. `results/` (sortie Level0 antérieure, non produite par ce lot) est explicitement exclu de tout commit.
+Toute la portée de ce lot est livrée en un seul commit, après validation explicite du rapport de conception. `results/` reste exclu de tout commit.
 
 ## Procédure en cas de compactage
 
