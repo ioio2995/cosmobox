@@ -31,7 +31,8 @@ from cosmobox.level1.results import (
 )
 from cosmobox.level1.results import build_result_record as _build_result_record_impl
 from cosmobox.level1.robustness import INDETERMINATE, ROBUST, RobustnessResult
-from cosmobox.level1.serialization import SCHEMA_VERSION, _load_schema, serialize_result_record
+from cosmobox.level1.serialization import SCHEMA_VERSION, _load_schema, serialize_result_record, validate_document
+from cosmobox.level1.serialization import _validator as _cached_validator
 
 REPO_COMMIT = "a" * 40
 _TEST_SCIENTIFIC_SEED = 1001
@@ -609,3 +610,108 @@ def test_serialize_result_record_includes_seed_fields() -> None:
     assert document["provenance"]["validation_rotation_seed"] == 7
     errors = list(_validator().iter_errors(document))
     assert errors == []
+
+
+# ---------------------------------------------------------------------------
+# PERF-VALIDATOR-CACHE: _validator() is cached (@lru_cache) so the schema
+# load, check_schema meta-validation, and Draft202012Validator
+# construction happen once per process -- performance-only, no schema/
+# semantic change. These tests use the REAL, cached _validator (imported
+# as _cached_validator, distinct from this file's own local _validator()
+# helper above, which deliberately builds a fresh, uncached instance for
+# the rest of this file's tests).
+# ---------------------------------------------------------------------------
+
+
+def _valid_document(payload: float = 0.5) -> dict:
+    record = build_result_record(_identity(), "raw_observable", "C_QQ_raw", payload)
+    return serialize_result_record(record, repository_commit=REPO_COMMIT, manifest_fingerprint="fp", campaign_id="c1")
+
+
+def test_cached_validator_returns_the_same_instance_across_calls() -> None:
+    first = _cached_validator()
+    second = _cached_validator()
+    assert first is second
+
+
+def test_cached_validator_schema_is_still_validated_at_least_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    _cached_validator.cache_clear()
+    calls: list[dict] = []
+    real_check_schema = Draft202012Validator.check_schema.__func__
+
+    def spying_check_schema(cls, schema):
+        calls.append(schema)
+        return real_check_schema(cls, schema)
+
+    monkeypatch.setattr(Draft202012Validator, "check_schema", classmethod(spying_check_schema))
+    try:
+        _cached_validator()
+        _cached_validator()
+        _cached_validator()
+    finally:
+        _cached_validator.cache_clear()
+
+    assert len(calls) == 1, "check_schema must still run, but only once across repeated _validator() calls"
+
+
+def test_valid_document_is_still_accepted() -> None:
+    validate_document(_valid_document())
+
+
+def test_invalid_document_is_still_rejected() -> None:
+    document = _valid_document()
+    del document["schema_version"]
+    with pytest.raises(ValueError):
+        validate_document(document)
+
+
+def test_successive_different_invalid_documents_report_their_own_distinct_errors() -> None:
+    """No state leaks between validate_document calls sharing the same
+    cached validator instance -- each call's errors describe only that
+    call's own document."""
+    document_a = _valid_document()
+    document_a["identity"]["spin"] = "not-an-int"
+    document_b = _valid_document()
+    del document_b["campaign_id"]
+
+    with pytest.raises(ValueError) as excinfo_a:
+        validate_document(document_a)
+    with pytest.raises(ValueError) as excinfo_b:
+        validate_document(document_b)
+
+    assert "spin" in str(excinfo_a.value)
+    assert "campaign_id" in str(excinfo_b.value)
+    assert str(excinfo_a.value) != str(excinfo_b.value)
+
+
+def test_valid_then_invalid_then_valid_validates_correctly_in_sequence() -> None:
+    valid_document = _valid_document()
+    invalid_document = _valid_document()
+    del invalid_document["record_kind"]
+
+    validate_document(valid_document)
+    with pytest.raises(ValueError):
+        validate_document(invalid_document)
+    validate_document(valid_document)
+
+
+def test_repeated_validation_of_the_same_document_is_deterministic() -> None:
+    document = _valid_document()
+    for _ in range(5):
+        validate_document(document)
+
+
+def test_serialize_result_record_is_unaffected_by_validator_caching() -> None:
+    """The exact same ResultRecord/metadata must serialize to the exact
+    same document dict regardless of whether _validator() has already
+    been called (and cached) before -- the cache changes only the cost
+    of validator construction, never any produced document."""
+    record = build_result_record(_identity(), "raw_observable", "C_QQ_raw", 0.5)
+    before_any_cache_use = serialize_result_record(
+        record, repository_commit=REPO_COMMIT, manifest_fingerprint="fp", campaign_id="c1"
+    )
+    _cached_validator()  # ensure the cache is now warm
+    after_cache_warm = serialize_result_record(
+        record, repository_commit=REPO_COMMIT, manifest_fingerprint="fp", campaign_id="c1"
+    )
+    assert before_any_cache_use == after_cache_warm

@@ -63,7 +63,19 @@ def _load_schema() -> dict:
         return json.load(handle)
 
 
+@lru_cache(maxsize=1)
 def _validator() -> Draft202012Validator:
+    """Built once per process (PERF-VALIDATOR-CACHE): both the schema
+    load and check_schema's own meta-schema validation are invariant for
+    the lifetime of the process (the schema file never changes at
+    runtime), so repeating them on every validate_document call was pure
+    waste -- confirmed the dominant cost of a single run_single_case
+    call. Safe to share across every call: Draft202012Validator.
+    iter_errors(instance) takes the document to validate as its own
+    argument and stores no per-document state on `self` between calls
+    (jsonschema 4.26.0's own implementation), so reusing one instance
+    for many different documents, valid or invalid, in any order,
+    changes nothing about the errors each individual call reports."""
     schema = _load_schema()
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema)
