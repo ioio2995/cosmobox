@@ -348,6 +348,45 @@ def _node_diagnostic_records(
     ]
 
 
+def _self_flavor_correlator_record(
+    case: CampaignCaseSpec,
+    hamiltonian_identity: HamiltonianIdentity,
+    spectral_group_identity: SpectralGroupIdentity,
+    group_state: SpectralGroupState,
+    lattice: Lattice,
+    keys,
+    key_index: dict[int, int],
+    node: int,
+) -> ResultRecord:
+    """C_TT_conn(i,i) (1C-3a, docs/governance/current-task.md): the diagonal
+    of the SAME binary observable already produced off-diagonal by
+    _pair_correlator_records below -- path=(i,i), never (i,), since this
+    identifies a value of C_TT_conn(i,j) (j=i), not a single-site
+    diagnostic of an operator. Reuses flavor_correlator_connected_group
+    with the same generators on both sides -- i == j is already documented
+    there as allowed and expected; no second formula for <T_i^2>, no new
+    dispatch. For a complete_multiplet this equals <T_i^2> analytically
+    (<T_i^a>_group = 0 by Schur), but that simplification is never assumed
+    here: exploratory_partial_subspace_mean is reached for a
+    partial_subspace group via the same status dispatch already inside
+    flavor_correlator_connected_group, exactly as for the off-diagonal
+    case."""
+    identity = _scientific_identity(case, hamiltonian_identity, spectral_group_identity, path=(node, node))
+
+    generators = build_local_flavor_generators(lattice, N_FLAVORS, case.spin, keys, key_index, node)
+    self_correlator = flavor_correlator_connected_group(generators, generators, group_state)
+
+    return build_result_record(
+        identity,
+        "raw_observable",
+        "C_TT_conn",
+        self_correlator.value,
+        scientific_seed=case.scientific_seed,
+        solver_seed=case.solver_seed,
+        validation_rotation_seed=case.validation_rotation_seed,
+    )
+
+
 def _pair_correlator_records(
     case: CampaignCaseSpec,
     hamiltonian_identity: HamiltonianIdentity,
@@ -574,6 +613,11 @@ def run_single_case(manifest: Manifest, case: CampaignCaseSpec, *, repository_co
         for node in lattice.nodes:
             records.extend(
                 _node_diagnostic_records(
+                    case, hamiltonian_identity, spectral_group_identity, group_state, lattice, basis.keys, key_index, node
+                )
+            )
+            records.append(
+                _self_flavor_correlator_record(
                     case, hamiltonian_identity, spectral_group_identity, group_state, lattice, basis.keys, key_index, node
                 )
             )

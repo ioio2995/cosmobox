@@ -218,21 +218,43 @@ Symétrie `i<->j` : égalité bit-exacte sur 183/183 paires vérifiées (commuta
 
 **Conclusion méthodologique acceptée** : le point de référence maximalement symétrique est un excellent jeu de calibration analytique mais il est trop pauvre en degrés de liberté pour constituer, à lui seul et groupe par groupe, une base fortement falsifiable de reconstruction géométrique générique.
 
-## Lot actif
+## Lot 1C-1 (accepté définitivement, `30990aa390e6adec650227a89fe22654433fe74a`)
 
-1C-1 — pré-enregistrement conceptuel de la stratégie d'identifiabilité géométrique.
+Pré-enregistrement conceptuel de la stratégie d'identifiabilité géométrique. Documentaire/conceptuel uniquement — aucune campagne, aucun calcul scientifique, aucun fitting, aucune reconstruction, aucune transformation corrélateur→distance, aucun code scientifique.
 
-**Ce mandat est documentaire/conceptuel uniquement.** Aucune nouvelle campagne, aucun calcul scientifique, aucun fitting, aucune reconstruction, aucune transformation corrélateur→distance, aucun code scientifique.
-
-**Objectif** : distinguer explicitement le choix de la sonde (quelle observable) de l'identifiabilité du problème géométrique (le signal porté a-t-il assez de DOF indépendants pour qu'une hypothèse géométrique puisse être réellement rejetée), et geler une stratégie conceptuelle en réponse à la pauvreté en DOF constatée par l'audit ci-dessus.
+**Objectif** : distinguer explicitement le choix de la sonde (quelle observable) de l'identifiabilité du problème géométrique (le signal porté a-t-il assez de DOF indépendants pour qu'une hypothèse géométrique puisse être réellement rejetée), et geler une stratégie conceptuelle en réponse à la pauvreté en DOF constatée par l'audit des degrés de liberté relationnels ci-dessus.
 
 **Livrable** : `docs/levels/level1c/identifiability-preregistration.md` (14 sections : motivation issue de l'audit DOF, sonde primaire `C_TT_conn`, contrôle de concordance `rho_QQ`, observables différées `G[P]`/`gamma_O`, point de référence comme calibration, secteurs inéligibles à l'inférence, principe d'identifiabilité, `j_break` comme candidat de campagne informative, données supplémentaires nécessaires, information mutuelle, statut de `disk7`, hypothèse de cohérence inter-secteurs, décisions encore ouvertes, ce que 1C-1 n'autorise pas).
 
-**Fichiers autorisés (strict)** : `docs/governance/current-task.md`, `docs/levels/level1c/identifiability-preregistration.md`, `docs/README.md`. Aucun autre fichier. Aucun Python ; aucune modification de `src/*`, `scripts/*`, `tests/*`, `experiments/*`, `schemas/*`, `.github/workflows/*`. Aucun artefact, aucune campagne, aucune diagonalisation, aucun nouveau run, aucun fitting, aucun embedding, aucune formule corrélateur→distance, aucune nouvelle observable (notamment aucun `rho_TT`), aucune campagne `j_break`/`disk7`, aucun calcul d'information mutuelle, aucun choix de géométrie favorite.
+Fichiers de ce lot : `docs/governance/current-task.md`, `docs/levels/level1c/identifiability-preregistration.md`, `docs/README.md`.
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
-**Le dernier commit formellement accepté reste `8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9` jusqu'à audit du correctif.**
+## Audits acceptés — 1C-2a / 1C-2b / 1C-2c (lecture seule, aucun commit propre)
+
+Trois audits scientifiques en lecture seule, acceptés définitivement comme base de conception pour la suite, sans qu'aucun n'ait produit de commit propre (mandats stricts « aucun fichier », respectés) :
+
+- **1C-2a** — identifiabilité sous `j_break` : perturbation sur site (`J_0=1.5`, `J_{i≠0}=1`), symétrie résiduelle exacte `{identité, réflexion fixant le site 0}`, orbites de paires (triangle 2, ring5 6), `rho_QQ` fermé exactement par la règle de charge (triangle 1 DOF, ring5 5 DOF), `C_TT_conn` non fermé faute de self-correlator (jusqu'à 2/6 DOF potentiels), secteur de saveur maximale toujours à 0 DOF sous `j_break`.
+- **1C-2b** — matching inter-S et fermeture informationnelle sous `j_break` : `MATCHING_OK` (le contrat `symmetry_labels_match`/`SpectralGroupMatchKey` existant traite déjà correctement `translation=not_applicable`/`reflection=numeric` des deux côtés, `hamiltonian_identity_without_spin` protège déjà contre un appariement inter-`J_0`), self-correlator minimal identifié (`C_TT_conn(i,i) ≡ <T_i^2>` pour un multiplet complet), `DOF_max_after_closure` (pas `DOF_exact`) établi pour `C_TT_conn` une fois la diagonale connue.
+- **1C-2c** — contrat minimal des self-correlators et préflight conceptuel : contrat `SELF_CORRELATOR_CONTRACT=EXTEND_EXISTING_OBSERVABLE`, `path=(i,i)` (jamais `(i,)`), granularité par site, dispatch `partial_subspace` existant réutilisé sans simplification analytique, `VALIDATION_TOLERANCE=OPEN`, convention de ratio `r_X=sqrt(var_X/var_0)` recommandée non normative, `J0_BASELINE_STRATEGY=OPEN`, préflight `spectral_window` conçu (non exécuté).
+
+Voir « Lot 1C-3a » ci-dessous pour l'implémentation du contrat self-correlator issu de ces trois audits.
+
+## Lot actif
+
+1C-3a — implémentation minimale de `C_TT_conn(i,i)`.
+
+Ajoute la production sérialisée de `C_TT_conn(i,i)`, pour chaque site et chaque groupe spectral déjà traité par le runner, en réutilisant l'observable et les primitives existantes — extension de l'observable binaire déjà existante `C_TT_conn(i,j)` au cas `j=i`, jamais une nouvelle famille conceptuelle (`T_self`/`rho_TT`/`local_T_variance` explicitement rejetés).
+
+**Contrat sérialisé** : `observable_kind="C_TT_conn"`, `record_kind="raw_observable"`, `path=(i,i)` (jamais `(i,)`, réservé aux diagnostics à un seul site), `payload` un flottant nu identique en forme au cas hors diagonale, `flavor_component=None`, `normalization=None`. Réutilise exclusivement `local_observables.flavor_correlator_connected_group(generators_i, generators_i, group_state)`, déjà documentée comme acceptant `i==j` — aucune seconde formule. Dispatch `complete_multiplet`/`partial_subspace` déjà existant réutilisé tel quel, sans jamais simplifier en `<T_i^2>` pour un groupe partiel. Un enregistrement par site (jamais une compression par orbite). Le contrat D021 (`all_ordered_distinct_pairs`, `case.ordered_pairs`) reste inchangé — la diagonale est une production séparée (`_self_flavor_correlator_record`, appelée dans la même boucle `for node in lattice.nodes` que le diagnostic restreint de `C_QQ_raw`).
+
+**Hors périmètre de ce lot** (conforme au mandat) : le contrôle global `sum_i C_TT_conn(i,i) + sum_{i!=j} C_TT_conn(i,j) = T(T+1)` (tolérance encore `OPEN`, 1C-2c), `rho_QQ`/le ratio `r_X=sqrt(var_X/var_0)`/le préflight `spectral_window`/la stratégie `J0` de référence (tous inchangés), toute campagne, toute diagonalisation de campagne, `matching.py`, `robustness.py`, le manifeste normatif, le schéma (`path` accepte déjà toute longueur ≥1 sans contrainte d'unicité des éléments — aucune modification nécessaire, confirmé par 1C-2c et revérifié ici).
+
+**Compatibilité ascendante** : les artefacts normatifs Level 1B déjà produits (`/workspaces/level1b_campaign_output/runs/`) restent inchangés et valides selon le contrat sous lequel ils ont été produits ; leur absence de `C_TT_conn(i,i)` n'est jamais traitée comme une erreur de validation rétroactive. Aucun chargeur/validateur existant (`validate_existing_case_run`, `scripts/level1b_analysis/loader.py`) n'a été modifié ni ne requiert la nouvelle donnée pour les anciens runs. `schema_version`/`manifest`/`campaign_id` inchangés — la nouvelle production est additive et ne casse la lecture d'aucun artefact existant.
+
+Fichiers de ce lot : `scripts/level1b_campaign/runner.py`, `tests/scripts/level1b_campaign/test_runner.py`, `docs/levels/level1/implementation-design.md`, `docs/governance/current-task.md`.
+
+**État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)
 

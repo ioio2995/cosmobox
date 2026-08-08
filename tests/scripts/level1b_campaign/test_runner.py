@@ -6,7 +6,13 @@ import math
 import pytest
 from jsonschema import Draft202012Validator
 
+from cosmobox.level0.basis import build_basis
+from cosmobox.level0.hamiltonian import build_hamiltonian_terms, build_key_index
+from cosmobox.level0.lattice import build_lattice
+from cosmobox.level0.reports import build_level0_report_with_eigenvectors
+from cosmobox.level1.local_observables import build_local_flavor_generators, flavor_correlator_connected_group
 from cosmobox.level1.orbits import ValidatedOrbit
+from cosmobox.level1.restricted import extract_group_state
 from cosmobox.level1.serialization import _load_schema
 from experiments.level1 import manifest as manifest_module
 from experiments.level1 import planning as planning_module
@@ -384,6 +390,127 @@ def test_ordered_pairs_i_j_and_j_i_both_present_and_distinct(triangle_s1_result)
     }
     assert (0, 1) in pairs
     assert (1, 0) in pairs
+
+
+# ---------------------------------------------------------------------------
+# 10b. C_TT_conn(i,i) self-correlator (diagonal), 1C-3a
+# (docs/governance/current-task.md). Same binary observable as the
+# off-diagonal C_TT_conn(i,j), path=(i,i), never (i,).
+# ---------------------------------------------------------------------------
+
+
+def _c_tt_conn_records(documents) -> list[dict]:
+    return [doc for doc in documents if doc["record_kind"] == "raw_observable" and doc["observable_kind"] == "C_TT_conn"]
+
+
+def _self_correlator_records(documents) -> list[dict]:
+    return [
+        doc
+        for doc in _c_tt_conn_records(documents)
+        if doc["identity"]["path"] is not None and tuple(doc["identity"]["path"])[0] == tuple(doc["identity"]["path"])[1]
+    ]
+
+
+def test_self_correlator_produced_once_per_site_per_group_triangle(triangle_s1_result) -> None:
+    # T1: triangle S=1 has 3 nodes and 2 distinct selected groups
+    # (fundamental, and first_excited/T_max sharing one physical group,
+    # per test_two_targets_same_group_share_identical_spectral_group_identity
+    # above) -- exactly 3 self-correlator records per group, 6 total.
+    self_records = _self_correlator_records(triangle_s1_result.documents)
+    group_indices = {doc["identity"]["spectral_group"]["spectral_window_group_index"] for doc in self_records}
+    assert len(group_indices) == 2
+    for group_index in group_indices:
+        nodes = {tuple(doc["identity"]["path"])[0] for doc in self_records if doc["identity"]["spectral_group"]["spectral_window_group_index"] == group_index}
+        assert nodes == {0, 1, 2}
+    assert len(self_records) == 6
+
+
+def test_self_correlator_produced_once_per_site_per_group_ring4(ring4_s1_result) -> None:
+    self_records = _self_correlator_records(ring4_s1_result.documents)
+    group_indices = {doc["identity"]["spectral_group"]["spectral_window_group_index"] for doc in self_records}
+    for group_index in group_indices:
+        nodes = {tuple(doc["identity"]["path"])[0] for doc in self_records if doc["identity"]["spectral_group"]["spectral_window_group_index"] == group_index}
+        assert nodes == {0, 1, 2, 3}
+    assert len(self_records) == 4 * len(group_indices)
+
+
+def test_self_correlator_path_is_ii_never_a_1_tuple(triangle_s1_result) -> None:
+    # T2: path identity -- (i,i), never (i,). No C_TT_conn record ever
+    # carries a 1-tuple path (that shape is reserved for single-site
+    # operator diagnostics such as C_QQ_raw's restricted_diagnostic).
+    for doc in _c_tt_conn_records(triangle_s1_result.documents):
+        path = tuple(doc["identity"]["path"])
+        assert len(path) == 2
+    for doc in _self_correlator_records(triangle_s1_result.documents):
+        path = tuple(doc["identity"]["path"])
+        assert path[0] == path[1]
+
+
+def test_self_correlator_does_not_collide_with_off_diagonal_pairs(triangle_s1_result, ring4_s1_result) -> None:
+    # T3: off-diagonal C_TT_conn(i,j), i != j, is untouched -- still exactly
+    # case.ordered_pairs per group -- and no duplicate ScientificIdentity
+    # was introduced anywhere in the assembled document set.
+    for result, n_nodes in ((triangle_s1_result, 3), (ring4_s1_result, 4)):
+        off_diagonal_pairs = {
+            tuple(doc["identity"]["path"])
+            for doc in _c_tt_conn_records(result.documents)
+            if tuple(doc["identity"]["path"])[0] != tuple(doc["identity"]["path"])[1]
+        }
+        expected = {(i, j) for i in range(n_nodes) for j in range(n_nodes) if i != j}
+        assert off_diagonal_pairs == expected
+        assert result.assembly_report.duplicate_count == 0
+
+
+def test_self_correlator_matches_direct_call_to_flavor_correlator_connected_group(triangle_s1_case) -> None:
+    # T4: the record's payload equals an INDEPENDENT direct call to the
+    # already-accepted primitive, using a group_state built here (not
+    # extracted from the runner's own internals) via the exact same
+    # Level0 diagonalization sequence run_single_case itself uses --
+    # never a second implementation of the formula.
+    lattice = build_lattice(triangle_s1_case.geometry)
+    basis = build_basis(lattice, 2, triangle_s1_case.spin, external_charges=None)
+    key_index = build_key_index(basis.keys)
+    terms = build_hamiltonian_terms(lattice, 2, triangle_s1_case.spin, basis.keys, key_index, triangle_s1_case.hamiltonian_parameters)
+    level0_report, eigenvectors = build_level0_report_with_eigenvectors(
+        lattice, 2, triangle_s1_case.spin, basis, terms, triangle_s1_case.hamiltonian_parameters, spectrum_options=triangle_s1_case.spectrum_options
+    )
+    groups = level0_report.spectrum.degeneracy.groups
+    group_state = extract_group_state(eigenvectors, groups[0])
+
+    generators = build_local_flavor_generators(lattice, 2, triangle_s1_case.spin, basis.keys, key_index, 0)
+    expected = flavor_correlator_connected_group(generators, generators, group_state).value
+
+    manifest = manifest_module.load_manifest()
+    result = run_single_case(manifest, triangle_s1_case, repository_commit=REPO_COMMIT)
+    matching = [
+        doc
+        for doc in _self_correlator_records(result.documents)
+        if doc["identity"]["spectral_group"]["spectral_window_group_index"] == 0 and tuple(doc["identity"]["path"]) == (0, 0)
+    ]
+    assert len(matching) == 1
+    assert matching[0]["payload"] == pytest.approx(expected)
+
+
+def test_self_correlator_on_partial_subspace_uses_exploratory_dispatch_not_analytic_shortcut(
+    truncated_triangle_s1_result,
+) -> None:
+    # T5: truncated_triangle_s1_result's sole selected group is
+    # partial_subspace (see test_partial_group_documents_all_tagged_
+    # partial_subspace above) -- its self-correlator records must exist,
+    # be tagged partial_subspace, and must NOT be silently skipped or
+    # replaced by the <T_i^2> analytic shortcut (which is never assumed
+    # by flavor_correlator_connected_group's own dispatch -- this test
+    # confirms production reaches the exploratory path end-to-end rather
+    # than re-deriving the <T_i^a>=0 identity itself, which would be
+    # disproportionate for this lot and is left to a future validation
+    # lot per docs/governance/current-task.md).
+    self_records = _self_correlator_records(truncated_triangle_s1_result.documents)
+    assert len(self_records) == 3
+    assert {tuple(doc["identity"]["path"])[0] for doc in self_records} == {0, 1, 2}
+    for doc in self_records:
+        assert doc["identity"]["spectral_group"]["status"] == "partial_subspace"
+        assert doc["provenance"]["spectral_status"] == "partial_subspace"
+        assert math.isfinite(doc["payload"])
 
 
 # ---------------------------------------------------------------------------
