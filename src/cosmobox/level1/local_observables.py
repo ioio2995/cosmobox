@@ -21,6 +21,7 @@ here.
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -28,6 +29,7 @@ import scipy.sparse as sp
 
 from cosmobox.level0.lattice import Lattice
 
+from .matching import FLAVOR_LABEL_TOLERANCE
 from .matter import build_dressed_matter_matrix
 from .paths import make_oriented_path
 from .restricted import (
@@ -438,3 +440,100 @@ def flavor_correlator_connected_group(
         expectation_j = _group_expectation(generators_j[component], group_state, tolerance=tolerance)
         total += raw_component - expectation_i * expectation_j
     return GroupMoment(value=total, status=group_state.status)
+
+
+# ---------------------------------------------------------------------------
+# T(T+1) sum rule validation (Level1B lot 1C-3b,
+# docs/governance/current-task.md). Consumes already-computed C_TT_conn
+# values for a single spectral group (diagonal from 1C-3a's new
+# per-site production, off-diagonal from the pre-existing D021 pair
+# production) -- never recomputes a correlator, never touches C_TT_raw.
+# ---------------------------------------------------------------------------
+
+FLAVOR_TOTAL_SUM_TOLERANCE = FLAVOR_LABEL_TOLERANCE
+"""Reused verbatim from matching.py, never redefined: compute_twice_T
+already compares a computed quantity against the SAME target formula
+T(T+1) using this exact absolute-residual tolerance (matching.py's own
+docstring: "residual |c_T - T(T+1)| exceeds tolerance"). This check is
+the same comparison against the same right-hand side, only with the
+left-hand side built by summing already-computed C_TT_conn values
+(at most N*(N-1) off-diagonal plus N diagonal terms, N<=5 in the current
+campaign) instead of a single Casimir expectation call -- worst-case
+accumulated slack from summing up to 25 terms, each already bounded by
+existing frozen per-term tolerances (canonical_multiplet_expectation's
+own IMAGINARY_PART_TOLERANCE=1e-10 truncation, empirically <=1e-14 in
+practice per the accepted 1C-2a audit), stays comfortably under 1e-8.
+The tighter 1e-10 "analytic" tolerance used elsewhere (e.g. V11) is
+deliberately NOT reused here: it was frozen for a single direct
+value-vs-constant comparison, not a multi-term sum, and applying it here
+would risk spurious failures from legitimate accumulated floating noise
+across many summed terms."""
+
+
+@dataclass(frozen=True, slots=True)
+class FlavorTotalSumValidation:
+    """Result of validating sum_i C_TT_conn(i,i) + sum_{i!=j} C_TT_conn(i,j)
+    == T(T+1) for one spectral group. `applicable` is False (and every
+    other field is None) whenever the group is not a genuine
+    complete_multiplet with a resolved twice_T label -- T is not an exact
+    quantum number for a partial_subspace group (D018/1B-4), so no
+    verdict, exact or otherwise, is ever produced for one; this is a
+    normal, expected scientific outcome, never an exception."""
+
+    applicable: bool
+    measured: float | None
+    expected: float | None
+    residual: float | None
+    is_valid: bool | None
+
+    def __post_init__(self) -> None:
+        fields = (self.measured, self.expected, self.residual, self.is_valid)
+        if not self.applicable:
+            if any(field is not None for field in fields):
+                raise ValueError("a non-applicable FlavorTotalSumValidation must carry no measured/expected/residual/is_valid")
+            return
+        if any(field is None for field in fields):
+            raise ValueError("an applicable FlavorTotalSumValidation must carry measured, expected, residual, and is_valid")
+        if not (math.isfinite(self.measured) and math.isfinite(self.expected) and math.isfinite(self.residual)):
+            raise ValueError(f"measured/expected/residual must be finite, got {self.measured}, {self.expected}, {self.residual}")
+        if self.expected < 0:
+            raise ValueError(f"expected must be >= 0 (T(T+1) for T >= 0), got {self.expected}")
+        if self.residual < 0:
+            raise ValueError(f"residual must be >= 0, got {self.residual}")
+        if not isinstance(self.is_valid, bool):
+            raise ValueError(f"is_valid must be a bool, got {type(self.is_valid)}")
+
+
+def validate_flavor_total_sum(
+    status: str,
+    twice_T: int | None,
+    diagonal_values: Mapping[int, float],
+    off_diagonal_values: Mapping[tuple[int, int], float],
+    *,
+    tolerance: float = FLAVOR_TOTAL_SUM_TOLERANCE,
+) -> FlavorTotalSumValidation:
+    """Validates the exact Casimir sum rule for one already-processed
+    spectral group. `diagonal_values` maps each site to its already-
+    computed C_TT_conn(i,i); `off_diagonal_values` maps each ORDERED pair
+    (i,j), i!=j, to its already-computed C_TT_conn(i,j) -- both orders
+    are summed exactly as serialized (D021), never divided by two and
+    never reconstructed from a single orbit-averaged representative.
+    C_TT_raw is never accepted here: the sum rule holds exactly for the
+    CONNECTED correlator only, because <T_i^a>_group = 0 for a genuine
+    complete_multiplet (Schur), making C_TT_conn(i,i) == C_TT_raw(i,i)
+    there -- but this identity is never assumed on the input, only on
+    the fact that the caller passed C_TT_conn values.
+
+    Not applicable (and no verdict of any kind) unless status is exactly
+    "complete_multiplet" and twice_T resolved to a real int -- never a
+    silent best-effort attempt on a partial_subspace group."""
+    if status != COMPLETE_MULTIPLET or twice_T is None:
+        return FlavorTotalSumValidation(applicable=False, measured=None, expected=None, residual=None, is_valid=None)
+
+    resolved_T = twice_T / 2.0
+    expected = resolved_T * (resolved_T + 1.0)
+    measured = sum(diagonal_values.values()) + sum(off_diagonal_values.values())
+    residual = abs(measured - expected)
+    return FlavorTotalSumValidation(
+        applicable=True, measured=measured, expected=expected, residual=residual, is_valid=residual <= tolerance
+    )

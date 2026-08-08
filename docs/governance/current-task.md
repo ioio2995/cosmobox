@@ -240,9 +240,9 @@ Trois audits scientifiques en lecture seule, acceptés définitivement comme bas
 
 Voir « Lot 1C-3a » ci-dessous pour l'implémentation du contrat self-correlator issu de ces trois audits.
 
-## Lot actif
+## Lot 1C-3a (accepté définitivement, `161b279c35756fde4d0e29253a7c18c4ee028165`)
 
-1C-3a — implémentation minimale de `C_TT_conn(i,i)`.
+Implémentation minimale de `C_TT_conn(i,i)`.
 
 Ajoute la production sérialisée de `C_TT_conn(i,i)`, pour chaque site et chaque groupe spectral déjà traité par le runner, en réutilisant l'observable et les primitives existantes — extension de l'observable binaire déjà existante `C_TT_conn(i,j)` au cas `j=i`, jamais une nouvelle famille conceptuelle (`T_self`/`rho_TT`/`local_T_variance` explicitement rejetés).
 
@@ -253,6 +253,26 @@ Ajoute la production sérialisée de `C_TT_conn(i,i)`, pour chaque site et chaqu
 **Compatibilité ascendante** : les artefacts normatifs Level 1B déjà produits (`/workspaces/level1b_campaign_output/runs/`) restent inchangés et valides selon le contrat sous lequel ils ont été produits ; leur absence de `C_TT_conn(i,i)` n'est jamais traitée comme une erreur de validation rétroactive. Aucun chargeur/validateur existant (`validate_existing_case_run`, `scripts/level1b_analysis/loader.py`) n'a été modifié ni ne requiert la nouvelle donnée pour les anciens runs. `schema_version`/`manifest`/`campaign_id` inchangés — la nouvelle production est additive et ne casse la lecture d'aucun artefact existant.
 
 Fichiers de ce lot : `scripts/level1b_campaign/runner.py`, `tests/scripts/level1b_campaign/test_runner.py`, `docs/levels/level1/implementation-design.md`, `docs/governance/current-task.md`.
+
+**État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
+
+## Lot actif
+
+1C-3b — validation du self-correlator diagonal et fermeture de la somme `T(T+1)`.
+
+Valide scientifiquement et numériquement la production `C_TT_conn(i,i)` (1C-3a) : nouvelle fonction pure `local_observables.validate_flavor_total_sum(status, twice_T, diagonal_values, off_diagonal_values, *, tolerance=FLAVOR_TOTAL_SUM_TOLERANCE)`, retournant `FlavorTotalSumValidation(applicable, measured, expected, residual, is_valid)`. Vérifie `sum_i C_TT_conn(i,i) + sum_{i!=j} C_TT_conn(i,j) = T(T+1)` (`T=twice_T/2`), les deux ordres `(i,j)`/`(j,i)` sommés tels que sérialisés (jamais divisés par deux, jamais reconstruits depuis une moyenne d'orbite), jamais `C_TT_raw`.
+
+**Tolérance retenue** : `FLAVOR_TOTAL_SUM_TOLERANCE = matching.FLAVOR_LABEL_TOLERANCE` (`1e-8`), réutilisée par import, jamais redéfinie — audit préalable (§2 du mandat) : `compute_twice_T` (`matching.py`) compare déjà une quantité calculée à la MÊME cible `T(T+1)` avec cette exacte tolérance absolue ; la tolérance analytique plus stricte `1e-10` (V11, `IMAGINARY_PART_TOLERANCE`) a été explicitement écartée car jamais gelée pour une somme de plusieurs termes (jusqu'à `N²≤25` termes sur les géométries actuelles) — l'accumulation de bruit légitime à travers cette somme pourrait dépasser `1e-10` alors qu'elle reste très en-deçà de `1e-8` (marge démontrée, pas seulement supposée).
+
+**Politique `complete_multiplet`/`partial_subspace`** : contrôle applicable uniquement à `complete_multiplet` avec `twice_T` résolu ; `applicable=False` (tous les autres champs `None`) pour tout groupe `partial_subspace` — jamais un faux `T` ni un verdict approximatif, jamais une exception pour ce cas normal.
+
+**Nouveau critère de validation** : `V23` (`docs/levels/level1/validation-plan.md`), gelé après audit de la numérotation existante (dernier numéro utilisé : V22).
+
+**Couverture réelle** : `V23` vérifié sur `triangle` référence (2 groupes), `ring4` référence (tous groupes), `triangle j_break` (3 groupes, dont le secteur de saveur maximale `twice_T=3` — confirmé `C_TT_conn(i,i)=0.75` exactement par site, cohérent avec le théorème déjà établi) ; égalité de symétrie locale `D1≈D2` vérifiée sur `triangle j_break`. **Aucune fixture `ring5-j_break` n'existe** dans la suite de tests (coût de diagonalisation disproportionné, `dim=1000` à `S=2`) — `D1≈D4`/`D2≈D3` sur `ring5-j_break` restent non couvertes par un test automatisé, documenté comme trou de couverture explicite plutôt que fabriqué artificiellement.
+
+**Compatibilité ascendante** : aucune modification de `validate_existing_case_run`, du schéma, du manifeste, de `matching.py`, de `robustness.py` ; les artefacts Level 1B historiques (sans `C_TT_conn(i,i)`) restent valides sous leur contrat d'origine, `V23` ne s'applique qu'aux productions enrichies qui contiennent explicitement la diagonale.
+
+Fichiers de ce lot : `src/cosmobox/level1/local_observables.py`, `tests/level1/test_local_observables.py`, `tests/scripts/level1b_campaign/test_runner.py`, `docs/levels/level1/validation-plan.md`, `docs/levels/level1/implementation-design.md`, `docs/governance/current-task.md`.
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 

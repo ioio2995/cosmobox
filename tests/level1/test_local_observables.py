@@ -37,6 +37,9 @@ from cosmobox.level1.local_observables import (
     local_flavor_dot_product,
     normalized_charge_correlator,
     raw_moment,
+    FlavorTotalSumValidation,
+    FLAVOR_TOTAL_SUM_TOLERANCE,
+    validate_flavor_total_sum,
 )
 from cosmobox.level1.restricted import (
     COMPLETE_MULTIPLET,
@@ -842,3 +845,72 @@ def test_group_correlators_on_triangle_s1_degenerate_fundamental_multiplet() -> 
     assert charge_correlator_connected_group(Qi, Qj, rotated_state).value == pytest.approx(conn_q.value, abs=1e-10)
     assert flavor_correlator_raw_group(Ti, Tj, rotated_state).value == pytest.approx(raw_t.value, abs=1e-10)
     assert flavor_correlator_connected_group(Ti, Tj, rotated_state).value == pytest.approx(conn_t.value, abs=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# validate_flavor_total_sum -- T(T+1) sum rule contract (1C-3b,
+# docs/governance/current-task.md). Pure-logic tests only: real
+# end-to-end coverage against actually-produced C_TT_conn records lives
+# in tests/scripts/level1b_campaign/test_runner.py.
+# ---------------------------------------------------------------------------
+
+
+def test_validate_flavor_total_sum_not_applicable_for_partial_subspace() -> None:
+    result = validate_flavor_total_sum(PARTIAL_SUBSPACE, 1, {0: 0.5}, {(0, 1): 0.1, (1, 0): 0.1})
+    assert result.applicable is False
+    assert result.measured is None
+    assert result.expected is None
+    assert result.residual is None
+    assert result.is_valid is None
+
+
+def test_validate_flavor_total_sum_not_applicable_when_twice_t_unresolved() -> None:
+    result = validate_flavor_total_sum(COMPLETE_MULTIPLET, None, {0: 0.5}, {(0, 1): 0.1, (1, 0): 0.1})
+    assert result.applicable is False
+
+
+def test_validate_flavor_total_sum_exact_match_is_valid() -> None:
+    # T = 1/2, T(T+1) = 0.75, split arbitrarily across 3 diagonal + 6
+    # off-diagonal (ordered) terms summing exactly to 0.75.
+    diagonal = {0: 0.25, 1: 0.25, 2: 0.25}
+    off_diagonal = {(0, 1): 0.0, (1, 0): 0.0, (0, 2): 0.0, (2, 0): 0.0, (1, 2): 0.0, (2, 1): 0.0}
+    result = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+    assert result.applicable is True
+    assert result.measured == pytest.approx(0.75)
+    assert result.expected == pytest.approx(0.75)
+    assert result.residual == pytest.approx(0.0, abs=1e-15)
+    assert result.is_valid is True
+
+
+def test_validate_flavor_total_sum_residual_outside_tolerance_is_invalid() -> None:
+    diagonal = {0: 0.25, 1: 0.25, 2: 0.25}
+    off_diagonal = {(0, 1): 0.01, (1, 0): 0.01, (0, 2): 0.0, (2, 0): 0.0, (1, 2): 0.0, (2, 1): 0.0}
+    result = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+    assert result.residual == pytest.approx(0.02)
+    assert result.residual > FLAVOR_TOTAL_SUM_TOLERANCE
+    assert result.is_valid is False
+
+
+def test_validate_flavor_total_sum_never_divides_by_two_both_orders_counted() -> None:
+    # A caller mistake of only supplying one order (i,j), never (j,i),
+    # must NOT be silently compensated for -- both orders are summed
+    # exactly as given, with no factor of 1/2 or 2 applied anywhere.
+    diagonal = {0: 0.0, 1: 0.0}
+    only_one_order = {(0, 1): 0.375}
+    both_orders = {(0, 1): 0.375, (1, 0): 0.375}
+    result_one = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, only_one_order)
+    result_both = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, both_orders)
+    assert result_one.measured == pytest.approx(0.375)
+    assert result_both.measured == pytest.approx(0.75)
+    assert result_both.is_valid is True
+    assert result_one.is_valid is False
+
+
+def test_flavor_total_sum_validation_rejects_inconsistent_non_applicable() -> None:
+    with pytest.raises(ValueError, match="non-applicable"):
+        FlavorTotalSumValidation(applicable=False, measured=0.0, expected=None, residual=None, is_valid=None)
+
+
+def test_flavor_total_sum_validation_rejects_incomplete_applicable() -> None:
+    with pytest.raises(ValueError, match="applicable"):
+        FlavorTotalSumValidation(applicable=True, measured=0.75, expected=0.75, residual=None, is_valid=None)

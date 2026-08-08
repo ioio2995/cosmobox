@@ -10,7 +10,12 @@ from cosmobox.level0.basis import build_basis
 from cosmobox.level0.hamiltonian import build_hamiltonian_terms, build_key_index
 from cosmobox.level0.lattice import build_lattice
 from cosmobox.level0.reports import build_level0_report_with_eigenvectors
-from cosmobox.level1.local_observables import build_local_flavor_generators, flavor_correlator_connected_group
+from cosmobox.level1.local_observables import (
+    FLAVOR_TOTAL_SUM_TOLERANCE,
+    build_local_flavor_generators,
+    flavor_correlator_connected_group,
+    validate_flavor_total_sum,
+)
 from cosmobox.level1.orbits import ValidatedOrbit
 from cosmobox.level1.restricted import extract_group_state
 from cosmobox.level1.serialization import _load_schema
@@ -511,6 +516,129 @@ def test_self_correlator_on_partial_subspace_uses_exploratory_dispatch_not_analy
         assert doc["identity"]["spectral_group"]["status"] == "partial_subspace"
         assert doc["provenance"]["spectral_status"] == "partial_subspace"
         assert math.isfinite(doc["payload"])
+
+
+# ---------------------------------------------------------------------------
+# 10c. T(T+1) sum rule validation (1C-3b, docs/governance/current-task.md).
+# validate_flavor_total_sum's own contract is tested in
+# tests/level1/test_local_observables.py; these tests confirm it holds
+# end-to-end against REALLY produced C_TT_conn records (diagonal + both
+# ordered off-diagonal directions), never a synthetic/hand-built input.
+# ---------------------------------------------------------------------------
+
+
+def _flavor_total_sum_validation_for_group(documents, group_index: int):
+    c_tt_conn = [doc for doc in _c_tt_conn_records(documents) if doc["identity"]["spectral_group"]["spectral_window_group_index"] == group_index]
+    assert c_tt_conn, f"no C_TT_conn records found for group {group_index}"
+    status = c_tt_conn[0]["identity"]["spectral_group"]["status"]
+    twice_T = c_tt_conn[0]["identity"]["spectral_group"]["twice_T"]
+    diagonal = {}
+    off_diagonal = {}
+    for doc in c_tt_conn:
+        path = tuple(doc["identity"]["path"])
+        if path[0] == path[1]:
+            diagonal[path[0]] = doc["payload"]
+        else:
+            off_diagonal[path] = doc["payload"]
+    return validate_flavor_total_sum(status, twice_T, diagonal, off_diagonal)
+
+
+def test_flavor_total_sum_triangle_reference_complete_groups(triangle_s1_result) -> None:
+    # T1: every complete group produced for triangle S=1 reference closes
+    # the sum rule exactly, within the retained tolerance.
+    group_indices = {doc["identity"]["spectral_group"]["spectral_window_group_index"] for doc in triangle_s1_result.documents}
+    checked = 0
+    for group_index in group_indices:
+        result = _flavor_total_sum_validation_for_group(triangle_s1_result.documents, group_index)
+        assert result.applicable is True
+        assert result.residual <= FLAVOR_TOTAL_SUM_TOLERANCE
+        assert result.is_valid is True
+        checked += 1
+    assert checked == 2  # fundamental + the shared first_excited/T_max group
+
+
+def test_flavor_total_sum_ring4_reference_complete_groups(ring4_s1_result) -> None:
+    # T2: same control on a larger geometry (N=4 sites, up to 4+12=16
+    # summed terms per group).
+    group_indices = {doc["identity"]["spectral_group"]["spectral_window_group_index"] for doc in ring4_s1_result.documents}
+    checked = 0
+    for group_index in group_indices:
+        result = _flavor_total_sum_validation_for_group(ring4_s1_result.documents, group_index)
+        assert result.applicable is True
+        assert result.residual <= FLAVOR_TOTAL_SUM_TOLERANCE
+        assert result.is_valid is True
+        checked += 1
+    assert checked > 0
+
+
+def test_flavor_total_sum_triangle_j_break_complete_groups(triangle_s2_jbreak_result) -> None:
+    # T3: same control under j_break -- the sum rule is a flavor-SU(2)
+    # identity, indistinguishable in form from the reference-point case
+    # despite J_0 breaking spatial (not flavor) symmetry (1C-2a/1C-2b).
+    group_indices = {doc["identity"]["spectral_group"]["spectral_window_group_index"] for doc in triangle_s2_jbreak_result.documents}
+    checked = 0
+    for group_index in group_indices:
+        result = _flavor_total_sum_validation_for_group(triangle_s2_jbreak_result.documents, group_index)
+        assert result.applicable is True
+        assert result.residual <= FLAVOR_TOTAL_SUM_TOLERANCE
+        assert result.is_valid is True
+        checked += 1
+    assert checked == 3  # groups 0, 1 (twice_T=1 each) and 2 (twice_T=3, maximal)
+
+
+def test_flavor_total_sum_maximal_flavor_sector_matches_theorem(triangle_s1_result) -> None:
+    # T4: on triangle S=1's maximal-flavor group (T_max target, twice_T=3
+    # = n for N=3 sites), C_TT_conn(i,i) is analytically forced to 0.75
+    # per site (n_i=1 exactly, no double occupation, established theorem)
+    # -- checked here as an OBSERVED consequence of the already-produced
+    # records, never as a new production rule.
+    t_max = next(o for o in triangle_s1_result.target_outcomes if o.target_id == "T_max")
+    result = _flavor_total_sum_validation_for_group(triangle_s1_result.documents, t_max.group_index)
+    diagonal = {
+        tuple(doc["identity"]["path"])[0]: doc["payload"]
+        for doc in _self_correlator_records(triangle_s1_result.documents)
+        if doc["identity"]["spectral_group"]["spectral_window_group_index"] == t_max.group_index
+    }
+    assert len(diagonal) == 3
+    for value in diagonal.values():
+        assert value == pytest.approx(0.75, abs=1e-8)
+    assert result.applicable is True
+    assert result.residual <= FLAVOR_TOTAL_SUM_TOLERANCE
+    assert result.is_valid is True
+
+
+def test_flavor_total_sum_not_applicable_for_partial_subspace(truncated_triangle_s1_result) -> None:
+    # T5: the sole selected group is partial_subspace -- the validator
+    # must refuse to produce any verdict, exact or otherwise.
+    fundamental = next(o for o in truncated_triangle_s1_result.target_outcomes if o.target_id == "fundamental")
+    result = _flavor_total_sum_validation_for_group(truncated_triangle_s1_result.documents, fundamental.group_index)
+    assert result.applicable is False
+    assert result.measured is None
+    assert result.expected is None
+    assert result.residual is None
+    assert result.is_valid is None
+
+
+# ---------------------------------------------------------------------------
+# 10d. Local reflection symmetry under j_break (1C-3b): the residual
+# {identity, reflection} subgroup forces D_i == D_j for sites in the same
+# orbit. Checked here only on the triangle-j_break fixture already used
+# elsewhere in this file -- no ring5-j_break fixture exists in the test
+# suite (ring5 at S=2 has physical_dimension=1000, too costly for a unit
+# test), so D1~=D4 / D2~=D3 on ring5 remain UNCOVERED by any automated
+# test as of this lot; a future lot would need a dedicated (and
+# comparatively expensive) ring5-j_break fixture to close this gap.
+# ---------------------------------------------------------------------------
+
+
+def test_local_reflection_symmetry_triangle_j_break_d1_equals_d2(triangle_s2_jbreak_result) -> None:
+    for group_index in {doc["identity"]["spectral_group"]["spectral_window_group_index"] for doc in triangle_s2_jbreak_result.documents}:
+        diagonal = {
+            tuple(doc["identity"]["path"])[0]: doc["payload"]
+            for doc in _self_correlator_records(triangle_s2_jbreak_result.documents)
+            if doc["identity"]["spectral_group"]["spectral_window_group_index"] == group_index
+        }
+        assert diagonal[1] == pytest.approx(diagonal[2], abs=FLAVOR_TOTAL_SUM_TOLERANCE)
 
 
 # ---------------------------------------------------------------------------
