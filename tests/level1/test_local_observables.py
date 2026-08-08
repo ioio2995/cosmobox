@@ -891,19 +891,114 @@ def test_validate_flavor_total_sum_residual_outside_tolerance_is_invalid() -> No
     assert result.is_valid is False
 
 
-def test_validate_flavor_total_sum_never_divides_by_two_both_orders_counted() -> None:
-    # A caller mistake of only supplying one order (i,j), never (j,i),
-    # must NOT be silently compensated for -- both orders are summed
-    # exactly as given, with no factor of 1/2 or 2 applied anywhere.
+def test_validate_flavor_total_sum_both_orders_counted_no_accidental_halving() -> None:
+    # A structurally complete corpus with both orders present: summing
+    # them must reproduce T(T+1) exactly -- if the implementation ever
+    # divided the off-diagonal sum by two, this would silently fail.
     diagonal = {0: 0.0, 1: 0.0}
-    only_one_order = {(0, 1): 0.375}
     both_orders = {(0, 1): 0.375, (1, 0): 0.375}
-    result_one = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, only_one_order)
-    result_both = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, both_orders)
-    assert result_one.measured == pytest.approx(0.375)
-    assert result_both.measured == pytest.approx(0.75)
-    assert result_both.is_valid is True
-    assert result_one.is_valid is False
+    result = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, both_orders)
+    assert result.applicable is True
+    assert result.measured == pytest.approx(0.75)
+    assert result.is_valid is True
+
+
+# ---------------------------------------------------------------------------
+# Structural completeness (1C-3b corrective,
+# docs/governance/current-task.md): an incomplete or inconsistent corpus
+# must raise ValueError, never silently produce is_valid=False or, worse,
+# a coincidental is_valid=True.
+# ---------------------------------------------------------------------------
+
+
+def test_validate_flavor_total_sum_c1_complete_corpus_still_valid() -> None:
+    diagonal = {0: 0.25, 1: 0.25, 2: 0.25}
+    off_diagonal = {(0, 1): 0.0, (1, 0): 0.0, (0, 2): 0.0, (2, 0): 0.0, (1, 2): 0.0, (2, 1): 0.0}
+    result = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+    assert result.applicable is True
+    assert result.is_valid is True
+
+
+def test_validate_flavor_total_sum_c2_missing_one_direction_raises() -> None:
+    diagonal = {0: 0.0, 1: 0.0}
+    off_diagonal = {(0, 1): 0.375}  # (1, 0) missing
+    with pytest.raises(ValueError, match="N\\*\\(N-1\\) ordered pairs"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+
+
+def test_validate_flavor_total_sum_c3_missing_pair_entirely_raises() -> None:
+    diagonal = {0: 0.25, 1: 0.25, 2: 0.25}
+    off_diagonal = {(0, 1): 0.0, (1, 0): 0.0, (0, 2): 0.0, (2, 0): 0.0}  # (1,2)/(2,1) entirely absent
+    with pytest.raises(ValueError, match="N\\*\\(N-1\\) ordered pairs"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+
+
+def test_validate_flavor_total_sum_c4_diagonal_pair_in_off_diagonal_raises() -> None:
+    diagonal = {0: 0.25, 1: 0.25}
+    off_diagonal = {(0, 1): 0.0, (1, 0): 0.0, (0, 0): 0.25}  # (0,0) does not belong here
+    with pytest.raises(ValueError, match="N\\*\\(N-1\\) ordered pairs"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+
+
+def test_validate_flavor_total_sum_c5_foreign_site_raises() -> None:
+    diagonal = {0: 0.25, 1: 0.25}
+    off_diagonal = {(0, 1): 0.0, (1, 0): 0.0, (0, 2): 0.0}  # site 2 not in diagonal_values
+    with pytest.raises(ValueError, match="N\\*\\(N-1\\) ordered pairs"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+
+
+def test_validate_flavor_total_sum_c6_empty_diagonal_raises() -> None:
+    with pytest.raises(ValueError, match="must not be empty"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, {}, {})
+
+
+def test_validate_flavor_total_sum_c7_structurally_complete_but_wrong_sum_is_invalid_not_an_error() -> None:
+    # The essential distinction: a structurally COMPLETE corpus that
+    # simply fails the physical sum rule is a normal scientific outcome
+    # (is_valid=False), never an exception.
+    diagonal = {0: 0.25, 1: 0.25, 2: 0.25}
+    off_diagonal = {(0, 1): 0.01, (1, 0): 0.01, (0, 2): 0.0, (2, 0): 0.0, (1, 2): 0.0, (2, 1): 0.0}
+    result = validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+    assert result.applicable is True
+    assert result.residual > FLAVOR_TOTAL_SUM_TOLERANCE
+    assert result.is_valid is False
+
+
+def test_validate_flavor_total_sum_c8_partial_subspace_never_checks_completeness() -> None:
+    # applicable=False is returned before any structural check -- an
+    # incomplete/inconsistent corpus on a partial_subspace group must
+    # never raise, since no verdict is ever attempted for it.
+    incomplete_diagonal = {0: 0.5}
+    incomplete_off_diagonal = {(0, 1): 0.1, (1, 0): 0.1}  # site 1 foreign to diagonal_values
+    result = validate_flavor_total_sum(PARTIAL_SUBSPACE, 1, incomplete_diagonal, incomplete_off_diagonal)
+    assert result.applicable is False
+    assert result.measured is None
+    assert result.expected is None
+    assert result.residual is None
+    assert result.is_valid is None
+
+
+def test_validate_flavor_total_sum_rejects_non_int_twice_t() -> None:
+    diagonal = {0: 0.25, 1: 0.25, 2: 0.25}
+    off_diagonal = {(0, 1): 0.0, (1, 0): 0.0, (0, 2): 0.0, (2, 0): 0.0, (1, 2): 0.0, (2, 1): 0.0}
+    with pytest.raises(ValueError, match="twice_T must be a non-negative int"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, True, diagonal, off_diagonal)  # bool, not a real int
+    with pytest.raises(ValueError, match="twice_T must be a non-negative int"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, -1, diagonal, off_diagonal)
+    with pytest.raises(ValueError, match="twice_T must be a non-negative int"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, 1.5, diagonal, off_diagonal)  # float, not int
+
+
+def test_validate_flavor_total_sum_rejects_non_finite_values() -> None:
+    diagonal = {0: float("nan"), 1: 0.25, 2: 0.25}
+    off_diagonal = {(0, 1): 0.0, (1, 0): 0.0, (0, 2): 0.0, (2, 0): 0.0, (1, 2): 0.0, (2, 1): 0.0}
+    with pytest.raises(ValueError, match="finite number"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal, off_diagonal)
+
+    diagonal_ok = {0: 0.25, 1: 0.25, 2: 0.25}
+    off_diagonal_inf = {(0, 1): float("inf"), (1, 0): 0.0, (0, 2): 0.0, (2, 0): 0.0, (1, 2): 0.0, (2, 1): 0.0}
+    with pytest.raises(ValueError, match="finite number"):
+        validate_flavor_total_sum(COMPLETE_MULTIPLET, 1, diagonal_ok, off_diagonal_inf)
 
 
 def test_flavor_total_sum_validation_rejects_inconsistent_non_applicable() -> None:

@@ -526,9 +526,44 @@ def validate_flavor_total_sum(
 
     Not applicable (and no verdict of any kind) unless status is exactly
     "complete_multiplet" and twice_T resolved to a real int -- never a
-    silent best-effort attempt on a partial_subspace group."""
+    silent best-effort attempt on a partial_subspace group. Completeness
+    of the input mappings is checked ONLY on this applicable path (1C-3b
+    corrective, docs/governance/current-task.md): `diagonal_values` must
+    be non-empty, and `off_diagonal_values` must carry EXACTLY the
+    N*(N-1) ordered pairs implied by `diagonal_values`'s own site set --
+    a missing direction, a missing pair, a foreign site, or a diagonal
+    pair (i,i) smuggled into off_diagonal_values all raise ValueError,
+    since a coincidentally-matching sum over an incomplete or
+    inconsistent corpus would otherwise be indistinguishable from a
+    genuine confirmation of the sum rule. This is a structural
+    incoherence of the CALL, never a scientific outcome -- it is
+    reported by raising, never by is_valid=False, which stays reserved
+    for a structurally complete corpus whose physical sum simply misses
+    T(T+1) beyond tolerance."""
     if status != COMPLETE_MULTIPLET or twice_T is None:
         return FlavorTotalSumValidation(applicable=False, measured=None, expected=None, residual=None, is_valid=None)
+
+    if isinstance(twice_T, bool) or not isinstance(twice_T, int) or twice_T < 0:
+        raise ValueError(f"twice_T must be a non-negative int when applicable, got {twice_T!r}")
+
+    sites = set(diagonal_values.keys())
+    if not sites:
+        raise ValueError("diagonal_values must not be empty for an applicable (complete_multiplet) group")
+
+    expected_off_diagonal_pairs = {(i, j) for i in sites for j in sites if i != j}
+    actual_off_diagonal_pairs = set(off_diagonal_values.keys())
+    if actual_off_diagonal_pairs != expected_off_diagonal_pairs:
+        missing = sorted(expected_off_diagonal_pairs - actual_off_diagonal_pairs)
+        unexpected = sorted(actual_off_diagonal_pairs - expected_off_diagonal_pairs)
+        raise ValueError(
+            "off_diagonal_values must carry exactly the N*(N-1) ordered pairs implied by diagonal_values's site "
+            f"set {sorted(sites)} -- missing={missing}, unexpected={unexpected} (a diagonal pair (i,i), a foreign "
+            "site, or a one-directional pair all surface here)"
+        )
+
+    for value in (*diagonal_values.values(), *off_diagonal_values.values()):
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"every C_TT_conn value must be a finite number, got {value!r}")
 
     resolved_T = twice_T / 2.0
     expected = resolved_T * (resolved_T + 1.0)
