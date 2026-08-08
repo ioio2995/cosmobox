@@ -168,6 +168,99 @@ secteur physiquement intéressant   !=   secteur informatif pour
 
 Un secteur peut être l'un sans être l'autre : le secteur de saveur maximale reste physiquement intéressant (théorème V11, structure exacte du modèle) tout en étant inéligible à toute tentative de reconstruction géométrique par manque de DOF.
 
+### Statut du secteur de saveur maximale `T_max` (1C-4b, gelé)
+
+**[GELÉ]** Pour Level 1C, le secteur de saveur maximale `T_max` (`T=N/2`, `twice_T=N`, pour une géométrie à `N` sites) est classé :
+
+```text
+CALIBRATION_ONLY
+```
+
+**Justification, démontrée (audit 1C-4b) sous les hypothèses `M=2`, `Q_tot=0` (demi-remplissage global), SU(2) de saveur exacte, `T=N/2` :**
+
+```text
+T=N/2  ->  n_d=0 (aucune double occupation, théorème déjà gelé,
+           specification.md §"Théorème du secteur de saveur maximale")
+       ->  à demi-remplissage (Q_tot=0) : n_i=1 sur CHAQUE site,
+           exactement, opérateur (pas seulement en espérance)
+       ->  C_TT_conn(i,i) = <T_i²> = 3/4 exactement (Casimir local d'un
+           spin-1/2 exact, scalaire sur toute représentation irréductible)
+       ->  C_TT_conn(i,j) = 1/4 exactement pour tout i != j (règle de
+           somme T_tot² + symétrie de permutation S_N du secteur de spin
+           maximal d'un produit de N spins-1/2, multiplicité 1 dans la
+           décomposition de Clebsch-Gordan -- une symétrie ABSTRAITE du
+           secteur de saveur, indépendante de la géométrie du graphe et
+           du groupe d'automorphismes spatial)
+       ->  rho_QQ structurellement null (zero_local_charge_variance) :
+           Q_i=n_i-1=0 exactement, Var(Q_i)=0 exactement, pour toute paire
+       ->  G_ij^{alpha,beta}[P] = 0 pour tout i != j, par orthogonalité
+           exacte des secteurs d'occupation (c†_{i,alpha} W_P c_{j,beta}
+           transforme (n_i,n_j)=(1,1) en (2,0) ou s'annule par exclusion
+           de Pauli ; le résultat non nul porte n_d>=1, donc T<N/2,
+           orthogonal à T_max -- W_P n'agit que sur les degrés de liberté
+           de jauge, jamais sur l'occupation matière) ; conséquence :
+           flavor_singlet=0, flavor_frobenius_squared=0,
+           flavor_singular_values=(0,0) (valeurs exactes, PAS "null"),
+           flavor_singular_value_ratio=null/normalization_denominator_
+           below_floor (contrat déjà gelé D018/1B-7, jamais une valeur
+           fabriquée)
+       ->  aucune liberté relationnelle primaire disponible pour
+           l'inférence géométrique actuelle.
+```
+
+**`G[P]` n'est pas réintroduit comme sonde géométrique primaire par cette annulation** : il reste différé pour un futur volet transport/phase/holonomie, en raison du risque de circularité déjà signalé (§4, dépendance à `paths.minimal_paths`) — cette annulation dans `T_max` est une conséquence du secteur de saveur, pas un changement de statut de `G[P]` lui-même.
+
+**Distinction des trois quantités, jamais confondues :**
+
+```text
+N_records                     : nombre d'enregistrements C_TT_conn
+                                 sérialisés (N diagonales + N(N-1) paires
+                                 ordonnées hors-diagonale).
+N_pair_orbits                 : nombre d'orbites de paires sous le
+                                 sous-groupe de symétrie SPATIAL effectif
+                                 (2 pour triangle, 6 pour ring5 sous
+                                 j_break -- audit 1C-2a).
+N_independent_geometry_DOF     : nombre de valeurs RÉELLEMENT libres pour
+                                 l'inférence géométrique -- 0 dans T_max,
+                                 quelle que soit la géométrie, quel que
+                                 soit j_break, parce que la symétrie
+                                 pertinente (S_N, secteur de saveur) est
+                                 strictement plus grande que le groupe
+                                 d'automorphismes spatial et force TOUTES
+                                 les paires à la même valeur, pas
+                                 seulement celles d'une même orbite
+                                 spatiale.
+```
+
+**Le fait qu'une brisure spatiale (`j_break`) augmente `N_pair_orbits` ne change JAMAIS `N_independent_geometry_DOF` dans `T_max`** :
+
+```text
+TMAX_GEOMETRY_INFORMATION_DOF_CTT = 0
+```
+
+**Rôle de calibration légitime (liste fermée, audit 1C-4b)** : occupation `n_i=1` ; self-corrélateur `C_TT_conn(i,i)=3/4` ; hors-diagonale `C_TT_conn(i,j)=1/4` ; fermeture de la règle de somme `T(T+1)` (V23) ; `rho_QQ` structurellement null ; `G=0` et ses invariants dérivés forcés ; cohérence SU(2) (exactitude de la symétrie de saveur) ; sérialisation/normalisation (contrats de plancher/null déjà gelés). **Une cible peut être excellente comme contrôle et non informative pour l'inférence** — ce n'est pas une contradiction, ce sont deux rôles distincts, jamais fusionnés (§8 de l'audit 1C-4b).
+
+**Règle de campagne future (universelle, gelée)** :
+
+```text
+Une campagne géométrique Level 1C ne doit PAS être déclarée invalide
+uniquement parce que T_max n'est pas résolu dans la fenêtre spectrale
+choisie pour d'autres raisons.
+
+Aucune profondeur spectrale supplémentaire ne doit être choisie
+uniquement pour atteindre T_max.
+
+Si T_max est naturellement présent dans la fenêtre retenue pour
+d'autres cibles, il est exploité comme contrôle de calibration, mais
+jamais compté dans les degrés de liberté d'inférence géométrique.
+```
+
+Cette règle s'applique **universellement** — toute géométrie (présente ou future), toute valeur future de `J_0`, toute valeur future de `S` — tant que les hypothèses du théorème restent vraies (`M=2`, `Q_tot=0`/demi-remplissage global, SU(2) de saveur exacte, `T=N/2`). Elle ne décide **aucune autre cible requise** pour une future campagne — ce choix reste ouvert, séparé.
+
+**Contrôle du biais post-hoc (audit 1C-4b §12, confirmé)** : cette politique est acceptable malgré la découverte préalable du coût spectral de `ring5 T_max` (`1C-4a`) parce que (1) sa justification est analytique, indépendante du coût observé — la même preuve, avec la même force, s'applique à `triangle`, où aucun problème de coût n'existe ; (2) la règle est appliquée universellement à `triangle` et `ring5` (et à toute géométrie future), jamais ciblée sur `ring5` seul ; (3) la même conclusion aurait été tirée même si `T_max` avait été gratuit à résoudre ; (4) la décision est gelée ici, avant toute conception de campagne normative `J0×S` ; (5) aucun résultat Level 1B n'est supprimé ni invalidé ; (6) le manifeste Level 1B historique reste inchangé. L'ordre chronologique réel (coût découvert avant la décision) n'est pas dissimulé — il est documenté explicitement ici et dans `docs/governance/current-task.md`.
+
+**Statut historique Level 1B, inchangé** : `T_max` reste une cible historique valide de Level 1B (`experiments/level1/preregistered-manifest-v1.json`, cible `T_max`/`selection_kind="flavor_label"`) — aucun manifeste Level 1B n'est modifié par cette décision. La politique `CALIBRATION_ONLY` concerne exclusivement la **future** inférence géométrique Level 1C.
+
 ## 7. Principe d'identifiabilité
 
 **[GELÉ — exigence de conception, pas encore quantifiée]**

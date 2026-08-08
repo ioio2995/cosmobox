@@ -29,12 +29,12 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-77615bf4fa6c0b0ae36e3b5acd796b3e8a830b53
+17de4e86a399bc2fb25a5e96929994f796733a3c
 ```
 
 **Level 1B : CLOS.** 1B-9g (clôture scientifique documentaire) accepté définitivement. Voir « Lot 1B-9g » ci-dessous et `docs/levels/level1/level1b-conclusion.md`.
 
-**Level 1C : lot 1C-0 accepté définitivement** (`fcd05b7444c621680a42764be7ed2da319a9ff29` + correctif `77615bf4fa6c0b0ae36e3b5acd796b3e8a830b53`) — voir « Lot 1C-0 » ci-dessous. L'audit scientifique en lecture seule des degrés de liberté relationnels (`C_TT_conn`/`rho_QQ`, point de référence `J` uniforme, 7 groupes spectraux appariés) est également accepté comme base conceptuelle pour la suite — voir « Lot 1C-1 » ci-dessous.
+**Level 1C : lots 1C-0, 1C-1, 1C-3a, 1C-3b, 1C-4a acceptés définitivement** (commits respectifs cités dans leurs sections dédiées ci-dessous). **1C-2a/1C-2b/1C-2c** : voir la section dédiée ci-dessous — statut corrigé (1C-2b/1C-2c seuls acceptés définitivement en tant que jalons ; 1C-2a suspendu puis subsumé, jamais accepté séparément). **1C-4b** (audit d'utilité informationnelle de `T_max`, lecture seule, aucun commit propre) accepté définitivement — sa politique est pré-enregistrée par **1C-4c** ci-dessous.
 
 Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-pick) :
 
@@ -230,15 +230,33 @@ Fichiers de ce lot : `docs/governance/current-task.md`, `docs/levels/level1c/ide
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
-## Audits acceptés — 1C-2a / 1C-2b / 1C-2c (lecture seule, aucun commit propre)
+## Audits 1C-2a / 1C-2b / 1C-2c (lecture seule, aucun commit propre) — statut historique corrigé (1C-4c)
 
-Trois audits scientifiques en lecture seule, acceptés définitivement comme base de conception pour la suite, sans qu'aucun n'ait produit de commit propre (mandats stricts « aucun fichier », respectés) :
+**Correction historique (1C-4c)** : une formulation antérieure de cette section présentait `1C-2a`/`1C-2b`/`1C-2c` comme tous acceptés définitivement, sans distinction. **Ceci était inexact.** Le fait historique correct est :
 
-- **1C-2a** — identifiabilité sous `j_break` : perturbation sur site (`J_0=1.5`, `J_{i≠0}=1`), symétrie résiduelle exacte `{identité, réflexion fixant le site 0}`, orbites de paires (triangle 2, ring5 6), `rho_QQ` fermé exactement par la règle de charge (triangle 1 DOF, ring5 5 DOF), `C_TT_conn` non fermé faute de self-correlator (jusqu'à 2/6 DOF potentiels), secteur de saveur maximale toujours à 0 DOF sous `j_break`.
-- **1C-2b** — matching inter-S et fermeture informationnelle sous `j_break` : `MATCHING_OK` (le contrat `symmetry_labels_match`/`SpectralGroupMatchKey` existant traite déjà correctement `translation=not_applicable`/`reflection=numeric` des deux côtés, `hamiltonian_identity_without_spin` protège déjà contre un appariement inter-`J_0`), self-correlator minimal identifié (`C_TT_conn(i,i) ≡ <T_i^2>` pour un multiplet complet), `DOF_max_after_closure` (pas `DOF_exact`) établi pour `C_TT_conn` une fois la diagonale connue.
-- **1C-2c** — contrat minimal des self-correlators et préflight conceptuel : contrat `SELF_CORRELATOR_CONTRACT=EXTEND_EXISTING_OBSERVABLE`, `path=(i,i)` (jamais `(i,)`), granularité par site, dispatch `partial_subspace` existant réutilisé sans simplification analytique, `VALIDATION_TOLERANCE=OPEN`, convention de ratio `r_X=sqrt(var_X/var_0)` recommandée non normative, `J0_BASELINE_STRATEGY=OPEN`, préflight `spectral_window` conçu (non exécuté).
+```text
+1C-2b et 1C-2c ont été acceptés définitivement, chacun comme jalon à part.
 
-Voir « Lot 1C-3a » ci-dessous pour l'implémentation du contrat self-correlator issu de ces trois audits.
+Le rapport initial 1C-2a a été suspendu pour deux défauts précis :
+  1. le nombre d'orbites de paires (triangle N_pair_orbits=2, ring5
+     N_pair_orbits=6) avait été présenté à tort comme un nombre exact de
+     DOF indépendants, alors que seule une borne supérieure avant
+     fermeture (DOF_max) était réellement établie ;
+  2. le comptage de paramètres d'un plongement R^2 générique (2N-3 si
+     l'échelle reste physique, 2N-4 si une échelle globale est
+     quotientée) n'avait pas encore de convention d'échelle gelée.
+
+1C-2a corrigé n'a PAS ensuite été accepté séparément comme jalon
+définitif à part entière. Ses fondations corrigées ne sont retenues que
+dans la mesure où elles ont été reprises et subsumées par 1C-2b/1C-2c.
+```
+
+**Contenu retenu (subsumé par 1C-2b/1C-2c, jamais comme jalon 1C-2a autonome)** : identifiabilité sous `j_break` — perturbation sur site (`J_0=1.5`, `J_{i≠0}=1`), symétrie résiduelle exacte `{identité, réflexion fixant le site 0}`, `rho_QQ` fermé exactement par la règle de charge (triangle 1 DOF, ring5 5 DOF), secteur de saveur maximale à 0 DOF sous `j_break` (confirmé et étendu par 1C-4b).
+
+- **1C-2b** (accepté définitivement) — matching inter-S et fermeture informationnelle sous `j_break` : `MATCHING_OK` (le contrat `symmetry_labels_match`/`SpectralGroupMatchKey` existant traite déjà correctement `translation=not_applicable`/`reflection=numeric` des deux côtés, `hamiltonian_identity_without_spin` protège déjà contre un appariement inter-`J_0`), self-correlator minimal identifié (`C_TT_conn(i,i) ≡ <T_i^2>` pour un multiplet complet), `DOF_max_after_closure` (pas `DOF_exact`) établi pour `C_TT_conn` une fois la diagonale connue.
+- **1C-2c** (accepté définitivement) — contrat minimal des self-correlators et préflight conceptuel : contrat `SELF_CORRELATOR_CONTRACT=EXTEND_EXISTING_OBSERVABLE`, `path=(i,i)` (jamais `(i,)`), granularité par site, dispatch `partial_subspace` existant réutilisé sans simplification analytique, `VALIDATION_TOLERANCE=OPEN`, convention de ratio `r_X=sqrt(var_X/var_0)` recommandée non normative, `J0_BASELINE_STRATEGY=OPEN`, préflight `spectral_window` conçu (non exécuté).
+
+Voir « Lot 1C-3a » ci-dessous pour l'implémentation du contrat self-correlator issu de ces audits.
 
 ## Lot 1C-3a (accepté définitivement, `161b279c35756fde4d0e29253a7c18c4ee028165`)
 
@@ -256,9 +274,9 @@ Fichiers de ce lot : `scripts/level1b_campaign/runner.py`, `tests/scripts/level1
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
-## Lot actif
+## Lot 1C-3b (accepté définitivement, `df6022d79118c693ee5928a88c99e553543948a1`)
 
-1C-3b — validation du self-correlator diagonal et fermeture de la somme `T(T+1)`.
+Validation du self-correlator diagonal et fermeture de la somme `T(T+1)`.
 
 Valide scientifiquement et numériquement la production `C_TT_conn(i,i)` (1C-3a) : nouvelle fonction pure `local_observables.validate_flavor_total_sum(status, twice_T, diagonal_values, off_diagonal_values, *, tolerance=FLAVOR_TOTAL_SUM_TOLERANCE)`, retournant `FlavorTotalSumValidation(applicable, measured, expected, residual, is_valid)`. Vérifie `sum_i C_TT_conn(i,i) + sum_{i!=j} C_TT_conn(i,j) = T(T+1)` (`T=twice_T/2`), les deux ordres `(i,j)`/`(j,i)` sommés tels que sérialisés (jamais divisés par deux, jamais reconstruits depuis une moyenne d'orbite), jamais `C_TT_raw`.
 
@@ -274,7 +292,65 @@ Valide scientifiquement et numériquement la production `C_TT_conn(i,i)` (1C-3a)
 
 Fichiers de ce lot : `src/cosmobox/level1/local_observables.py`, `tests/level1/test_local_observables.py`, `tests/scripts/level1b_campaign/test_runner.py`, `docs/levels/level1/validation-plan.md`, `docs/levels/level1/implementation-design.md`, `docs/governance/current-task.md`.
 
-**Historique de ce sous-lot** : livraison candidate `fe0c26aae9a7c4032106808ef1624bd6b9ec1e19` — conforme scientifiquement sur la règle `T(T+1)`, la tolérance retenue, la politique `partial_subspace` et les tests end-to-end, mais acceptation initialement suspendue pour un défaut structurel strictement borné : `validate_flavor_total_sum` ne vérifiait pas que `diagonal_values`/`off_diagonal_values` couvraient réellement `N` diagonales et `N(N-1)` paires ordonnées complètes pour un ensemble de sites cohérent — un corpus incomplet ou incohérent (direction manquante, paire absente, paire diagonale glissée en hors-diagonale, site étranger, diagonale vide) pouvait satisfaire `T(T+1)` par coïncidence numérique et être déclaré `is_valid=True`. **Correctif** : contrôle structurel complet ajouté avant tout calcul de somme — `sites=set(diagonal_values)` non vide, `set(off_diagonal_values)` exactement égal à `{(i,j): i,j∈sites, i≠j}`, `twice_T` validé comme `int>=0` réel, chaque valeur validée finie — toute incohérence lève `ValueError` (jamais `is_valid=False`, réservé exclusivement à un corpus structurellement complet dont la somme physique manque `T(T+1)`). `partial_subspace` continue de court-circuiter cette vérification entièrement (`applicable=False` avant toute inspection). Tolérance `1e-8` non rouverte. Correctif livré dans le présent commit, directement au-dessus de `fe0c26aae9a7c4032106808ef1624bd6b9ec1e19` (SHA du correctif à reporter dans l'historique lors du prochain jalon). **1C-3b sera accepté définitivement dans son ensemble une fois ce correctif audité.**
+**Historique de ce sous-lot** : livraison candidate `fe0c26aae9a7c4032106808ef1624bd6b9ec1e19` — conforme scientifiquement sur la règle `T(T+1)`, la tolérance retenue, la politique `partial_subspace` et les tests end-to-end, mais acceptation initialement suspendue pour un défaut structurel strictement borné : `validate_flavor_total_sum` ne vérifiait pas que `diagonal_values`/`off_diagonal_values` couvraient réellement `N` diagonales et `N(N-1)` paires ordonnées complètes pour un ensemble de sites cohérent — un corpus incomplet ou incohérent (direction manquante, paire absente, paire diagonale glissée en hors-diagonale, site étranger, diagonale vide) pouvait satisfaire `T(T+1)` par coïncidence numérique et être déclaré `is_valid=True`. **Correctif** : contrôle structurel complet ajouté avant tout calcul de somme — `sites=set(diagonal_values)` non vide, `set(off_diagonal_values)` exactement égal à `{(i,j): i,j∈sites, i≠j}`, `twice_T` validé comme `int>=0` réel, chaque valeur validée finie — toute incohérence lève `ValueError` (jamais `is_valid=False`, réservé exclusivement à un corpus structurellement complet dont la somme physique manque `T(T+1)`). `partial_subspace` continue de court-circuiter cette vérification entièrement (`applicable=False` avant toute inspection). Tolérance `1e-8` non rouverte. Correctif livré au commit `df6022d79118c693ee5928a88c99e553543948a1`. **1C-3b est accepté définitivement dans son ensemble** (`fe0c26aae9a7c4032106808ef1624bd6b9ec1e19` + correctif `df6022d79118c693ee5928a88c99e553543948a1`).
+
+**État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
+
+## Lot 1C-4a (accepté définitivement, `17de4e86a399bc2fb25a5e96929994f796733a3c`)
+
+Préflight spectral exploratoire `j_break` à `S=3`, en quatre phases (design, exécution, audit du script, fermeture déterministe des verdicts), puis commit de traçabilité de l'outil.
+
+**Outil** : `scripts/level1c_preflight/{__init__.py,jbreak_spectral_preflight.py}` — script exploratoire, non normatif, disposable, réutilisant exclusivement des primitives déjà acceptées (diagonalisation Level0, `target_selection.select_target_group`, `matching.match_spectral_group`, `local_observables.validate_flavor_total_sum`, toutes inchangées). N'écrit jamais sous `/workspaces/level1b_campaign_output/`, n'appelle jamais `launch_normative_campaign`/`run_campaign`/`evaluate_robustness`/`compute_gamma_o`. Verdicts déterministes : `evaluate_window_verdict` (`WINDOW_SUFFICIENT`/`WINDOW_INSUFFICIENT`/`PREFLIGHT_INCONCLUSIVE`, priorité fixe, aucun seuil énergétique), `compute_preflight_integrity`, `evaluate_resource_verdict` (`RESOURCE_FEASIBLE`/`RESOURCE_BLOCKING`, aucun seuil quantitatif inventé).
+
+**Résultat déjà observé et accepté** (non recalculé) :
+
+```text
+triangle-S3-j_break : candidate_window=16 SUFFISANTE (WINDOW_SUFFICIENT) --
+  fundamental/first_excited/T_max présents, complete_multiplet, V23 PASS,
+  réflexion PASS, marge structurelle observée, candidats exacts inter-S
+  disponibles (MATCH_CANDIDATE_AVAILABLE).
+
+ring5-S3-j_break : candidate_window=24 INSUFFISANTE (WINDOW_INSUFFICIENT) --
+  cause UNIQUE observée : T_max absent même dans exploratory_window=48.
+  fundamental/first_excited/T_3_2 : présents, complete_multiplet, V23 PASS,
+  réflexion PASS, candidats exacts inter-S disponibles.
+
+Ressources : RESOURCE_FEASIBLE pour les deux géométries (chemin dense,
+  triangle 0.07s, ring5 3.96s).
+```
+
+**`exploratory_window=32/48` reste une fenêtre de préflight, jamais une nouvelle fenêtre normative** — aucun manifeste modifié, aucune campagne lancée. La décision sur la nécessité de `T_max` (donc sur toute éventuelle fenêtre future) est traitée séparément par 1C-4b/1C-4c ci-dessous.
+
+## Lot 1C-4b (accepté définitivement, lecture seule, aucun commit propre)
+
+Audit d'utilité informationnelle du secteur de saveur maximale `T_max` pour l'inférence géométrique Level 1C (trois tours : rapport initial, deux corrections strictement bornées — preuve de `O_ij_raw=0` par orthogonalité des secteurs d'occupation plutôt que par une conservation de `T²` non fondée ; correction historique 1C-2a, voir section dédiée ci-dessus).
+
+**Verdicts acceptés** :
+
+```text
+TMAX_OCCUPANCY_THEOREM              = PROVEN
+TMAX_CTT_SELF                       = FIXED       (= 3/4 exactement)
+TMAX_CTT_OFFDIAGONAL                = FIXED       (= 1/4 exactement)
+TMAX_RHO_QQ                         = STRUCTURAL_NULL
+TMAX_GEOMETRY_INFORMATION_DOF_CTT   = 0
+TMAX_PRIMARY_GEOMETRY_VALUE         = NON_INFORMATIVE
+TMAX_CALIBRATION_VALUE              = HIGH
+TMAX_LEVEL1C_POLICY_RECOMMENDATION  = CALIBRATION_ONLY
+POST_HOC_BIAS_CONTROL               = ADEQUATE_IF_PREREGISTERED_NOW
+RING5_DEEPER_WINDOW_NEEDED_NOW      = NO
+```
+
+Démonstration complète : occupation `n_i=1` exacte (théorème déjà gelé + demi-remplissage `Q_tot=0`, complété par un argument de tiroirs) ; self-corrélateur `C_TT_conn(i,i)=3/4` (Casimir local d'un spin-1/2 exact) ; hors-diagonale `C_TT_conn(i,j)=1/4` pour toute paire (règle de somme `T_tot²` + symétrie de permutation `S_N` du secteur de spin maximal, multiplicité 1, indépendante de la géométrie et de `j_break`) ; `rho_QQ` structurellement null (`Q_i≡0` exact) ; `G_ij^{alpha,beta}[P]=0` pour `i≠j` par orthogonalité exacte des secteurs d'occupation (Pauli + théorème d'occupation, jamais une conservation de `T²` par l'opérateur lui-même). Politique pré-enregistrée par **1C-4c** ci-dessous.
+
+## Lot 1C-4c — pré-enregistrement documentaire de la politique `T_max` (ce commit)
+
+Documentaire uniquement, aucune nouvelle science, aucune campagne, aucune diagonalisation. Inscrit dans `docs/levels/level1c/identifiability-preregistration.md` (nouvelle sous-section « Statut du secteur de saveur maximale `T_max` (1C-4b, gelé) », sous §6 « Secteurs inéligibles à l'inférence ») la politique **`CALIBRATION_ONLY`** pour `T_max` en Level 1C : cible non obligatoire pour l'inférence géométrique, utilisée comme contrôle analytique si naturellement présente, aucune fenêtre spectrale plus profonde exigée uniquement pour l'atteindre — règle universelle (toute géométrie, tout `J_0`/`S` futur) tant que `M=2`, `Q_tot=0` (demi-remplissage global), SU(2) de saveur exacte, `T=N/2`.
+
+Corrige également, dans la présente section (voir ci-dessus, « Audits 1C-2a / 1C-2b / 1C-2c »), la formulation historique inexacte qui présentait les trois audits comme tous acceptés définitivement sans distinction.
+
+**Manifeste Level 1B inchangé** : `T_max` reste une cible historique valide de Level 1B (`experiments/level1/preregistered-manifest-v1.json`, non modifié). La politique `CALIBRATION_ONLY` concerne exclusivement la future inférence géométrique Level 1C.
+
+Fichiers de ce lot : `docs/levels/level1c/identifiability-preregistration.md`, `docs/governance/current-task.md`.
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
