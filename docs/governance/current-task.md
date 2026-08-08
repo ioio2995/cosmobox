@@ -29,8 +29,10 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-a6450e994b7b1ce5c8d7d1fec876128a2a9622e9
+8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9
 ```
+
+**Level 1B : CLOS.** 1B-9g (clôture scientifique documentaire) accepté définitivement. Voir « Lot 1B-9g » ci-dessous et `docs/levels/level1/level1b-conclusion.md`.
 
 Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-pick) :
 
@@ -47,8 +49,10 @@ Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-
 - `77899f123bae83d687e38053870de0b7202bb057` — 1B-9e (application des verdicts de robustesse existants), **accepté définitivement** (mandat 1B-9f : « Les lots suivants sont considérés comme acceptés... 1B-9e »). Résultat accepté sur la campagne normative : 684 évaluations (`gamma_O` 416, `rho_QQ` 90, `C_TT_conn` 96, `flavor_singular_value_ratio` 82), 28 non évaluables (source null), 684 `robust`/0 `non_robust`/0 `indeterminate`, 252 `gamma_O` null tous verdict `robust`.
 - `8a14a040f569d4eb85de9572b7d23bb587737549` — livraison candidate 1B-9f (synthèse déterministe des résultats inter-S), conforme sur la synthèse statistique elle-même mais acceptation initialement suspendue : les groupes/couples étaient découverts depuis `comparison_report.comparisons` au lieu de `matching_report.matches`, faisant disparaître silencieusement de `groups`/`couples` tout `exact_label_match` sans comparaison 1B-9d.
 - `a6450e994b7b1ce5c8d7d1fec876128a2a9622e9` — correctif structurel 1B-9f (source `groups`/`couples` depuis `matching_report.matches`, plus l'invariant `len(groups) == exact_match_count`). **1B-9f est désormais accepté définitivement dans son ensemble** (`8a14a040...` + `a6450e99...`). Résultat accepté sur la campagne normative : 7 groupes appariés (7 `exact_label_match`), 712 comparaisons source → 684 évaluées / 28 non évaluables, 684 `robust`/0 `non_robust`/0 `indeterminate` (global, par couple, par groupe, par observable). Voir « Lot 1B-9f » ci-dessous.
+- `60ab94f89237a6489b89d2af08b459fc2cb1db23` — livraison candidate 1B-9g (clôture scientifique documentaire de Level 1B, `docs/levels/level1/level1b-conclusion.md`), conforme scientifiquement sur le fond mais acceptation initialement suspendue pour deux corrections terminologiques/de portée bornées (confusion « troncature spectrale `S` » / portée `j_break`).
+- `8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9` — correctif terminologique 1B-9g (les deux corrections ci-dessus, aucune valeur ni conclusion scientifique modifiée). **1B-9g est désormais accepté définitivement dans son ensemble** (`60ab94f...` + `8f12a2f...`). **Level 1B est CLOS.** Voir « Lot 1B-9g » ci-dessous.
 
-**Le pointeur ci-dessus (`a6450e994b7b1ce5c8d7d1fec876128a2a9622e9`) reste le dernier commit formellement accepté.**
+**Le pointeur ci-dessus (`8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9`) reste le dernier commit formellement accepté.**
 
 1B-9a — conception de la couche d'analyse inter-S sur artefacts normatifs — **conception acceptée, y compris son addendum**, aucun code livré par ce lot (design uniquement). Décisions gelées pour l'implémentation, reprises et mises en œuvre par 1B-9c/1B-9d/1B-9e/1B-9f ci-dessous :
 
@@ -154,9 +158,9 @@ Fichiers de ce lot : `scripts/level1b_analysis/synthesis.py` (`InterSSynthesisRe
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
-## Lot actif
+## Lot 1B-9g (accepté définitivement, `60ab94f89237a6489b89d2af08b459fc2cb1db23` + `8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9`)
 
-1B-9g — clôture scientifique documentaire de Level 1B.
+Clôture scientifique documentaire de Level 1B.
 
 **Lot documentaire uniquement.** Aucun nouveau calcul scientifique, aucune campagne, aucun code, aucune nouvelle observable, aucune nouvelle formule, aucun nouveau seuil, aucun nouveau verdict, aucune nouvelle `null_reason`. Consomme exclusivement les résultats déjà acceptés de 1B-9f (`campaign_id=level1b-reference-v1`, `manifest_fingerprint=159660cac738518dc620b9627ec95fd67c5dbc283707fdf72e572886364693ab`, `repository_commit source=0ff65ac66b4aa054f739b350cd384c26ecd19752`) et l'audit scientifique en lecture seule qui l'a suivi (aucune campagne relancée, artefacts `runs/` inchangés).
 
@@ -164,14 +168,30 @@ Fichiers de ce lot : `scripts/level1b_analysis/synthesis.py` (`InterSSynthesisRe
 
 **Fichiers autorisés (strict)** : `docs/governance/current-task.md`, `docs/levels/level1/level1b-conclusion.md`, `docs/README.md`. Aucun autre fichier. Aucun Python, aucun manifeste, aucun schéma, aucun artefact, aucun test scientifique modifié.
 
-**1B-9g livré / Level 1B clos / aucun Level 1C démarré / aucune nouvelle campagne autorisée.** Le pointeur « Dernier commit accepté » ci-dessus reste `a6450e994b7b1ce5c8d7d1fec876128a2a9622e9` : le commit portant ce lot n'est pas encore formellement accepté, en attente d'audit — même règle que pour chaque lot précédent avant son acceptation.
+**1B-9g livré / Level 1B clos / aucun Level 1C démarré à ce stade / aucune nouvelle campagne 1B autorisée.**
 
 **Historique de ce sous-lot** : livraison candidate `60ab94f89237a6489b89d2af08b459fc2cb1db23` — conforme scientifiquement sur le fond, mais acceptation initialement suspendue pour deux corrections terminologiques/de portée strictement bornées, aucune valeur ni conclusion scientifique modifiée :
 
 1. confusion terminologique « troncature spectrale `S` » (`S` désigne la troncature en spin de lien / degré de liberté de jauge, notion distincte de la troncature spectrale — `spectral_window`/fenêtre d'eigenvalues/`partial_subspace`/`lower_bound_only`) — corrigé dans `level1b-conclusion.md` §1 et §4 (et vérifié absent ailleurs dans le document) ;
 2. formulation de §13 laissant entendre qu'une robustesse inter-S avait déjà été testée sous `j_break` — corrigée : les cas `j_break` de `triangle`/`ring5` n'ont qu'un seul point `S` chacun dans cette campagne et ne produisent donc aucun couple inter-S admissible ; `j_break` a servi ailleurs de contrôle de réduction de symétrie sur cas unique, jamais de comparaison de robustesse inter-S.
 
-Correctif livré au commit indiqué dans « Dernier commit accepté » une fois audité. Le pointeur ci-dessus reste `a6450e994b7b1ce5c8d7d1fec876128a2a9622e9` jusqu'à l'audit de ce correctif.
+Correctif livré au commit `8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9`. **1B-9g est désormais accepté définitivement dans son ensemble** (`60ab94f...` + `8f12a2f...`).
+
+Fichiers de ce lot : `docs/levels/level1/level1b-conclusion.md`, `docs/README.md`, `docs/governance/current-task.md`.
+
+**État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
+
+## Lot actif
+
+1C-0 — état des lieux et cadrage conceptuel de Level 1C.
+
+**Ce mandat n'autorise PAS l'implémentation scientifique de Level 1C.** Il ouvre uniquement le cadrage conceptuel préalable. Aucune campagne Level 1C autorisée. Aucun code Level 1C autorisé. Aucune formule de distance autorisée. Aucun choix de candidat géométrique (`R1`/`R2`/`S1`/`S2`) comme hypothèse privilégiée.
+
+**Question scientifique centrale enregistrée** : les données relationnelles invariantes de jauge validées et robustes de Level 1B contiennent-elles suffisamment de structure pour permettre la reconstruction d'une organisation géométrique effective sans imposer a priori sa dimension, sa topologie ou son plongement ? Level 1C ne part pas de l'hypothèse qu'une géométrie existe ; « aucune géométrie classique simple n'est compatible avec les données » reste un résultat explicitement admissible.
+
+**Livrable** : `docs/levels/level1c/conceptual-framing.md` (11 sections : état hérité de Level 1B, question scientifique, hypothèse nulle, résultats admissibles, inventaire des données relationnelles disponibles, risques de circularité, candidats de représentation géométrique sans favori, décisions scientifiques encore nécessaires — notamment le choix de la donnée relationnelle primaire pour construire une dissimilarité, décision réservée à ChatGPT après audit —, hypothèse directrice générale avec statut de chaque proposition, ce que 1C ne testera pas encore, proposition de découpage des futurs sous-lots en conception uniquement).
+
+**Fichiers autorisés (strict)** : `docs/governance/current-task.md`, `docs/levels/level1c/conceptual-framing.md`, `docs/README.md`. Aucun autre fichier. Aucun Python, aucune campagne, aucun artefact ; aucune modification de `src/*`, `scripts/*`, `experiments/*`, `schemas/*`, `.github/workflows/*`.
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 

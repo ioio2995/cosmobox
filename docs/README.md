@@ -36,6 +36,12 @@ Statut : **clos**.
 
 Jalon de clôture : **lot 1B-9g**, clôture scientifique documentaire de Level 1B (voir [`levels/level1/level1b-conclusion.md`](levels/level1/level1b-conclusion.md)).
 
+## Niveau 1C
+
+- [`levels/level1c/conceptual-framing.md`](levels/level1c/conceptual-framing.md) — cadrage conceptuel, non normatif.
+
+Statut : **cadrage conceptuel en cours** (lot 1C-0). Aucune implémentation scientifique, aucune campagne, aucune formule de distance autorisée à ce stade.
+
 ## Compatibilité des anciens chemins
 
 Les anciens fichiers placés directement sous `docs/`, ainsi que les anciens chemins du manifeste et du schéma Level 1B, sont conservés temporairement sous forme de fichiers de redirection textuels. Ils ne sont plus des sources de vérité.
