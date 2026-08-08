@@ -29,7 +29,7 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-77899f123bae83d687e38053870de0b7202bb057
+a6450e994b7b1ce5c8d7d1fec876128a2a9622e9
 ```
 
 Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-pick) :
@@ -46,8 +46,9 @@ Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-
 - `994efe0ef19a18023a19697516f9ca66311adf65` — correctif 1B-9d (exigence `normalization == "raw_G"` pour `flavor_singular_value_ratio` ; durcissement des constructeurs publics). **1B-9d est désormais accepté définitivement dans son ensemble** (`7ef4669...` + `994efe0...`). Résultat accepté sur la campagne normative : 712 comparaisons inter-S — `O_ij_raw` 416 (252 `gamma_O` null), `rho_QQ` 96 (28 null high, 28 null low), `C_TT_conn` 96 (0 null), `flavor_singular_value_ratio` 104.
 - `77899f123bae83d687e38053870de0b7202bb057` — 1B-9e (application des verdicts de robustesse existants), **accepté définitivement** (mandat 1B-9f : « Les lots suivants sont considérés comme acceptés... 1B-9e »). Résultat accepté sur la campagne normative : 684 évaluations (`gamma_O` 416, `rho_QQ` 90, `C_TT_conn` 96, `flavor_singular_value_ratio` 82), 28 non évaluables (source null), 684 `robust`/0 `non_robust`/0 `indeterminate`, 252 `gamma_O` null tous verdict `robust`.
 - `8a14a040f569d4eb85de9572b7d23bb587737549` — livraison candidate 1B-9f (synthèse déterministe des résultats inter-S), conforme sur la synthèse statistique elle-même mais acceptation initialement suspendue : les groupes/couples étaient découverts depuis `comparison_report.comparisons` au lieu de `matching_report.matches`, faisant disparaître silencieusement de `groups`/`couples` tout `exact_label_match` sans comparaison 1B-9d.
+- `a6450e994b7b1ce5c8d7d1fec876128a2a9622e9` — correctif structurel 1B-9f (source `groups`/`couples` depuis `matching_report.matches`, plus l'invariant `len(groups) == exact_match_count`). **1B-9f est désormais accepté définitivement dans son ensemble** (`8a14a040...` + `a6450e99...`). Résultat accepté sur la campagne normative : 7 groupes appariés (7 `exact_label_match`), 712 comparaisons source → 684 évaluées / 28 non évaluables, 684 `robust`/0 `non_robust`/0 `indeterminate` (global, par couple, par groupe, par observable). Voir « Lot 1B-9f » ci-dessous.
 
-**Le pointeur ci-dessus (`77899f123bae83d687e38053870de0b7202bb057`) reste le dernier commit formellement accepté** : ni la livraison candidate 1B-9f, ni son correctif, ne sont encore acceptés — même règle que celle déjà appliquée pendant les suspensions précédentes.
+**Le pointeur ci-dessus (`a6450e994b7b1ce5c8d7d1fec876128a2a9622e9`) reste le dernier commit formellement accepté.**
 
 1B-9a — conception de la couche d'analyse inter-S sur artefacts normatifs — **conception acceptée, y compris son addendum**, aucun code livré par ce lot (design uniquement). Décisions gelées pour l'implémentation, reprises et mises en œuvre par 1B-9c/1B-9d/1B-9e/1B-9f ci-dessous :
 
@@ -117,9 +118,9 @@ Fichiers de ce lot : `scripts/level1b_analysis/robustness_evaluation.py` (`Inter
 
 **Résultat accepté sur la campagne normative** : 712 comparaisons source → 684 évaluées, 28 non évaluables (6 `rho_QQ` + 0 `C_TT_conn` + 22 `flavor_singular_value_ratio`). Par observable : `gamma_O` 416, `rho_QQ` 90, `C_TT_conn` 96, `flavor_singular_value_ratio` 82. Par verdict : 684 `robust`, 0 `non_robust`, 0 `indeterminate`. `gamma_O` null parmi les évaluations : 252, toutes verdict `robust`. 0 groupe `partial_subspace`.
 
-## Lot actif
+## Lot 1B-9f (accepté définitivement, `8a14a040f569d4eb85de9572b7d23bb587737549` + `a6450e994b7b1ce5c8d7d1fec876128a2a9622e9`)
 
-1B-9f — synthèse déterministe des résultats inter-S.
+Synthèse déterministe des résultats inter-S.
 
 **Lot de synthèse descriptive uniquement.** Aucune nouvelle physique, aucun contrat scientifique modifié, aucune conclusion physique automatique. Consomme exclusivement `InterSMatchingReport` + `InterSObservableComparisonReport` + `InterSRobustnessReport` acceptés ; ne recalcule jamais `difference`/`amplitude`/`gamma_O`/`threshold`/`verdict`/`null_reason` quand un `RobustnessResult` existe déjà — celui-ci reste l'unique source de vérité. N'appelle jamais `evaluate_robustness`/`compute_gamma_o`/`match_spectral_group`, ne relit jamais `records.jsonl`, ne diagonalise rien. Ne fusionne jamais les verdicts élémentaires en un verdict global (`global_robust`, `geometry_is_stable`, etc. explicitement interdits), ne moyenne rien entre observables ou groupes différents, n'extrapole rien en `S`.
 
@@ -149,7 +150,21 @@ Fichiers de ce lot : `scripts/level1b_analysis/synthesis.py` (`InterSSynthesisRe
 
 **Smoke-test réel mesuré** (`/workspaces/level1b_campaign_output`, lecture seule, non hardcodé, invariants 1B-9e exactement reproduits, inchangés après correctif) : 7 groupes appariés (7 `exact_label_match`, `len(groups) == exact_match_count` vérifié), 712 comparaisons source → 684 évaluées / 28 non évaluables. Par observable : `gamma_O` 416 (`gamma_o` défini=164/null=252), `rho_QQ` 90 (unevaluable=6), `C_TT_conn` 96 (unevaluable=0), `flavor_singular_value_ratio` 82 (unevaluable=22). Verdicts : 684 `robust`/0 `non_robust`/0 `indeterminate` partout (global, par couple, par groupe, par observable). Par couple : `triangle` 2 groupes/72 éval/12 non-éval ; `ring4` 2 groupes/192 éval/16 non-éval ; `ring5` 3 groupes/420 éval/0 non-éval. Statistiques (`difference`/`amplitude`/`gamma_O`) mesurées par observable, non hardcodées. `runs/` inchangé. Ceci est un relevé technique, aucune conclusion physique.
 
-**Aucune fonctionnalité 1B-9g n'est autorisée.** 1B-9f ne clôt pas scientifiquement Level 1B — il clôt la chaîne d'analyse mécanique (artefacts → indexation → matching → comparaisons → verdicts → synthèse). Le lot suivant sera une synthèse scientifique sous responsabilité conceptuelle de ChatGPT ; aucune conclusion de type « géométrie robuste »/« limite continue confirmée » n'est autorisée dans le code de 1B-9f ni avant cette synthèse. Acceptation encore suspendue, en attente de l'audit du présent correctif.
+1B-9f clôt la chaîne d'analyse mécanique (artefacts → indexation → matching → comparaisons → verdicts → synthèse). Il ne clôt pas, par lui-même, la science de Level 1B : cette clôture scientifique documentaire est le périmètre exact du lot 1B-9g ci-dessous, écrit sous responsabilité conceptuelle de ChatGPT et livré par Claude Code en documentaire uniquement, aucune conclusion de type « géométrie robuste »/« limite continue confirmée » n'ayant jamais été autorisée dans le code de 1B-9f.
+
+**État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
+
+## Lot actif
+
+1B-9g — clôture scientifique documentaire de Level 1B.
+
+**Lot documentaire uniquement.** Aucun nouveau calcul scientifique, aucune campagne, aucun code, aucune nouvelle observable, aucune nouvelle formule, aucun nouveau seuil, aucun nouveau verdict, aucune nouvelle `null_reason`. Consomme exclusivement les résultats déjà acceptés de 1B-9f (`campaign_id=level1b-reference-v1`, `manifest_fingerprint=159660cac738518dc620b9627ec95fd67c5dbc283707fdf72e572886364693ab`, `repository_commit source=0ff65ac66b4aa054f739b350cd384c26ecd19752`) et l'audit scientifique en lecture seule qui l'a suivi (aucune campagne relancée, artefacts `runs/` inchangés).
+
+**Livrable** : `docs/levels/level1/level1b-conclusion.md` (structure fixe en 16 sections : objet et périmètre, provenance, résultat global, robustesse inter-S, secteur de saveur maximale, structure SU(2), valeurs singulières et invariance de saveur, traitement des nulls, `gamma_O` défini vs sous floor, sensibilité par observable, groupe le plus discriminant, ce qui est établi, ce qui est compatible mais non établi, ce qui n'est pas démontré, relation avec le scénario général, transition vers Level 1C). Distingue explicitement les résultats normatifs (théorème du secteur de saveur maximale V11, contrat de normalisation nulle V15) des interprétations analytiques dérivées (annulation du corrélateur habillé en secteur de saveur maximale, structure SU(2) proportionnelle à l'identité — cross-check de V16, jamais un nouveau théorème pré-enregistré).
+
+**Fichiers autorisés (strict)** : `docs/governance/current-task.md`, `docs/levels/level1/level1b-conclusion.md`, `docs/README.md`. Aucun autre fichier. Aucun Python, aucun manifeste, aucun schéma, aucun artefact, aucun test scientifique modifié.
+
+**1B-9g livré / Level 1B clos / aucun Level 1C démarré / aucune nouvelle campagne autorisée.** Le pointeur « Dernier commit accepté » ci-dessus reste `a6450e994b7b1ce5c8d7d1fec876128a2a9622e9` : le commit portant ce lot n'est pas encore formellement accepté, en attente d'audit — même règle que pour chaque lot précédent avant son acceptation.
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 

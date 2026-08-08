@@ -28,12 +28,13 @@ Statut : **clos**.
 - [`levels/level1/specification.md`](levels/level1/specification.md)
 - [`levels/level1/validation-plan.md`](levels/level1/validation-plan.md)
 - [`levels/level1/implementation-design.md`](levels/level1/implementation-design.md)
+- [`levels/level1/level1b-conclusion.md`](levels/level1/level1b-conclusion.md) — conclusion scientifique de clôture.
 - [`../experiments/level1/preregistered-manifest.md`](../experiments/level1/preregistered-manifest.md)
 - [`../schemas/level1/correlators-v1.schema.json`](../schemas/level1/correlators-v1.schema.json)
 
-Statut : **spécification gelée, implémentation en cours**.
+Statut : **clos**.
 
-Jalon courant : **lot 1B-1 accepté** au commit `9a352b2e17fe989397996117b1b089174547db07`.
+Jalon de clôture : **lot 1B-9g**, clôture scientifique documentaire de Level 1B (voir [`levels/level1/level1b-conclusion.md`](levels/level1/level1b-conclusion.md)).
 
 ## Compatibilité des anciens chemins
 
