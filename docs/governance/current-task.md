@@ -166,6 +166,13 @@ Fichiers de ce lot : `scripts/level1b_analysis/synthesis.py` (`InterSSynthesisRe
 
 **1B-9g livré / Level 1B clos / aucun Level 1C démarré / aucune nouvelle campagne autorisée.** Le pointeur « Dernier commit accepté » ci-dessus reste `a6450e994b7b1ce5c8d7d1fec876128a2a9622e9` : le commit portant ce lot n'est pas encore formellement accepté, en attente d'audit — même règle que pour chaque lot précédent avant son acceptation.
 
+**Historique de ce sous-lot** : livraison candidate `60ab94f89237a6489b89d2af08b459fc2cb1db23` — conforme scientifiquement sur le fond, mais acceptation initialement suspendue pour deux corrections terminologiques/de portée strictement bornées, aucune valeur ni conclusion scientifique modifiée :
+
+1. confusion terminologique « troncature spectrale `S` » (`S` désigne la troncature en spin de lien / degré de liberté de jauge, notion distincte de la troncature spectrale — `spectral_window`/fenêtre d'eigenvalues/`partial_subspace`/`lower_bound_only`) — corrigé dans `level1b-conclusion.md` §1 et §4 (et vérifié absent ailleurs dans le document) ;
+2. formulation de §13 laissant entendre qu'une robustesse inter-S avait déjà été testée sous `j_break` — corrigée : les cas `j_break` de `triangle`/`ring5` n'ont qu'un seul point `S` chacun dans cette campagne et ne produisent donc aucun couple inter-S admissible ; `j_break` a servi ailleurs de contrôle de réduction de symétrie sur cas unique, jamais de comparaison de robustesse inter-S.
+
+Correctif livré au commit indiqué dans « Dernier commit accepté » une fois audité. Le pointeur ci-dessus reste `a6450e994b7b1ce5c8d7d1fec876128a2a9622e9` jusqu'à l'audit de ce correctif.
+
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)

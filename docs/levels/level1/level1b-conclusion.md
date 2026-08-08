@@ -8,7 +8,7 @@ Ce document clôt scientifiquement Level 1B à partir des résultats déjà acce
 
 ## 1. Objet et périmètre
 
-Level 1B a validé, sur un ensemble de géométries de graphe (`triangle`, `ring4`, `ring5`) et de valeurs du spin de lien `S`, une chaîne complète d'observables invariantes de jauge — corrélateurs habillés bruts et connectés, invariants de saveur, diagnostics spectraux restreints — puis a testé leur robustesse sous variation de la troncature spectrale `S` selon un critère de robustesse gelé (D018).
+Level 1B a validé, sur un ensemble de géométries de graphe (`triangle`, `ring4`, `ring5`) et de valeurs du spin de lien `S`, une chaîne complète d'observables invariantes de jauge — corrélateurs habillés bruts et connectés, invariants de saveur, diagnostics spectraux restreints — puis a testé leur robustesse sous variation de la troncature en spin de lien `S` selon un critère de robustesse gelé (D018).
 
 Ce document ne couvre que :
 
@@ -67,7 +67,7 @@ du critère de robustesse
 marge minimale absolue au seuil = 0.0456
 ```
 
-La stabilité inter-S observée est obtenue avec une marge très importante vis-à-vis du seuil pré-enregistré. Deux points `S=2` et `S=3` ne démontrent pas une convergence : ce résultat est un test de robustesse ponctuel entre deux troncatures spectrales successives, pas une preuve de convergence d'une suite en `S` (voir §10 et §13).
+La stabilité inter-S observée est obtenue avec une marge très importante vis-à-vis du seuil pré-enregistré. Deux points `S=2` et `S=3` ne démontrent pas une convergence : ce résultat est un test de robustesse ponctuel entre deux troncatures successives du degré de liberté de lien, pas une preuve de convergence d'une suite en `S` (voir §10 et §13).
 
 ## 5. Secteur de saveur maximale
 
@@ -175,9 +175,11 @@ Sans démonstration supplémentaire à partir des labels spectraux déjà accept
 - Une convergence des observables lorsque `S` augmente au-delà de `S=3`.
 - L'existence d'une limite asymptotique en `S`.
 - Une stabilité similaire à des valeurs `S > 3`.
-- Une stabilité sous d'autres perturbations du Hamiltonien que celles déjà testées par `j_break` (D007).
+- Une robustesse inter-S similaire sous des perturbations du Hamiltonien telles que `j_break`, qui n'ont pas été comparées entre plusieurs valeurs de `S` dans la présente campagne.
 
 Ces énoncés sont compatibles avec les résultats mesurés (aucune contradiction observée) mais ne sont établis par aucun résultat de cette campagne : la campagne compare exactement deux points, `S=3` et `S=2`.
+
+Précision sur `j_break` : dans cette campagne, les cas `j_break` de `triangle`/`ring5` ne disposent que d'un seul point `S` chacun et ne produisent donc aucun couple inter-S admissible (1B-9a/1B-9c). `j_break` a été utilisé ailleurs dans Level 1B comme contrôle de réduction du groupe de symétrie sur un cas unique — cet usage ne doit jamais être confondu avec une comparaison de robustesse inter-S, qui n'a pas été effectuée sous `j_break`.
 
 ## 14. Ce qui n'est pas testé ou démontré
 
