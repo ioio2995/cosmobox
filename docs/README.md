@@ -39,8 +39,9 @@ Jalon de clôture : **lot 1B-9g**, clôture scientifique documentaire de Level 1
 ## Niveau 1C
 
 - [`levels/level1c/conceptual-framing.md`](levels/level1c/conceptual-framing.md) — cadrage conceptuel, non normatif.
+- [`levels/level1c/identifiability-preregistration.md`](levels/level1c/identifiability-preregistration.md) — pré-enregistrement conceptuel de la stratégie d'identifiabilité géométrique, non normatif.
 
-Statut : **cadrage conceptuel en cours** (lot 1C-0). Aucune implémentation scientifique, aucune campagne, aucune formule de distance autorisée à ce stade.
+Statut : **pré-enregistrement conceptuel en cours** (lot 1C-1, après acceptation définitive de 1C-0). Aucune implémentation scientifique, aucune campagne, aucune formule de distance autorisée à ce stade.
 
 ## Compatibilité des anciens chemins
 

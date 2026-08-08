@@ -29,10 +29,12 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9
+77615bf4fa6c0b0ae36e3b5acd796b3e8a830b53
 ```
 
 **Level 1B : CLOS.** 1B-9g (clôture scientifique documentaire) accepté définitivement. Voir « Lot 1B-9g » ci-dessous et `docs/levels/level1/level1b-conclusion.md`.
+
+**Level 1C : lot 1C-0 accepté définitivement** (`fcd05b7444c621680a42764be7ed2da319a9ff29` + correctif `77615bf4fa6c0b0ae36e3b5acd796b3e8a830b53`) — voir « Lot 1C-0 » ci-dessous. L'audit scientifique en lecture seule des degrés de liberté relationnels (`C_TT_conn`/`rho_QQ`, point de référence `J` uniforme, 7 groupes spectraux appariés) est également accepté comme base conceptuelle pour la suite — voir « Lot 1C-1 » ci-dessous.
 
 Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-pick) :
 
@@ -181,33 +183,54 @@ Fichiers de ce lot : `docs/levels/level1/level1b-conclusion.md`, `docs/README.md
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
-## Lot actif
+## Lot 1C-0 (accepté définitivement, `fcd05b7444c621680a42764be7ed2da319a9ff29` + `77615bf4fa6c0b0ae36e3b5acd796b3e8a830b53`)
 
-1C-0 — état des lieux et cadrage conceptuel de Level 1C.
+État des lieux et cadrage conceptuel de Level 1C.
 
-**Ce mandat n'autorise PAS l'implémentation scientifique de Level 1C.** Il ouvre uniquement le cadrage conceptuel préalable. Aucune campagne Level 1C autorisée. Aucun code Level 1C autorisé. Aucune formule de distance autorisée. Aucun choix de candidat géométrique (`R1`/`R2`/`S1`/`S2`) comme hypothèse privilégiée.
+**Ce mandat n'a pas autorisé l'implémentation scientifique de Level 1C.** Il a ouvert uniquement le cadrage conceptuel préalable. Aucune campagne Level 1C, aucun code Level 1C, aucune formule de distance, aucun choix de candidat géométrique (`R1`/`R2`/`S1`/`S2`) comme hypothèse privilégiée.
 
 **Question scientifique centrale enregistrée** : les données relationnelles invariantes de jauge validées et robustes de Level 1B contiennent-elles suffisamment de structure pour permettre la reconstruction d'une organisation géométrique effective sans imposer a priori sa dimension, sa topologie ou son plongement ? Level 1C ne part pas de l'hypothèse qu'une géométrie existe ; « aucune géométrie classique simple n'est compatible avec les données » reste un résultat explicitement admissible.
 
 **Livrable** : `docs/levels/level1c/conceptual-framing.md` (11 sections : état hérité de Level 1B, question scientifique, hypothèse nulle, résultats admissibles, inventaire des données relationnelles disponibles, risques de circularité, candidats de représentation géométrique sans favori, décisions scientifiques encore nécessaires — notamment le choix de la donnée relationnelle primaire pour construire une dissimilarité, décision réservée à ChatGPT après audit —, hypothèse directrice générale avec statut de chaque proposition, ce que 1C ne testera pas encore, proposition de découpage des futurs sous-lots en conception uniquement).
 
-**Fichiers autorisés (strict)** : `docs/governance/current-task.md`, `docs/levels/level1c/conceptual-framing.md`, `docs/README.md`. Aucun autre fichier. Aucun Python, aucune campagne, aucun artefact ; aucune modification de `src/*`, `scripts/*`, `experiments/*`, `schemas/*`, `.github/workflows/*`.
+**Historique de ce sous-lot** : livraison candidate `fcd05b7444c621680a42764be7ed2da319a9ff29` — conforme sur le fond et sur la gouvernance, mais acceptation initialement suspendue pour une confusion conceptuelle strictement bornée à `docs/levels/level1c/conceptual-framing.md` §5.4 : le document attribuait à tort l'invariance des invariants de saveur (`flavor_singlet`, `flavor_frobenius_squared`, `flavor_singular_values`, `flavor_singular_value_ratio`) à `Psi -> Psi V` en la qualifiant de « rotation de saveur SU(2) » — or `Psi -> Psi V` est le changement de base interne du multiplet spectral dégénéré (justifie `rho_M = Pi_M/d`, spécification §4), une notion distincte de la rotation SU(2) agissant sur les indices `(alpha, beta)` de `G^{alpha,beta}`. Correctif livré au commit `77615bf4fa6c0b0ae36e3b5acd796b3e8a830b53` (aucune formule, aucun résultat Level 1B, aucune décision scientifique Level 1C, aucune définition scientifique modifiée). **1C-0 est désormais accepté définitivement dans son ensemble** (`fcd05b7...` + `77615bf...`).
+
+Fichiers de ce lot : `docs/governance/current-task.md`, `docs/levels/level1c/conceptual-framing.md`, `docs/README.md`.
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
-### Livraison candidate 1C-0 — acceptation suspendue
+## Audit accepté — degrés de liberté relationnels (lecture seule, aucun commit propre)
+
+Audit scientifique en lecture seule, réalisé sur le HEAD `77615bf4fa6c0b0ae36e3b5acd796b3e8a830b53`, accepté comme base conceptuelle pour 1C-1. N'a produit aucun commit (interdiction stricte du mandat : aucune modification, aucun fichier créé). Portée : les 7 groupes spectraux appariés de la campagne `level1b-reference-v1`, observables `C_TT_conn`/`rho_QQ`, au point de référence `J_i` uniforme.
+
+**Résultats acceptés** :
 
 ```text
-fcd05b7444c621680a42764be7ed2da319a9ff29
-= livraison candidate 1C-0
+Orbites de paires (point de référence) :
+  triangle : 1 orbite      ring4 : 2 orbites      ring5 : 2 orbites
 
-acceptation suspendue pour :
-confusion entre changement de base interne du multiplet
-Psi -> Psi V
-et rotation SU(2) dans l'espace de saveur.
+DOF relationnels indépendants après symétries et contraintes exactes :
+  C_TT_conn : 1-2 par groupe en général, 0 au secteur de saveur maximale
+  rho_QQ    : 0-1 par groupe, null structurel au secteur de saveur maximale
 ```
 
-Défaut strictement borné à `docs/levels/level1c/conceptual-framing.md` §5.4 : le document attribuait à tort l'invariance des invariants de saveur (`flavor_singlet`, `flavor_frobenius_squared`, `flavor_singular_values`, `flavor_singular_value_ratio`) à `Psi -> Psi V` en la qualifiant de « rotation de saveur SU(2) » — or `Psi -> Psi V` est le changement de base interne du multiplet spectral dégénéré (justifie `rho_M = Pi_M/d`, spécification §4), une notion distincte de la rotation SU(2) agissant sur les indices `(alpha, beta)` de `G^{alpha,beta}`. Aucune formule, aucun résultat Level 1B, aucune décision scientifique Level 1C, aucune définition scientifique modifiée par le correctif.
+Symétrie `i<->j` : égalité bit-exacte sur 183/183 paires vérifiées (commutation d'opérateur, pas une optimisation logicielle — le runner recalcule chaque paire ordonnée indépendamment). Règle de somme de charge (`Q_tot=0`) : confirmée exactement (`sum_{j!=i} rho_QQ(i,j) = -1`, 6/6 groupes non-null). Règle de somme de saveur (`T(T+1)`) : fermable exactement uniquement au secteur de saveur maximale (diagonale `T_i^a` non serialisée ailleurs). Information mutuelle : non calculable depuis les artefacts actuels (vecteurs propres et matrices densité réduites jamais sérialisés).
+
+**Conclusion méthodologique acceptée** : le point de référence maximalement symétrique est un excellent jeu de calibration analytique mais il est trop pauvre en degrés de liberté pour constituer, à lui seul et groupe par groupe, une base fortement falsifiable de reconstruction géométrique générique.
+
+## Lot actif
+
+1C-1 — pré-enregistrement conceptuel de la stratégie d'identifiabilité géométrique.
+
+**Ce mandat est documentaire/conceptuel uniquement.** Aucune nouvelle campagne, aucun calcul scientifique, aucun fitting, aucune reconstruction, aucune transformation corrélateur→distance, aucun code scientifique.
+
+**Objectif** : distinguer explicitement le choix de la sonde (quelle observable) de l'identifiabilité du problème géométrique (le signal porté a-t-il assez de DOF indépendants pour qu'une hypothèse géométrique puisse être réellement rejetée), et geler une stratégie conceptuelle en réponse à la pauvreté en DOF constatée par l'audit ci-dessus.
+
+**Livrable** : `docs/levels/level1c/identifiability-preregistration.md` (14 sections : motivation issue de l'audit DOF, sonde primaire `C_TT_conn`, contrôle de concordance `rho_QQ`, observables différées `G[P]`/`gamma_O`, point de référence comme calibration, secteurs inéligibles à l'inférence, principe d'identifiabilité, `j_break` comme candidat de campagne informative, données supplémentaires nécessaires, information mutuelle, statut de `disk7`, hypothèse de cohérence inter-secteurs, décisions encore ouvertes, ce que 1C-1 n'autorise pas).
+
+**Fichiers autorisés (strict)** : `docs/governance/current-task.md`, `docs/levels/level1c/identifiability-preregistration.md`, `docs/README.md`. Aucun autre fichier. Aucun Python ; aucune modification de `src/*`, `scripts/*`, `tests/*`, `experiments/*`, `schemas/*`, `.github/workflows/*`. Aucun artefact, aucune campagne, aucune diagonalisation, aucun nouveau run, aucun fitting, aucun embedding, aucune formule corrélateur→distance, aucune nouvelle observable (notamment aucun `rho_TT`), aucune campagne `j_break`/`disk7`, aucun calcul d'information mutuelle, aucun choix de géométrie favorite.
+
+**État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
 **Le dernier commit formellement accepté reste `8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9` jusqu'à audit du correctif.**
 
