@@ -195,6 +195,22 @@ Fichiers de ce lot : `docs/levels/level1/level1b-conclusion.md`, `docs/README.md
 
 **État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
 
+### Livraison candidate 1C-0 — acceptation suspendue
+
+```text
+fcd05b7444c621680a42764be7ed2da319a9ff29
+= livraison candidate 1C-0
+
+acceptation suspendue pour :
+confusion entre changement de base interne du multiplet
+Psi -> Psi V
+et rotation SU(2) dans l'espace de saveur.
+```
+
+Défaut strictement borné à `docs/levels/level1c/conceptual-framing.md` §5.4 : le document attribuait à tort l'invariance des invariants de saveur (`flavor_singlet`, `flavor_frobenius_squared`, `flavor_singular_values`, `flavor_singular_value_ratio`) à `Psi -> Psi V` en la qualifiant de « rotation de saveur SU(2) » — or `Psi -> Psi V` est le changement de base interne du multiplet spectral dégénéré (justifie `rho_M = Pi_M/d`, spécification §4), une notion distincte de la rotation SU(2) agissant sur les indices `(alpha, beta)` de `G^{alpha,beta}`. Aucune formule, aucun résultat Level 1B, aucune décision scientifique Level 1C, aucune définition scientifique modifiée par le correctif.
+
+**Le dernier commit formellement accepté reste `8f12a2f077426df7562b1a9b917f4c1e9bc3b0b9` jusqu'à audit du correctif.**
+
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)
 
 Entrée de lancement explicite (`prepare_normative_launch`/`launch_normative_campaign` dans `scripts/level1b_campaign/launch.py`, plus une CLI mince `scripts/run_level1b_campaign.py`) qui vérifie toutes les préconditions normatives de la campagne puis appelle `run_campaign` (lot 1B-8d, inchangé) exactement comme celui-ci est déjà défini. Aucune logique scientifique nouvelle ; aucune reconstruction du plan (`run_campaign` construit déjà `build_campaign_plan(manifest)` exactement une fois).
