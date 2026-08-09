@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import traceback
+from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 from cosmobox.level0.degeneracy import SpectralLevelGroup
@@ -80,6 +83,22 @@ def _required_outcome(
         v23_is_valid=v23_is_valid if selection_status == preflight.TARGET_SELECTED else None,
         v23_status=preflight.V23_OK if selection_status == preflight.TARGET_SELECTED else None,
     )
+
+
+_FAKE_SHA = "a" * 40
+
+
+def _fake_provenance(sha: str = _FAKE_SHA) -> preflight.PreflightProvenance:
+    return preflight.PreflightProvenance(
+        code_commit=sha,
+        manifest_fingerprint="deadbeef",
+        preflight_contract_version=preflight.PREFLIGHT_CONTRACT_VERSION,
+    )
+
+
+class _FakeCompletedProcess:
+    def __init__(self, stdout: str) -> None:
+        self.stdout = stdout
 
 
 # ---------------------------------------------------------------------------
@@ -382,14 +401,15 @@ def _minimal_case_report(*, window_status: str, resource_status: str = preflight
 
 def test_global_sufficient_when_all_cases_sufficient() -> None:
     reports = [_minimal_case_report(window_status=preflight.WINDOW_SUFFICIENT) for _ in range(20)]
-    aggregated = preflight.aggregate_preflight(reports)
+    aggregated = preflight.aggregate_preflight(_fake_provenance(), reports)
     assert aggregated.global_status == preflight.GLOBAL_SUFFICIENT
+    assert aggregated.provenance == _fake_provenance()
 
 
 def test_global_fail_when_a_single_case_is_blocking() -> None:
     reports = [_minimal_case_report(window_status=preflight.WINDOW_SUFFICIENT) for _ in range(19)]
     reports.append(_minimal_case_report(window_status=preflight.WINDOW_INCONCLUSIVE))
-    aggregated = preflight.aggregate_preflight(reports)
+    aggregated = preflight.aggregate_preflight(_fake_provenance(), reports)
     assert aggregated.global_status == preflight.GLOBAL_FAIL
 
 
@@ -398,7 +418,7 @@ def test_global_fail_on_resource_blocking() -> None:
     reports.append(
         _minimal_case_report(window_status=preflight.WINDOW_SUFFICIENT, resource_status=preflight.RESOURCE_BLOCKING)
     )
-    aggregated = preflight.aggregate_preflight(reports)
+    aggregated = preflight.aggregate_preflight(_fake_provenance(), reports)
     assert aggregated.global_status == preflight.GLOBAL_FAIL
 
 
@@ -460,7 +480,9 @@ def test_public_report_json_serialization_never_contains_forbidden_tokens() -> N
         tracking_preflight_status=preflight.TRACKING_FEASIBLE,
         targets=(target,),
     )
-    report = preflight.PublicPreflightReport(cases=(case,), global_status=preflight.GLOBAL_SUFFICIENT)
+    report = preflight.PublicPreflightReport(
+        provenance=_fake_provenance(), cases=(case,), global_status=preflight.GLOBAL_SUFFICIENT
+    )
     rendered = json.dumps(preflight._public_report_to_json(report))
     for forbidden in _FORBIDDEN_FIELD_SUBSTRINGS + _FORBIDDEN_V23_FIELD_SUBSTRINGS:
         assert forbidden not in rendered
@@ -672,3 +694,222 @@ def test_cli_without_confirm_flag_never_invokes_run_preflight(monkeypatch) -> No
     monkeypatch.setattr(preflight, "run_preflight", _mark_called)
     preflight.main([])
     assert called["value"] is False
+
+
+def test_cli_confirm_flag_prints_json_and_exits_zero_when_sufficient(monkeypatch, capsys) -> None:
+    fake_report = preflight.PublicPreflightReport(
+        provenance=_fake_provenance(), cases=(), global_status=preflight.GLOBAL_SUFFICIENT
+    )
+    monkeypatch.setattr(preflight, "run_preflight", lambda: fake_report)
+    exit_code = preflight.main(["--confirm-run-full-grid"])
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["global_status"] == preflight.GLOBAL_SUFFICIENT
+    assert payload["provenance"]["code_commit"] == _FAKE_SHA
+    assert payload["provenance"]["manifest_fingerprint"] == "deadbeef"
+    assert payload["provenance"]["preflight_contract_version"] == preflight.PREFLIGHT_CONTRACT_VERSION
+
+
+def test_cli_confirm_flag_exits_one_when_global_fail(monkeypatch, capsys) -> None:
+    fake_report = preflight.PublicPreflightReport(
+        provenance=_fake_provenance(), cases=(), global_status=preflight.GLOBAL_FAIL
+    )
+    monkeypatch.setattr(preflight, "run_preflight", lambda: fake_report)
+    exit_code = preflight.main(["--confirm-run-full-grid"])
+    assert exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# Provenance (1C-6j correctif): resolved before any case runs. Every git
+# invocation is monkeypatched at the module level -- never a real `git`
+# call in these unit tests.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_code_commit_valid_sha(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout=_FAKE_SHA + "\n"))
+    assert preflight.resolve_code_commit() == _FAKE_SHA
+
+
+def test_resolve_code_commit_rejects_non_hex_sha(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout="not-a-sha\n"))
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.resolve_code_commit()
+
+
+def test_resolve_code_commit_rejects_short_sha(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout="a" * 7 + "\n"))
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.resolve_code_commit()
+
+
+def test_resolve_code_commit_subprocess_failure_fails_hard(monkeypatch) -> None:
+    def _raise(*_a, **_k):
+        raise FileNotFoundError("git executable not found")
+
+    monkeypatch.setattr(preflight.subprocess, "run", _raise)
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.resolve_code_commit()
+
+
+def test_require_clean_worktree_passes_when_clean(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout=""))
+    preflight.require_clean_worktree()  # must not raise
+
+
+def test_require_clean_worktree_refuses_when_dirty(monkeypatch) -> None:
+    monkeypatch.setattr(
+        preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout=" M some/file.py\n")
+    )
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.require_clean_worktree()
+
+
+class _FakeManifestForProvenance:
+    fingerprint = "cafebabe"
+
+
+def test_resolve_preflight_provenance_fields_transmitted_exactly(monkeypatch) -> None:
+    def _fake_run(args, **_kwargs):
+        if args[1] == "status":
+            return _FakeCompletedProcess(stdout="")
+        return _FakeCompletedProcess(stdout=_FAKE_SHA + "\n")
+
+    monkeypatch.setattr(preflight.subprocess, "run", _fake_run)
+    provenance = preflight.resolve_preflight_provenance(_FakeManifestForProvenance())
+    assert provenance.code_commit == _FAKE_SHA
+    assert provenance.manifest_fingerprint == "cafebabe"
+    assert provenance.preflight_contract_version == preflight.PREFLIGHT_CONTRACT_VERSION
+
+
+def test_preflight_contract_version_is_constant() -> None:
+    assert preflight.PREFLIGHT_CONTRACT_VERSION == "level1c-j0-blind-preflight-v1"
+
+
+def test_run_preflight_refuses_dirty_worktree_before_any_case_and_never_calls_run_case(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout=" M x.py\n"))
+
+    def _fail_if_called(*_a, **_k):
+        raise AssertionError("run_case must never be called when the worktree is dirty")
+
+    monkeypatch.setattr(preflight, "run_case", _fail_if_called)
+
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.run_preflight(manifest=_FakeManifestForProvenance())
+
+
+def test_provenance_dataclass_has_only_the_three_expected_fields() -> None:
+    field_names = {field.name for field in dataclasses.fields(preflight.PreflightProvenance)}
+    assert field_names == {"code_commit", "manifest_fingerprint", "preflight_contract_version"}
+    for forbidden in _FORBIDDEN_FIELD_SUBSTRINGS + _FORBIDDEN_V23_FIELD_SUBSTRINGS:
+        assert not any(forbidden in name for name in field_names)
+
+
+def test_public_preflight_report_has_provenance_as_its_only_new_field() -> None:
+    field_names = {field.name for field in dataclasses.fields(preflight.PublicPreflightReport)}
+    assert field_names == {"provenance", "cases", "global_status"}
+
+
+# ---------------------------------------------------------------------------
+# Runtime firewall + run_case wiring (1C-6j correctif): only
+# build_level0_report_with_eigenvectors is mocked -- lattice/basis/
+# Hamiltonian-term/flavor-Casimir/automorphism construction all run for
+# real (none of it diagonalizes anything), and a plain identity matrix is
+# used as a trivially orthonormal, non-physical stand-in eigenbasis: it
+# is enough to exercise run_case's own orchestration without ever
+# performing a real diagonalization of the J0 grid.
+# ---------------------------------------------------------------------------
+
+
+def _synthetic_level0_report_and_eigenvectors(dimension: int, group_boundaries):
+    groups = tuple(_group(start, end) for start, end in group_boundaries)
+    level0_report = SimpleNamespace(
+        spectrum=SimpleNamespace(degeneracy=SimpleNamespace(groups=groups), method="dense")
+    )
+    eigenvectors = np.eye(dimension, dtype=np.complex128)
+    return level0_report, eigenvectors
+
+
+def _patch_synthetic_diagonalization(monkeypatch, *, dimension: int, group_boundaries) -> None:
+    level0_report, eigenvectors = _synthetic_level0_report_and_eigenvectors(dimension, group_boundaries)
+    monkeypatch.setattr(
+        preflight, "build_level0_report_with_eigenvectors", lambda *a, **k: (level0_report, eigenvectors)
+    )
+
+
+def _real_triangle_dimension(spin: int) -> int:
+    lattice = preflight.build_lattice("triangle")
+    basis = preflight.build_basis(lattice, preflight.N_FLAVORS, spin, external_charges=None)
+    return len(basis.keys)
+
+
+def test_run_case_wiring_produces_a_coherent_public_case_report(monkeypatch) -> None:
+    from experiments.level1.manifest import load_manifest
+
+    manifest = load_manifest()
+    dimension = _real_triangle_dimension(spin=2)
+    _patch_synthetic_diagonalization(monkeypatch, dimension=dimension, group_boundaries=[(0, 1), (1, 3), (3, dimension)])
+
+    case = preflight.PreflightCase(geometry="triangle", spin=2, j0=1.0)
+    report = preflight.run_case(case, manifest)
+
+    assert isinstance(report, preflight.PublicCaseReport)
+    assert report.geometry == "triangle"
+    assert report.spin == 2
+    assert report.j0 == 1.0
+    assert report.full_spectrum_dimension == dimension
+    assert report.exploratory_window == dimension
+    assert len(report.targets) == len(manifest.target_groups["triangle"])
+    assert report.resource_status == preflight.RESOURCE_FEASIBLE
+
+
+_FIREWALL_FORBIDDEN_TOKENS = ("energy", "1.234567", "measured", "2.345678", "residual", "3.456789")
+
+
+def test_run_case_sanitizes_exception_from_non_v23_internal_primitive(monkeypatch, capsys) -> None:
+    from experiments.level1.manifest import load_manifest
+
+    manifest = load_manifest()
+    dimension = _real_triangle_dimension(spin=2)
+    _patch_synthetic_diagonalization(monkeypatch, dimension=dimension, group_boundaries=[(0, 1), (1, 3), (3, dimension)])
+
+    def _raise(*_a, **_k):
+        raise ValueError("energy=1.234567 measured=2.345678 residual=3.456789")
+
+    monkeypatch.setattr(preflight, "canonical_multiplet_expectation", _raise)
+
+    case = preflight.PreflightCase(geometry="triangle", spin=2, j0=1.0)
+    with pytest.raises(preflight.PreflightInternalFailure) as excinfo:
+        preflight.run_case(case, manifest)
+
+    assert excinfo.value.__cause__ is None
+    assert str(excinfo.value) == "internal preflight analysis failed"
+
+    rendered = "".join(traceback.format_exception(type(excinfo.value), excinfo.value, excinfo.value.__traceback__))
+    for token in _FIREWALL_FORBIDDEN_TOKENS:
+        assert token not in str(excinfo.value)
+        assert token not in rendered
+
+    captured = capsys.readouterr()
+    for token in _FIREWALL_FORBIDDEN_TOKENS:
+        assert token not in captured.out
+        assert token not in captured.err
+
+
+def test_run_case_still_reports_resource_blocking_on_memoryerror(monkeypatch) -> None:
+    """MemoryError must still map to RESOURCE_BLOCKING, never be
+    converted into PreflightInternalFailure (1C-6j section 5)."""
+    from experiments.level1.manifest import load_manifest
+
+    manifest = load_manifest()
+
+    def _raise_memory_error(*_a, **_k):
+        raise MemoryError("simulated allocation failure")
+
+    monkeypatch.setattr(preflight, "build_level0_report_with_eigenvectors", _raise_memory_error)
+
+    case = preflight.PreflightCase(geometry="triangle", spin=2, j0=1.0)
+    report = preflight.run_case(case, manifest)
+    assert report.resource_status == preflight.RESOURCE_BLOCKING
+    assert report.window_status == preflight.WINDOW_INCONCLUSIVE

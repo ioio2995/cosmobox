@@ -50,6 +50,8 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import re
+import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -106,6 +108,131 @@ J0_GRID: tuple[float, ...] = (
     1.0 + DELTA_J0,
     1.0 + 2 * DELTA_J0,
 )
+
+PREFLIGHT_CONTRACT_VERSION = "level1c-j0-blind-preflight-v1"
+"""Operational version identifier of the frozen 1C-6d..1C-6g contract
+this module implements (DELTA_J0=0.25, FULL_20_CASE_GRID,
+FULL_DENSE_EXPLORATORY_WINDOW, PRODUCTION_WINDOW_RULE=A,
+PRODUCTION_WINDOW_SCOPE=PER_CASE, ENERGY_PUBLIC_POLICY=INDICES_ONLY,
+PREFLIGHT_INFORMATION_FIREWALL) -- never a new scientific rule, never a
+dynamic date. Bumped only if this already-frozen contract is itself
+revised by a future, separately-governed lot."""
+
+_GIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+
+
+# ---------------------------------------------------------------------------
+# Information firewall (1C-6i/1C-6j correctif): a single, generic,
+# constant exception used for every FAIL HARD path in this module other
+# than MemoryError-driven RESOURCE_BLOCKING. Several already-accepted
+# internal primitives embed a raw numeric physical value in their own
+# ValueError message on an internal-consistency failure (e.g.
+# restricted._hermitian_aware_normalized_trace's "Tr(O_rest)/multiplicity
+# is not finite: {trace}", matching.SymmetryLabel.__post_init__'s "value
+# is not finite: {self.value}") -- exactly the class of exception the
+# frozen PREFLIGHT_INFORMATION_FIREWALL contract requires never reach
+# stdout/stderr/the public report. Raising PreflightInternalFailure()
+# `from None` clears __cause__ and sets __suppress_context__=True, so
+# standard traceback rendering (traceback.format_exc/print_exc, and the
+# default unhandled-exception handler Python itself uses) never displays
+# the original exception -- verified directly by test. (The original
+# exception object technically remains reachable via __context__ for a
+# caller that goes out of its way to inspect it, which no code in this
+# module -- or in a normal CLI invocation -- ever does; only
+# __cause__/rendered output are asserted, per the exact 1C-6j audit
+# request.) This is a FAIL HARD path: it never converts an internal
+# failure into a falsely-reassuring case report.
+# ---------------------------------------------------------------------------
+
+
+class PreflightInternalFailure(RuntimeError):
+    _PUBLIC_MESSAGE = "internal preflight analysis failed"
+
+    def __init__(self) -> None:
+        super().__init__(self._PUBLIC_MESSAGE)
+
+
+# ---------------------------------------------------------------------------
+# Provenance (1C-6j correctif): resolved BEFORE any case is run, so that
+# a provenance failure costs zero diagonalizations (section 12 of the
+# 1C-6j mandate). manifest_fingerprint reuses Manifest.fingerprint
+# verbatim (already computed by load_manifest() -- never a second,
+# parallel fingerprint computation). code_commit is the exact, strictly
+# validated (40 lowercase hex characters) `git rev-parse HEAD` of the
+# code actually executing -- never "unknown"/"dirty"/best-effort: any
+# failure to resolve it is FAIL HARD. DIRTY_WORKTREE_POLICY =
+# REFUSE_EXECUTION: code_commit alone cannot represent uncommitted local
+# modifications, so a non-empty `git status --porcelain` refuses
+# execution before any case runs.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class PreflightProvenance:
+    code_commit: str
+    manifest_fingerprint: str
+    preflight_contract_version: str
+
+    def __post_init__(self) -> None:
+        if not _GIT_SHA_PATTERN.fullmatch(self.code_commit):
+            raise ValueError(f"code_commit must be a 40-character lowercase hex SHA, got {self.code_commit!r}")
+        if not self.manifest_fingerprint:
+            raise ValueError("manifest_fingerprint must be non-empty")
+        if self.preflight_contract_version != PREFLIGHT_CONTRACT_VERSION:
+            raise ValueError(
+                f"preflight_contract_version must be {PREFLIGHT_CONTRACT_VERSION!r}, "
+                f"got {self.preflight_contract_version!r}"
+            )
+
+
+def resolve_code_commit(repo_root: str | None = None) -> str:
+    """The exact `git rev-parse HEAD` of `repo_root` (ambient cwd if
+    None), strictly validated as 40 lowercase hex characters -- never a
+    short SHA, never a fallback value. Any subprocess failure (missing
+    git, no commits, non-zero exit) or an unexpected stdout shape is
+    FAIL HARD via the single sanitized PreflightInternalFailure, never a
+    best-effort placeholder."""
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo_root, capture_output=True, text=True, check=True
+        )
+    except Exception:
+        raise PreflightInternalFailure() from None
+    sha = completed.stdout.strip()
+    if not _GIT_SHA_PATTERN.fullmatch(sha):
+        raise PreflightInternalFailure()
+    return sha
+
+
+def _repository_is_clean(repo_root: str | None = None) -> bool:
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True, check=True
+        )
+    except Exception:
+        raise PreflightInternalFailure() from None
+    return completed.stdout.strip() == ""
+
+
+def require_clean_worktree(repo_root: str | None = None) -> None:
+    """DIRTY_WORKTREE_POLICY = REFUSE_EXECUTION (1C-6j section 9): a
+    non-empty `git status --porcelain` refuses execution before any
+    case runs -- the public failure message never carries diff content
+    or file paths, only the single generic PreflightInternalFailure
+    message."""
+    if not _repository_is_clean(repo_root):
+        raise PreflightInternalFailure()
+
+
+def resolve_preflight_provenance(manifest: Manifest, *, repo_root: str | None = None) -> PreflightProvenance:
+    require_clean_worktree(repo_root)
+    code_commit = resolve_code_commit(repo_root)
+    return PreflightProvenance(
+        code_commit=code_commit,
+        manifest_fingerprint=manifest.fingerprint,
+        preflight_contract_version=PREFLIGHT_CONTRACT_VERSION,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Required/optional target roles (1C-6e/1C-6f section 17.7/18.4).
@@ -255,6 +382,7 @@ class PublicCaseReport:
 
 @dataclass(frozen=True, slots=True)
 class PublicPreflightReport:
+    provenance: PreflightProvenance
     cases: tuple[PublicCaseReport, ...]
     global_status: str
 
@@ -421,7 +549,9 @@ def derive_tracking_preflight_status(required_outcomes: Sequence[RequiredTargetO
     return TRACKING_NOT_EVALUATED
 
 
-def aggregate_preflight(case_reports: Sequence[PublicCaseReport]) -> PublicPreflightReport:
+def aggregate_preflight(
+    provenance: PreflightProvenance, case_reports: Sequence[PublicCaseReport]
+) -> PublicPreflightReport:
     """PREFLIGHT_GLOBAL_POLICY = ALL_REQUIRED_CASES (1C-6f section
     18/1C-6g section 27): a single blocking case fails the whole grid --
     never a partial-grid fallback."""
@@ -430,7 +560,9 @@ def aggregate_preflight(case_reports: Sequence[PublicCaseReport]) -> PublicPrefl
         for case in case_reports
     )
     return PublicPreflightReport(
-        cases=tuple(case_reports), global_status=GLOBAL_SUFFICIENT if sufficient else GLOBAL_FAIL
+        provenance=provenance,
+        cases=tuple(case_reports),
+        global_status=GLOBAL_SUFFICIENT if sufficient else GLOBAL_FAIL,
     )
 
 
@@ -527,9 +659,182 @@ def run_case(case: PreflightCase, manifest: Manifest) -> PublicCaseReport:
         degeneracy_tolerance=manifest.degeneracy_tolerance,
     )
 
+    # Everything below this point is the real per-case analysis phase
+    # (1C-6j correctif): a single try/except covers it end to end.
+    # MemoryError -> RESOURCE_BLOCKING (unchanged, never converted into
+    # PreflightInternalFailure). Any OTHER exception -> FAIL HARD via the
+    # single, generic, sanitized PreflightInternalFailure -- several
+    # already-accepted internal primitives called in this phase
+    # (canonical_multiplet_expectation, compute_restricted_symmetry_label,
+    # build_restricted_operator, flavor_correlator_connected_group) embed
+    # a raw numeric value in their own exception message on an internal
+    # inconsistency; none of that may ever reach stdout/stderr/the public
+    # report. `except Exception` deliberately never becomes `except
+    # BaseException`: KeyboardInterrupt/SystemExit must still propagate
+    # unsanitized and uninterrupted.
     try:
         level0_report, eigenvectors = build_level0_report_with_eigenvectors(
             lattice, N_FLAVORS, case.spin, basis, terms, params, spectrum_options=options
+        )
+
+        groups = level0_report.spectrum.degeneracy.groups
+        # Invariant guaranteed by exploratory_window=full_spectrum_dimension
+        # (degeneracy.py: lower_bound_only=(end==n and n<dimension), and here
+        # n==dimension always) -- never assumed without this direct check.
+        if any(group.lower_bound_only for group in groups):
+            raise AssertionError(
+                "full-spectrum preflight produced a lower_bound_only group -- exploratory_window was not full"
+            )
+
+        group_states: tuple[SpectralGroupState, ...] = tuple(extract_group_state(eigenvectors, g) for g in groups)
+        flavor_casimir = build_flavor_casimir(lattice, N_FLAVORS, case.spin, basis.keys, key_index)
+        translation_automorphism = translation_unitary_automorphism(
+            lattice, N_FLAVORS, case.spin, basis.keys, key_index, external_charges=None
+        )
+        reflection_automorphism = reflection_unitary_automorphism(
+            lattice, N_FLAVORS, case.spin, basis.keys, key_index, external_charges=None
+        )
+
+        resolved_twice_T: list[int | None] = [
+            compute_twice_T(canonical_multiplet_expectation(flavor_casimir, state, hermitian=True))
+            for state in group_states
+        ]
+        any_unresolved_twice_T = any(value is None for value in resolved_twice_T)
+
+        generators_by_node = {
+            node: build_local_flavor_generators(lattice, N_FLAVORS, case.spin, basis.keys, key_index, node)
+            for node in lattice.nodes
+        }
+
+        target_specs: Sequence[TargetGroupSpec] = manifest.target_groups[case.geometry]
+        required_outcomes: list[RequiredTargetOutcome] = []
+        public_targets: list[PublicTargetReport] = []
+
+        for target in target_specs:
+            role = classify_target_role(target.target_id)
+            outcome = select_target_group(
+                target,
+                groups,
+                group_states,
+                flavor_casimir=flavor_casimir,
+                degeneracy_tolerance=manifest.degeneracy_tolerance,
+            )
+            unresolved_relevant = any_unresolved_twice_T if target.selection_kind == FLAVOR_LABEL else False
+            selection_status, subcause = classify_selection_outcome(
+                outcome, unresolved_twice_T_present=unresolved_relevant
+            )
+
+            group = None
+            state = None
+            translation_kind = None
+            reflection_kind = None
+            reflection_restriction_valid = None
+            twice_T_value = None
+            v23_applicable = v23_is_valid = None
+            v23_status = None
+
+            if selection_status == TARGET_SELECTED:
+                group = groups[outcome.group_index]
+                state = group_states[outcome.group_index]
+                twice_T_value = resolved_twice_T[outcome.group_index]
+                translation_label = compute_restricted_symmetry_label(terms.total, translation_automorphism, state)
+                reflection_label = compute_restricted_symmetry_label(terms.total, reflection_automorphism, state)
+                translation_kind = translation_label.kind
+                reflection_kind = reflection_label.kind
+                if reflection_kind == NUMERIC:
+                    restricted_defect = restricted_reflection_squared_identity_defect(
+                        reflection_automorphism.unitary, state
+                    )
+                    reflection_restriction_valid = restricted_defect <= UNITARITY_TOLERANCE
+                else:
+                    reflection_restriction_valid = False
+
+                if role == TARGET_ROLE_REQUIRED and state.status == COMPLETE_MULTIPLET:
+                    diagonal = {
+                        node: flavor_correlator_connected_group(
+                            generators_by_node[node], generators_by_node[node], state
+                        ).value
+                        for node in lattice.nodes
+                    }
+                    off_diagonal = {
+                        (i, j): flavor_correlator_connected_group(
+                            generators_by_node[i], generators_by_node[j], state
+                        ).value
+                        for i in lattice.nodes
+                        for j in lattice.nodes
+                        if i != j
+                    }
+                    v23_applicable, v23_is_valid, v23_status = sanitize_v23_result(
+                        state.status, twice_T_value, diagonal, off_diagonal
+                    )
+
+            target_outcome = RequiredTargetOutcome(
+                target_id=target.target_id,
+                role=role,
+                selection_status=selection_status,
+                subcause=subcause,
+                group_index=outcome.group_index,
+                group=group,
+                group_state_status=state.status if state is not None else None,
+                twice_T=twice_T_value,
+                translation_label_kind=translation_kind,
+                reflection_label_kind=reflection_kind,
+                reflection_restriction_valid=reflection_restriction_valid,
+                v23_applicable=v23_applicable,
+                v23_is_valid=v23_is_valid,
+                v23_status=v23_status,
+            )
+            if role == TARGET_ROLE_REQUIRED:
+                required_outcomes.append(target_outcome)
+
+            public_targets.append(
+                PublicTargetReport(
+                    target_id=target.target_id,
+                    role=role,
+                    selection_status=selection_status,
+                    subcause=subcause,
+                    group_start_index=group.start_index if group is not None else None,
+                    group_end_index_exclusive=group.end_index_exclusive if group is not None else None,
+                    multiplicity=group.multiplicity_observed if group is not None else None,
+                    twice_T=twice_T_value,
+                    translation_label_kind=translation_kind,
+                    reflection_label_kind=reflection_kind,
+                    reflection_restriction_valid=reflection_restriction_valid,
+                    complete_multiplet=(state.status == COMPLETE_MULTIPLET) if state is not None else None,
+                    lower_bound_only=group.lower_bound_only if group is not None else None,
+                    v23_applicable=v23_applicable,
+                    v23_is_valid=v23_is_valid,
+                    v23_status=v23_status,
+                )
+            )
+
+        last_required_end = compute_last_required_end(required_outcomes)
+        margin_group = find_margin_group(groups, last_required_end) if last_required_end is not None else None
+        production_window = (
+            compute_production_window(last_required_end, full_spectrum_dimension)
+            if last_required_end is not None
+            else None
+        )
+        window_status = derive_window_decision(
+            required_outcomes, margin_group, last_required_end, full_spectrum_dimension
+        )
+        tracking_status = derive_tracking_preflight_status(required_outcomes)
+
+        return PublicCaseReport(
+            geometry=case.geometry,
+            spin=case.spin,
+            j0=case.j0,
+            full_spectrum_dimension=full_spectrum_dimension,
+            eigensolver_dispatch=level0_report.spectrum.method or "unknown",
+            exploratory_window=full_spectrum_dimension,
+            production_window=production_window,
+            last_required_end=last_required_end,
+            margin_group_start_index=margin_group.start_index if margin_group is not None else None,
+            margin_group_end_index_exclusive=margin_group.end_index_exclusive if margin_group is not None else None,
+            resource_status=RESOURCE_FEASIBLE,
+            window_status=window_status,
+            tracking_preflight_status=tracking_status,
+            targets=tuple(public_targets),
         )
     except MemoryError:
         return PublicCaseReport(
@@ -548,163 +853,20 @@ def run_case(case: PreflightCase, manifest: Manifest) -> PublicCaseReport:
             tracking_preflight_status=TRACKING_NOT_EVALUATED,
             targets=(),
         )
-
-    groups = level0_report.spectrum.degeneracy.groups
-    # Invariant guaranteed by exploratory_window=full_spectrum_dimension
-    # (degeneracy.py: lower_bound_only=(end==n and n<dimension), and here
-    # n==dimension always) -- never assumed without this direct check.
-    if any(group.lower_bound_only for group in groups):
-        raise AssertionError("full-spectrum preflight produced a lower_bound_only group -- exploratory_window was not full")
-
-    group_states: tuple[SpectralGroupState, ...] = tuple(extract_group_state(eigenvectors, g) for g in groups)
-    flavor_casimir = build_flavor_casimir(lattice, N_FLAVORS, case.spin, basis.keys, key_index)
-    translation_automorphism = translation_unitary_automorphism(
-        lattice, N_FLAVORS, case.spin, basis.keys, key_index, external_charges=None
-    )
-    reflection_automorphism = reflection_unitary_automorphism(
-        lattice, N_FLAVORS, case.spin, basis.keys, key_index, external_charges=None
-    )
-
-    resolved_twice_T: list[int | None] = [
-        compute_twice_T(canonical_multiplet_expectation(flavor_casimir, state, hermitian=True))
-        for state in group_states
-    ]
-    any_unresolved_twice_T = any(value is None for value in resolved_twice_T)
-
-    generators_by_node = {
-        node: build_local_flavor_generators(lattice, N_FLAVORS, case.spin, basis.keys, key_index, node)
-        for node in lattice.nodes
-    }
-
-    target_specs: Sequence[TargetGroupSpec] = manifest.target_groups[case.geometry]
-    required_outcomes: list[RequiredTargetOutcome] = []
-    public_targets: list[PublicTargetReport] = []
-
-    for target in target_specs:
-        role = classify_target_role(target.target_id)
-        outcome = select_target_group(
-            target,
-            groups,
-            group_states,
-            flavor_casimir=flavor_casimir,
-            degeneracy_tolerance=manifest.degeneracy_tolerance,
-        )
-        unresolved_relevant = any_unresolved_twice_T if target.selection_kind == FLAVOR_LABEL else False
-        selection_status, subcause = classify_selection_outcome(outcome, unresolved_twice_T_present=unresolved_relevant)
-
-        group = None
-        state = None
-        translation_kind = None
-        reflection_kind = None
-        reflection_restriction_valid = None
-        twice_T_value = None
-        v23_applicable = v23_is_valid = None
-        v23_status = None
-
-        if selection_status == TARGET_SELECTED:
-            group = groups[outcome.group_index]
-            state = group_states[outcome.group_index]
-            twice_T_value = resolved_twice_T[outcome.group_index]
-            translation_label = compute_restricted_symmetry_label(terms.total, translation_automorphism, state)
-            reflection_label = compute_restricted_symmetry_label(terms.total, reflection_automorphism, state)
-            translation_kind = translation_label.kind
-            reflection_kind = reflection_label.kind
-            if reflection_kind == NUMERIC:
-                restricted_defect = restricted_reflection_squared_identity_defect(reflection_automorphism.unitary, state)
-                reflection_restriction_valid = restricted_defect <= UNITARITY_TOLERANCE
-            else:
-                reflection_restriction_valid = False
-
-            if role == TARGET_ROLE_REQUIRED and state.status == COMPLETE_MULTIPLET:
-                diagonal = {
-                    node: flavor_correlator_connected_group(
-                        generators_by_node[node], generators_by_node[node], state
-                    ).value
-                    for node in lattice.nodes
-                }
-                off_diagonal = {
-                    (i, j): flavor_correlator_connected_group(generators_by_node[i], generators_by_node[j], state).value
-                    for i in lattice.nodes
-                    for j in lattice.nodes
-                    if i != j
-                }
-                v23_applicable, v23_is_valid, v23_status = sanitize_v23_result(
-                    state.status, twice_T_value, diagonal, off_diagonal
-                )
-
-        target_outcome = RequiredTargetOutcome(
-            target_id=target.target_id,
-            role=role,
-            selection_status=selection_status,
-            subcause=subcause,
-            group_index=outcome.group_index,
-            group=group,
-            group_state_status=state.status if state is not None else None,
-            twice_T=twice_T_value,
-            translation_label_kind=translation_kind,
-            reflection_label_kind=reflection_kind,
-            reflection_restriction_valid=reflection_restriction_valid,
-            v23_applicable=v23_applicable,
-            v23_is_valid=v23_is_valid,
-            v23_status=v23_status,
-        )
-        if role == TARGET_ROLE_REQUIRED:
-            required_outcomes.append(target_outcome)
-
-        public_targets.append(
-            PublicTargetReport(
-                target_id=target.target_id,
-                role=role,
-                selection_status=selection_status,
-                subcause=subcause,
-                group_start_index=group.start_index if group is not None else None,
-                group_end_index_exclusive=group.end_index_exclusive if group is not None else None,
-                multiplicity=group.multiplicity_observed if group is not None else None,
-                twice_T=twice_T_value,
-                translation_label_kind=translation_kind,
-                reflection_label_kind=reflection_kind,
-                reflection_restriction_valid=reflection_restriction_valid,
-                complete_multiplet=(state.status == COMPLETE_MULTIPLET) if state is not None else None,
-                lower_bound_only=group.lower_bound_only if group is not None else None,
-                v23_applicable=v23_applicable,
-                v23_is_valid=v23_is_valid,
-                v23_status=v23_status,
-            )
-        )
-
-    last_required_end = compute_last_required_end(required_outcomes)
-    margin_group = find_margin_group(groups, last_required_end) if last_required_end is not None else None
-    production_window = (
-        compute_production_window(last_required_end, full_spectrum_dimension) if last_required_end is not None else None
-    )
-    window_status = derive_window_decision(required_outcomes, margin_group, last_required_end, full_spectrum_dimension)
-    tracking_status = derive_tracking_preflight_status(required_outcomes)
-
-    return PublicCaseReport(
-        geometry=case.geometry,
-        spin=case.spin,
-        j0=case.j0,
-        full_spectrum_dimension=full_spectrum_dimension,
-        eigensolver_dispatch=level0_report.spectrum.method or "unknown",
-        exploratory_window=full_spectrum_dimension,
-        production_window=production_window,
-        last_required_end=last_required_end,
-        margin_group_start_index=margin_group.start_index if margin_group is not None else None,
-        margin_group_end_index_exclusive=margin_group.end_index_exclusive if margin_group is not None else None,
-        resource_status=RESOURCE_FEASIBLE,
-        window_status=window_status,
-        tracking_preflight_status=tracking_status,
-        targets=tuple(public_targets),
-    )
+    except Exception:
+        raise PreflightInternalFailure() from None
 
 
-def run_preflight(manifest: Manifest | None = None) -> PublicPreflightReport:
+def run_preflight(manifest: Manifest | None = None, *, repo_root: str | None = None) -> PublicPreflightReport:
     """Runs all 20 cases and aggregates them. NEVER called by this lot's
-    tests or CLI default path -- reserved for a future execution lot."""
+    tests or CLI default path -- reserved for a future execution lot.
+    Provenance (including the clean-worktree refusal) is resolved BEFORE
+    the first case, so a provenance failure costs zero diagonalizations."""
     resolved_manifest = manifest if manifest is not None else load_manifest()
+    provenance = resolve_preflight_provenance(resolved_manifest, repo_root=repo_root)
     plan = build_j0_grid_plan()
     case_reports = [run_case(case, resolved_manifest) for case in plan]
-    return aggregate_preflight(case_reports)
+    return aggregate_preflight(provenance, case_reports)
 
 
 # ---------------------------------------------------------------------------
