@@ -29,7 +29,7 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-3be0379f6752d0781b0c150631d2166e39f1b347
+1f06ef91c1157389df7d325cb825ce7508eff52f
 ```
 
 **Level 1B : CLOS.** 1B-9g (clôture scientifique documentaire) accepté définitivement. Voir « Lot 1B-9g » ci-dessous et `docs/levels/level1/level1b-conclusion.md`. **Le manifeste Level 1B (`experiments/level1/preregistered-manifest-v1.json`) reste inchangé.**
@@ -588,9 +588,25 @@ Aucune calibration réelle, aucune diagonalisation réelle, aucun `--confirm-run
 
 Tests (101, +16 par rapport à 1C-7c2c, entièrement synthétiques, aucune diagonalisation réelle) : les 4 points B1-B4 chacun avec un test dédié de comptage d'appels/d'ordre/de sanitisation, plus déterminisme de `select_required_cases`/`prepare_holdout_cases`/`eligible_groups_for_case` sur plusieurs appels. Résultats observés par Claude (non exécutés par ChatGPT) : `tests/scripts/level1c_calibration` = 101 passed ; `tests/scripts/level1c_calibration + level1c_preflight + level1b_analysis + level1b_campaign + tests/level1 + tests/experiments` = 1155 passed ; suite complète du dépôt = 1764 passed, ~47-50s.
 
-`CALIBRATION_RUN_READY` reste `NO` tant que ChatGPT n'a pas audité ce correctif. Ce commit lui-même reste en attente d'audit, non présenté comme accepté.
-
 Fichiers de ce lot : `scripts/level1c_calibration/tmax_nonregression.py`, `tests/scripts/level1c_calibration/test_tmax_nonregression.py`, `docs/governance/current-task.md`.
+
+**1C-7c3-fix ACCEPTÉ DÉFINITIVEMENT** (commit `1f06ef91c1157389df7d325cb825ce7508eff52f`). Les quatre blocages B1-B4 sont fermés, `RUN_START_BOUNDARY` est désormais explicite dans le code.
+
+## Lot 1C-7c4 — SINGLE REAL CALIBRATION RUN (exécution unique réelle, aucun commit propre)
+
+Exécution réelle unique et définitive de la calibration du hold-out `TARGET_ID_FREE_PERSISTED_GROUP_HOLDOUT`, au-dessus du code accepté `1f06ef91c1157389df7d325cb825ce7508eff52f`, avec `--repo-root /workspaces/cosmobox` explicite et `--historical-output-dir /workspaces/level1b_campaign_output`. `PRECONDITION_PHASE=PASS` intégralement vérifiée avant `RUN_START` (commit résolu, environnement complet, provenance/manifeste/campagne historique conformes, cinq cas requis dans `REQUIRED_CASE_ORDER` tous éligibles avec comptes `2,2,2,2,3`=`11`). `CALIBRATION_REAL_RUN_INVOCATIONS=1`, `SINGLE_ACCEPTED_RUN_CONSUMED=YES`, exit code `0`, aucune seconde tentative.
+
+Artefact brut conservé (lecture seule, jamais réécrit) : `results/level1c/calibration/level1c_nonregression_calibration_1f06ef91c1157389df7d325cb825ce7508eff52f.json`, taille `2056` bytes, `CALIBRATION_ARTIFACT_SHA256=05aa2e9d77c1314926350f8202e620b7537bdf9f6a7bab12a232151e9cf68da6` ; stderr associé `0` byte. `calibration_contract_version=level1c-nonregression-calibration-v2`, `schema_version=level1c-nonregression-calibration-artifact-v2`, `code_commit=1f06ef91c1157389df7d325cb825ce7508eff52f`, `historical_campaign_id=level1b-reference-v1`, `historical_manifest_fingerprint=159660cac738518dc620b9627ec95fd67c5dbc283707fdf72e572886364693ab`, `historical_repository_commit=0ff65ac66b4aa054f739b350cd384c26ecd19752` — tous conformes. `environment_fingerprint` de l'artefact identique bit-à-bit au fingerprint reconstruit en précondition (`python 3.13.14`, `numpy 2.5.1`, `scipy 1.18.0`, `blas/lapack scipy-openblas 0.3.33.112.0`, `Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41`, `x86_64`).
+
+`CALIBRATION_STATUS=SUCCESS`, `failure_reasons=[]`, `E_CTT=0.0`, `E_RHO=0.0`, `NON_REGRESSION_CTT_ABS_TOL=1e-15`, `NON_REGRESSION_RHO_ABS_TOL=1e-15`. Aucun code modifié, aucun test relancé, aucun commit, aucun push — lot purement exécutif. **1C-7c4 ACCEPTÉ DÉFINITIVEMENT.** `SECOND_CALIBRATION_RUN=FORBIDDEN` sous le contrat courant ; toute recalibration future nécessiterait un nouveau jalon documentaire rouvrant explicitement le protocole.
+
+## Lot 1C-7c5 — gel documentaire du résultat de calibration (ce commit)
+
+Documente définitivement dans `docs/levels/level1c/identifiability-preregistration.md` le résultat unique de 1C-7c4 : provenance complète, hash d'artefact, cinq `records_sha256` exacts (relus directement depuis l'artefact accepté, jamais recopiés d'un rapport textuel), tolérances dérivées, dérivation `CEIL_DECADE_POLICY` pour `E=0` (`eps≈2.220446049250313e-16`, `ceil(log10(eps))=-15`, `TOL=1e-15`), interprétation épistémique prudente de `E_CTT=E_RHO=0` (absence de différence numérique observée par `MAX_ABS` sur ce hold-out précis dans cet environnement gelé — jamais « reproductibilité parfaite » ni « erreur nulle du solveur » ni un énoncé de déterminisme universel), limites de représentativité du hold-out (`HOLDOUT_REPRESENTATIVITY=LIMITED`, dimensions `48-496` contre `1000-1504` en campagne normative, `HIGH_DIMENSION_COVERAGE=NO`, `SUFFICIENT_FOR_EMPIRICAL_PIPELINE_GATE=YES`), portée scientifique strictement négative (aucun résultat physique, aucun `Delta_C_TT`, aucun tracking inter-J0, aucune reconstruction de géométrie/métrique, aucune preuve de gravité émergente, aucun énoncé `S→∞`/convergence). Aucun code, aucun test, aucun run, aucune diagonalisation, aucune calibration, aucune modification d'artefact.
+
+Readiness mise à jour : `NON_REGRESSION_TOLERANCE_STATUS=CALIBRATED`, `NON_REGRESSION_CONTRACT_READY=YES`, `NORMATIVE_PRODUCTION_CONTRACT_READY=YES` (les deux tolérances requises sont désormais déterminées et documentées, aucune autre dépendance contractuelle explicite restante en §20.29 hormis l'implémentation elle-même), `NORMATIVE_CAMPAIGN_IMPLEMENTATION_READY=NO` (runner/manifeste/schéma Level1C normatifs toujours inexistants), `CALIBRATION_RUN_STATUS=CLOSED_ACCEPTED`, `CALIBRATION_RUN_READY=NOT_APPLICABLE_CLOSED` (le run a déjà eu lieu et est clos ; ce champ n'exprime plus une permission de lancer un nouveau run). `PHYSICAL_RESPONSE_THRESHOLD` reste `OPEN`, aucun seuil choisi dans ce lot.
+
+Fichiers de ce lot : `docs/levels/level1c/identifiability-preregistration.md`, `docs/governance/current-task.md`. Ce commit reste en attente d'audit, non présenté comme accepté.
 
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)
 

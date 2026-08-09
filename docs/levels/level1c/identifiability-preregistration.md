@@ -2655,3 +2655,167 @@ HOLDOUT_ARTIFACT_SET_READY               = YES
 ```
 
 `TARGET_ID_FREE_HOLDOUT_CONTRACT_READY=YES` et `HOLDOUT_ARTIFACT_SET_READY=YES` signifient uniquement que le **contrat** du hold-out est entièrement gelé (§20.22) et que les **cinq artefacts historiques requis existent, sont valides et utilisables** (audité en 1C-7c2a2, lecture seule, jamais une exécution) — jamais que l'outil de calibration est implémenté, ni qu'une calibration réelle a été exécutée. `CALIBRATION_RUN_READY=NO` reste la distinction impérative : aucun outil ne consomme encore ce contrat.
+
+### 20.31 Résultat de calibration accepté — gel documentaire (1C-7c2c/1C-7c3/1C-7c3-fix/1C-7c4/1C-7c5)
+
+**[GELÉ]** L'outil de calibration a été implémenté et durci (1C-7c2c, 1C-7c3 audit read-only, 1C-7c3-fix fermeture des blocages non scientifiques de readiness), puis exécuté **exactement une fois** (1C-7c4, `CALIBRATION_RUN_POLICY=SINGLE_ACCEPTED_RUN` désormais consommée) au-dessus du code accepté `1f06ef91c1157389df7d325cb825ce7508eff52f`. Aucune science nouvelle n'est introduite ici : cette section fige le résultat de cette unique exécution, sa provenance et sa portée.
+
+**Identité de l'artefact** :
+
+```text
+CALIBRATION_ARTIFACT               = immutable reference artifact
+CALIBRATION_ARTIFACT_REWRITE       = FORBIDDEN
+CALIBRATION_ARTIFACT_REFORMAT      = FORBIDDEN
+
+CALIBRATION_ARTIFACT_SHA256        = 05aa2e9d77c1314926350f8202e620b7537bdf9f6a7bab12a232151e9cf68da6
+CALIBRATION_ARTIFACT_SIZE_BYTES    = 2056
+CALIBRATION_STDERR_SIZE_BYTES      = 0
+
+calibration_contract_version       = level1c-nonregression-calibration-v2
+schema_version                     = level1c-nonregression-calibration-artifact-v2
+code_commit                        = 1f06ef91c1157389df7d325cb825ce7508eff52f
+historical_campaign_id             = level1b-reference-v1
+historical_manifest_fingerprint    = 159660cac738518dc620b9627ec95fd67c5dbc283707fdf72e572886364693ab
+historical_repository_commit       = 0ff65ac66b4aa054f739b350cd384c26ecd19752
+```
+
+L'identité normative repose sur `CALIBRATION_ARTIFACT_SHA256`, jamais sur son chemin opérationnel (`results/level1c/calibration/...`, ignoré par Git selon la politique déjà acceptée) — cohérent avec la distinction déjà gelée en §20.22 entre `operational location` et `normative identity`.
+
+**Environnement de calibration figé** :
+
+```text
+python_version   = 3.13.14
+numpy_version    = 2.5.1
+scipy_version    = 1.18.0
+blas_name        = scipy-openblas
+blas_version     = 0.3.33.112.0
+lapack_name      = scipy-openblas
+lapack_version   = 0.3.33.112.0
+platform         = Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41
+architecture     = x86_64
+```
+
+`ENVIRONMENT_CHANGE` (tout changement futur de l'une des versions ci-dessus) impliquerait en principe le besoin d'une recalibration, mais `SINGLE_ACCEPTED_RUN_CONSUMED=YES` : aucune nouvelle calibration réelle n'est autorisée par ce protocole sans un nouveau jalon documentaire/scientifique rouvrant explicitement le contrat `CALIBRATION_RUN_POLICY`. Une recalibration future n'est jamais automatique.
+
+**Cinq cas hold-out, ordre canonique `REQUIRED_CASE_ORDER`, avec `records_sha256` exacts relus depuis l'artefact accepté** :
+
+```text
+1. triangle-S1-reference-default-3288c6393222e87f
+   eligible_group_count = 2
+   records_sha256       = 139691938b4349ebf97ae5028664f02b892c46beb0fe3bb62e7433188241fba9
+
+2. ring4-S1-reference-default-163af3a95172cca0
+   eligible_group_count = 2
+   records_sha256       = d5a821aada201ae1697889a8ef10ff18fc6dd51bf6fdab7e11af8dfc2ee170bc
+
+3. ring4-S2-reference-default-66e1195c78fe5514
+   eligible_group_count = 2
+   records_sha256       = 1f03bdae7e69ec802c1b6c51ad6ed42a69b9af6ca8ef4fe519ac79a50c9f4d1b
+
+4. ring4-S3-reference-default-843242d43ed0c177
+   eligible_group_count = 2
+   records_sha256       = 201c13846a0631eceadec47975eaacbe14e122d82bf12c1af7c257c5ae357437
+
+5. ring5-S1-reference-default-45ac905e88fd9f2e
+   eligible_group_count = 3
+   records_sha256       = 4c4321b6ebe8fa633a2205a3bac4a52d8c69f2f7a65b898a6feb7f7587bdecf8
+
+TOTAL_ELIGIBLE = 11
+```
+
+**Résultat et métriques** :
+
+```text
+CALIBRATION_STATUS = SUCCESS
+failure_reasons     = []
+
+E_CTT = 0.0
+E_RHO = 0.0
+
+NON_REGRESSION_CTT_ABS_TOL = 1e-15
+NON_REGRESSION_RHO_ABS_TOL = 1e-15
+NON_REGRESSION_TOLERANCE_STATUS = CALIBRATED
+```
+
+**Dérivation `CEIL_DECADE_POLICY`** : `E_CTT=E_RHO=0` déclenche la branche `E=0` de la règle gelée en §20.22, qui utilise l'epsilon float64 comme entrée : `eps ≈ 2.220446049250313e-16`, `ceil(log10(eps)) = -15`, donc `TOL = 10**-15 = 1e-15` pour les deux métriques — identique à la valeur produite par l'artefact.
+
+**Nature de la tolérance `1e-15`** — elle est explicitement :
+
+```text
+- une convention empirique de non-régression ;
+- dérivée de la reproductibilité observée du hold-out ;
+- quantifiée par la règle CEIL_DECADE_POLICY déjà gelée ;
+
+et jamais :
+- une borne rigoureuse du solveur ;
+- une erreur numérique démontrée ;
+- une précision physique ;
+- un seuil de réponse physique (PHYSICAL_RESPONSE_THRESHOLD) ;
+- une tolérance dérivée du modèle physique.
+```
+
+**Interprétation prudente de `E_CTT=E_RHO=0`** : cela signifie uniquement que, dans l'environnement de calibration gelé ci-dessus et pour le hold-out historique `TARGET_ID_FREE_PERSISTED_GROUP_HOLDOUT` défini en §20.22, aucune différence numérique n'a été observée par les métriques `MAX_ABS` entre les valeurs courantes recalculées et les valeurs historiques archivées comparables. Cela ne signifie jamais : reproductibilité parfaite, exactitude parfaite, erreur nulle du solveur, déterminisme mathématique prouvé, ou bitwise reproducibility universelle — le résultat est empirique et strictement borné à ce hold-out, dans cet environnement, à cette date.
+
+**Portée et limites du hold-out** (réaffirmées, inchangées depuis §20.22) :
+
+```text
+HOLDOUT_REPRESENTATIVITY               = LIMITED
+SUFFICIENT_FOR_EMPIRICAL_PIPELINE_GATE = YES
+HIGH_DIMENSION_COVERAGE                = NO
+
+HOLDOUT_DIMENSIONS = triangle S1: 48, ring4 S1: 152, ring4 S2: 292,
+  ring4 S3: 432, ring5 S1: 496
+NORMATIVE_LEVEL1C_MAX_DIMENSION = 1000, 1504
+```
+
+Aucune extrapolation rigoureuse de l'erreur numérique observée aux dimensions maximales de la campagne normative n'est ni affirmée ni permise par ce résultat.
+
+**Portée scientifique strictement négative** — 1C-7c4 ne fournit :
+
+```text
+NO physical response result
+NO Delta_C_TT result
+NO inter-J0 tracking result
+NO geometry reconstruction
+NO metric reconstruction
+NO emergent-gravity evidence
+NO S->infinity statement
+NO convergence statement
+```
+
+**Clôture de `SINGLE_ACCEPTED_RUN`** :
+
+```text
+CALIBRATION_REAL_RUN_INVOCATIONS = 1
+SINGLE_ACCEPTED_RUN_CONSUMED     = YES
+CALIBRATION_RUN_STATUS           = CLOSED_ACCEPTED
+SECOND_CALIBRATION_RUN           = FORBIDDEN
+
+CALIBRATION_RUN_READY            = NOT_APPLICABLE_CLOSED
+```
+
+`CALIBRATION_RUN_READY` n'est plus exprimé comme `YES`/`NO` depuis la clôture : le run a déjà eu lieu et est clos, ce champ ne doit plus jamais être lu comme une permission de lancer un nouveau run. Toute recalibration future exigerait un nouveau jalon documentaire rouvrant explicitement `CALIBRATION_RUN_POLICY`.
+
+**`PHYSICAL_RESPONSE_THRESHOLD`** :
+
+```text
+PHYSICAL_RESPONSE_THRESHOLD = OPEN (inchangé, aucun seuil choisi ici)
+```
+
+**Readiness mise à jour** (les deux tolérances requises étant désormais déterminées et documentées, et aucune autre dépendance contractuelle explicite ne restant ouverte en §20.29 hormis l'implémentation de campagne elle-même) :
+
+```text
+NON_REGRESSION_CTT_ABS_TOL              = 1e-15
+NON_REGRESSION_RHO_ABS_TOL              = 1e-15
+NON_REGRESSION_TOLERANCE_STATUS         = CALIBRATED
+NON_REGRESSION_CONTRACT_READY           = YES
+NORMATIVE_PRODUCTION_CONTRACT_READY     = YES
+NORMATIVE_CAMPAIGN_IMPLEMENTATION_READY = NO
+
+TARGET_ID_FREE_HOLDOUT_CONTRACT_READY   = YES
+HOLDOUT_ARTIFACT_SET_READY              = YES
+CALIBRATION_TOOL_IMPLEMENTATION_READY   = YES
+CALIBRATION_RUN_STATUS                  = CLOSED_ACCEPTED
+```
+
+`NORMATIVE_CAMPAIGN_IMPLEMENTATION_READY` reste `NO` : le schéma machine-readable Level1C, le manifeste de campagne normatif et le runner normatif n'existent toujours pas (§20.29, inchangé) — `NORMATIVE_PRODUCTION_CONTRACT_READY=YES` concerne exclusivement la complétude et le gel du **contrat** de production (règles, tolérances, provenance), jamais son implémentation effective.
