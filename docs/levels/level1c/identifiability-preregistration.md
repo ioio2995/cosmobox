@@ -801,7 +801,11 @@ AMPLITUDE_POLICY                = PARAMETRIC_DELTA
 J0_1P5_STATUS                   = USEFUL_ANCHOR
 ```
 
-Forme conceptuelle : `{1-2δ, 1-δ, 1, 1+δ, 1+2δ}`, avec `δ = OPEN` et la contrainte gelée : tout `J0` retenu doit satisfaire `J0 > 0` strictement (`J0=0` supprime qualitativement le terme sur site ; `J0<0` inverse la configuration d'occupation locale favorisée — un régime différent, jamais une simple perturbation plus forte du même régime). **Aucune valeur numérique de `δ` n'est fixée** (ni `0.25`, ni `0.5`) et aucune des valeurs `J0 ∈ {0.5, 0.75, 1.25, 1.5}` n'est gelée comme grille — `J0=1.5` reste exclusivement `USEFUL_ANCHOR` (seul point historiquement calculé, jamais démontré optimal).
+Forme conceptuelle : `{1-2δ, 1-δ, 1, 1+δ, 1+2δ}`, avec la contrainte gelée : tout `J0` retenu doit satisfaire `J0 > 0` strictement (`J0=0` supprime qualitativement le terme sur site ; `J0<0` inverse la configuration d'occupation locale favorisée — un régime différent, jamais une simple perturbation plus forte du même régime).
+
+**[HISTORIQUE — statut au moment de 1C-6a/1C-6b/1C-6c]** `δ = OPEN` à ce stade : aucune valeur numérique de `δ` n'était fixée (ni `0.25`, ni `0.5`) et aucune des valeurs `J0 ∈ {0.5, 0.75, 1.25, 1.5}` n'était gelée comme grille — `J0=1.5` restait exclusivement `USEFUL_ANCHOR` (seul point historiquement calculé, jamais démontré optimal).
+
+**[ÉTAT COURANT — gelé par 1C-6d/1C-6e, voir §17]** `δ` est désormais fixé à `0.25` et la grille `J0_GRID = {0.5, 0.75, 1.0, 1.25, 1.5}` est `FROZEN`.
 
 ### 16.5 Ensemble `S`
 
@@ -1136,3 +1140,254 @@ Points explicitement encore ouverts après 1C-6c :
 ```
 
 `BRANCH_C2` n'est pas un blocage pour la première campagne : `SPLIT_BRANCH_RESPONSE_POLICY = STRUCTURAL_ONLY` (§16.19) permet de procéder sans lui pour tout groupe `TRACKED_ONE_TO_ONE`.
+
+## 17. Gel de `δ`, de la grille `J0` et contrat de préflight (1C-6d/1C-6e, gelé)
+
+**[GELÉ]** Pré-enregistrement documentaire des décisions acceptées définitivement lors de l'audit en lecture seule **1C-6d** (choix scientifique de `δ`, design du préflight spectral/resources, contrat d'aveuglement, politique de gel avant préflight). **Ce document ne fixe encore AUCUNE fenêtre spectrale numérique, AUCUN outil, AUCUNE exécution** — voir §17.16 pour la liste exhaustive de ce qui reste ouvert.
+
+### 17.1 Gel numérique de `δ`
+
+```text
+DELTA_SELECTION_POLICY = FIX_BEFORE_PREFLIGHT
+DELTA_RECOMMENDATION   = 0.25
+J0_GRID_READY_TO_FREEZE = YES
+
+DELTA_J0        = 0.25
+J0_GRID         = {0.5, 0.75, 1.0, 1.25, 1.5}
+J0_GRID_STATUS  = FROZEN
+```
+
+`δ = OPEN` décrit uniquement l'état antérieur à ce lot (§16.4) — pour la campagne en cours de conception, `δ` n'est plus ouvert.
+
+### 17.2 Justification du gel
+
+```text
+PRIMARY   : grille symétrique autour de J0=1 ; deux amplitudes contrôlées
+            |delta_J| = 0.25 et 0.50 ; tous les J0 de la grille restent
+            strictement positifs ; aucun point ne supprime ni n'inverse
+            le signe du terme local ; amplitude suffisamment distincte
+            entre points internes et externes ; choix fait AVANT toute
+            nouvelle donnée scientifique
+SECONDARY : J0=1.5 coïncide avec l'ancre historique externe USEFUL_ANCHOR
+```
+
+**Aucune ancienne valeur `C_TT_conn`/`Delta_C_TT` n'a été utilisée pour choisir `δ`.** Le terme « perturbatif » n'est jamais employé pour qualifier `±25%`/`±50%` (aucune preuve d'un régime perturbatif au sens formel n'est établie ni requise pour ce choix).
+
+### 17.3 Ordre méthodologique gelé
+
+```text
+1. choisir δ ;
+2. faire accepter la décision (gouvernance) ;
+3. geler/pré-enregistrer la grille (ce document) ;
+4. exécuter le préflight spectral/resources de CETTE grille figée ;
+5. décider si la grille est structurellement exécutable ;
+6. lancer une campagne seulement si le préflight passe pour tous les cas requis.
+```
+
+Le préflight **teste** une grille déjà gelée — il ne peut jamais **choisir**, **confirmer**, **optimiser**, ni **réviser silencieusement** `δ`.
+
+### 17.4 Statuts distincts
+
+```text
+GRID_READY_TO_FREEZE   = YES        -- δ scientifiquement motivé, prêt à
+                                        geler, indépendant du préflight
+J0_GRID_STATUS          = FROZEN     -- la grille est désormais une
+                                        décision gelée
+GRID_PREFLIGHT_PASSED   = NOT_EVALUATED -- statut futur distinct, obtenu
+                                        uniquement après exécution du
+                                        préflight sur la grille déjà
+                                        gelée ; jamais confondu avec les
+                                        deux précédents
+```
+
+### 17.5 Politique en cas d'échec du préflight
+
+```text
+préflight échoue sur au moins un cas REQUIRED
+  -> J0_CAMPAIGN_READY = NO
+  -> aucun lancement de campagne
+  -> aucun ajustement silencieux de δ, de fenêtre, ou de cible
+  -> ouverture éventuelle d'un NOUVEAU lot de redesign, distinct
+  -> toute nouvelle valeur de δ dans ce futur lot doit être rejustifiée
+     sur les mêmes critères (jamais sur le résultat du préflight
+     échoué), re-pré-enregistrée, et gelée avant tout nouveau préflight
+```
+
+Un échec du préflight n'annule jamais rétroactivement la validité du gel initial de `δ=0.25` — il clôture seulement cette tentative de campagne.
+
+### 17.6 Ensemble complet de cas
+
+```text
+PREFLIGHT_CASE_SET = FULL_20_CASE_GRID
+
+geometry ∈ {triangle, ring5}
+S ∈ {2,3}
+J0 ∈ {0.5,0.75,1.0,1.25,1.5}
+
+2 × 2 × 5 = 20 cas, J0=1 (baseline) inclus sans exemption
+```
+
+### 17.7 Cibles requises
+
+```text
+triangle : REQUIRED {fundamental, first_excited} ; OPTIONAL/CALIBRATION {T_max}
+ring5    : REQUIRED {fundamental, first_excited, T_3_2} ; OPTIONAL/CALIBRATION {T_max}
+```
+
+`T_max` reste `CALIBRATION_ONLY` — aucune fenêtre plus profonde n'est jamais demandée uniquement pour l'obtenir.
+
+### 17.8 Complétude d'une cible et marge spectrale
+
+```text
+required target valide si : SELECTED, complete_multiplet,
+  lower_bound_only=False, end_index_exclusive < candidate_window
+
+SPECTRAL_MARGIN_POLICY = REUSE_1C4A
+  -- après le dernier groupe REQUIRED sélectionné, au moins un groupe
+     complet supplémentaire avec start_index >= last_required.
+     end_index_exclusive et lower_bound_only=False ; aucun seuil
+     d'écart énergétique
+```
+
+Réutilisation explicite, sans modification, du contrat déjà accepté en 1C-4a.
+
+### 17.9 Fenêtres — concepts uniquement
+
+```text
+candidate_window
+exploratory_window
+```
+
+**Aucune valeur numérique de fenêtre n'est fixée par ce document.** Les anciennes valeurs 1C-4a (`triangle`: 16/32 ; `ring5`: 24/48) restent `HISTORICAL_REFERENCE_ONLY` — jamais une garantie pour les nouveaux points de la grille `J0`.
+
+**Option de conception à évaluer dans le prochain lot d'implémentation, non gelée ici** :
+
+```text
+FULL_DENSE_EXPLORATORY_WINDOW = CANDIDATE_DESIGN
+```
+
+Dans le chemin dense (`dimension <= 2000`, cf. §17.14), `np.linalg.eigh` calcule déjà le spectre complet avant toute rétention partielle — fixer `exploratory_window = dimension` distinguerait sans ambiguïté une cible réellement absente du spectre d'une cible seulement hors d'une fenêtre tronquée, sans coût de diagonalisation supplémentaire. Ceci reste une option à auditer, jamais gelée dans ce lot.
+
+### 17.10 Contrat d'aveuglement du préflight
+
+```text
+PREFLIGHT_BLINDNESS_CONTRACT = DEFINED
+```
+
+```text
+AUTORISÉ pendant le préflight : dimension de Hilbert ; ordre
+  énergétique/index spectral ; multiplicité ; twice_T ; translation_label ;
+  reflection_label ; complete_multiplet ; lower_bound_only ; V23
+  applicable/is_valid en tant que BOOLÉEN uniquement ; dispatch
+  dense/sparse ; statut d'échec ressource
+
+INTERDIT pour modifier δ/grille/target-set/fenêtre : valeurs numériques
+  C_TT_conn (diagonale ou hors-diagonale) ; Delta_C_TT ; réponse rho_QQ ;
+  réponse G ; amplitude de réponse incident/non-incident ; résultat de
+  localisation blind ; toute reconstruction géométrique/distance/
+  embedding/fit/courbure
+```
+
+### 17.11 V23 pendant le préflight
+
+```text
+PREFLIGHT_V23_POLICY = VALIDATE_WITHOUT_EXPOSING_VALUES
+```
+
+Le préflight peut calculer ce qui est nécessaire pour obtenir `applicable`/`is_valid`, mais sa surface de rapport destinée au choix de fenêtre/faisabilité ne doit jamais exposer `measured`/`expected`/`residual`/les valeurs diagonales ou hors-diagonale de `C_TT_conn`. **Ceci implique une adaptation future de l'outil `jbreak_spectral_preflight.py` existant** (qui sérialise actuellement ces valeurs numériques dans `TargetReport.v23`) — aucune implémentation n'est faite dans ce lot.
+
+### 17.12 Baseline `J0=1` et non-régression
+
+```text
+LEVEL1C_BASELINE_STRATEGY = RECOMPUTE_COMPLETE_BASELINE
+J0_EQ_1_ROLE               = CALIBRATION_BASELINE
+NON_REGRESSION_TIMING      = FINAL_PRODUCTION
+```
+
+Le préflight sur le cas `J0=1` reste exploratoire/structurel ; la baseline normative finale est produite séparément avec sa provenance complète (§16.8/§16.10). `BASELINE_NON_REGRESSION_CHECK = REQUIRED` (rappel, inchangé) ne s'applique qu'entre la baseline finale Level 1C et la référence historique Level 1B, jamais pour choisir `δ`/fenêtre.
+
+### 17.13 `FIXED_T_SUBSPACE` et `BRANCH_C1` pendant le préflight
+
+```text
+FIXED_T_REQUIRED_FOR_FIRST_CAMPAIGN = NO
+```
+
+(`SPLIT_BRANCH_RESPONSE_POLICY=STRUCTURAL_ONLY`, `DELTA_CTT_SPLIT_BRANCH=BLOCKED`, `BRANCH_C2_CONTRACT=NOT_DEFINED`, tous inchangés — `FIXED_T_SUBSPACE` reste hors périmètre de la première campagne). Le préflight vérifie seulement la faisabilité structurelle de `BRANCH_C1` (réflexion restreinte stable et unitaire dans la tolérance déjà gelée) — jamais une analyse `BRANCH_C2`.
+
+### 17.14 Ressources
+
+```text
+Hilbert dimension : triangle S=2/S=3 = 88/128 ; ring5 S=2/S=3 = 1000/1504
+  (dépend uniquement de geometry+S, indépendante de J0)
+eigensolver dispatch : dimension <= 2000 -> chemin dense (np.linalg.eigh)
+  pour les 20 cas -- aucun chemin sparse déclenché
+dimension² × 16 = estimation de stockage de la matrice complexe128,
+  jamais confondue avec le pic mémoire réel (espace de travail LAPACK
+  supplémentaire non quantifié)
+```
+
+Aucune estimation de temps.
+
+### 17.15 Statuts de préflight, priorité, frontière avec l'analyse finale
+
+```text
+WINDOW_SUFFICIENT / WINDOW_INSUFFICIENT / WINDOW_INCONCLUSIVE
+TARGET_NOT_IDENTIFIABLE
+RESOURCE_FEASIBLE / RESOURCE_BLOCKING
+TRACKING_STRUCTURALLY_AMBIGUOUS
+```
+
+```text
+Priorité : 1. INSUFFICIENT/NOT_IDENTIFIABLE  2. INCONCLUSIVE/
+STRUCTURALLY_AMBIGUOUS  3. SUFFICIENT -- aucune heuristique post-hoc
+```
+
+```text
+PRÉFLIGHT      -> vérifie que le design permet une analyse structurée
+FINAL ANALYSIS -> attribue TRACKED_ONE_TO_ONE / TRACKED_SPLIT_BRANCH /
+                  AMBIGUOUS / DISCONTINUOUS / NOT_AVAILABLE
+```
+
+`TRACKING_STRUCTURALLY_AMBIGUOUS` est un signal de faisabilité au niveau préflight, jamais un verdict final de tracking scientifique.
+
+**Politique d'élargissement** : aucun élargissement automatique après inspection de la physique. Fenêtre plus profonde uniquement pour la complétude d'une cible `REQUIRED` + la marge spectrale (§17.8) — jamais pour `T_max`, un `C_TT` plus intéressant, un `Delta_C_TT` plus grand, une branche plus intéressante, ou un meilleur score blind.
+
+```text
+PREFLIGHT_GLOBAL_POLICY = ALL_REQUIRED_CASES
+```
+
+Au moins un cas `REQUIRED` bloquant ⇒ préflight global `FAIL` ⇒ campagne non lancée. Aucune campagne partielle destinée à sauver une sous-partie jugée intéressante.
+
+**Symétrie `±δ` indivisible** : `±0.25` et `±0.50` sont des paires de design indivisibles pour toute revendication symétrique autour de `J0=1`. Si un seul côté d'une paire échoue structurellement, la paire complète ne peut plus soutenir une revendication symétrique — jamais conservée post-hoc uniquement du côté utilisable.
+
+**Ordre déterministe** (auditabilité uniquement, `RUN_ORDER_POLICY=IRRELEVANT_BUT_FIXED` inchangé) :
+
+```text
+triangle { S=2 { J0=0.5,0.75,1.0,1.25,1.5 } ; S=3 { J0=0.5,0.75,1.0,1.25,1.5 } }
+ring5    { S=2 { J0=0.5,0.75,1.0,1.25,1.5 } ; S=3 { J0=0.5,0.75,1.0,1.25,1.5 } }
+```
+
+### 17.16 Statuts de préparation et points ouverts après 1C-6e
+
+```text
+1C6D_READ_ONLY_DESIGN   = ACCEPTÉ DÉFINITIVEMENT
+J0_GRID_STATUS           = FROZEN
+GRID_PREFLIGHT_PASSED    = NOT_EVALUATED
+PREFLIGHT_DESIGN_READY   = CONDITIONAL
+J0_CAMPAIGN_READY        = NO
+```
+
+Points explicitement encore ouverts après 1C-6e :
+
+```text
+- candidate_window numérique ;
+- exploratory_window numérique ;
+- choix éventuel de FULL_DENSE_EXPLORATORY_WINDOW (§17.9) ;
+- adaptation de la sortie V23 de l'outil existant pour préserver
+  l'aveuglement (§17.11) ;
+- représentation exacte des statuts de préflight (§17.15) ;
+- implémentation effective de l'outil de préflight J0×S ;
+- exécution des 20 cas ;
+- PHYSICAL_RESPONSE_THRESHOLD (toujours OPEN) ;
+- la campagne normative finale elle-même.
+```
