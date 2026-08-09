@@ -2170,6 +2170,8 @@ Une tolérance globale par observable — jamais par géométrie, jamais par `S`
 
 ### 20.22 Méthodologie complète de calibration
 
+**[HISTORIQUE — SUPERSEDED BY 1C-7c2b]** Le hold-out `T_max` ci-dessous a été conçu en 1C-7b3/1C-7c comme jeu de calibration indépendant :
+
 ```text
 CALIBRATION_SET =
   T_max, J0=1, restreint aux géométries/spins de la campagne :
@@ -2182,29 +2184,245 @@ minimum requis : au moins un cas T_max utilisable PAR géométrie
   -> CALIBRATION_STATUS = FAIL
 ```
 
-```text
-CALIBRATION_METRIC_CTT :
-  E_CTT = MAX_ABS sur tous les enregistrements de calibration
-    (paires (i,j), i!=j, C_TT_conn hors-diagonale) de
-    |current - historical|
-  -- jamais une moyenne, un RMS, ou un quantile
+**Raison de la supersession (1C-7c2-fix)** : l'implémentation de ce hold-out (commit `e98950f`, jamais accepté) a révélé, par audit direct de `results.py`/`serialization.py`/`correlators-v2.schema.json` et du pipeline de persistance Level 1B (`runner.py`, `outputs.py`, `scripts/level1b_analysis/*`), que **la campagne Level1B n'a jamais persisté le mapping `target_id → spectral_window_group_index`** — ni dans les documents JSON eux-mêmes, ni dans `run.json`, ni dans aucun artefact d'analyse (1B-9), par choix d'architecture déjà gelé (D022 : « l'identité appartient au groupe, jamais à la règle de sélection qui l'a trouvé »). Il en résulte que l'identité historique de `T_max` ne peut être prouvée depuis les artefacts persistés seuls **sans nouvelle diagonalisation** (interdite dans ce contexte) **ni assertion opérateur post-hoc** (une valeur libre fournie par l'opérateur ne constitue jamais une preuve de provenance) — les deux seules voies alternatives, explicitement rejetées. Le hold-out `T_max` est donc **inexploitable en l'état** et remplacé ci-dessous, sans jamais être effacé de l'historique de ce document.
 
-CALIBRATION_METRIC_RHO :
-  E_RHO = MAX_ABS sur les enregistrements où rho_QQ historique ET
-    actuel sont TOUS DEUX non-null selon la règle CONTRACTUELLE
-    NORMALIZATION_FLOOR déjà gelée, SANS seuil d'exclusion
-    supplémentaire arbitraire près du floor -- toute valeur
-    contractuellement non-null est incluse quelle que soit sa
-    proximité du floor
+**[ÉTAT COURANT — gelé par 1C-7c2a/1C-7c2a2/1C-7c2b]**
+
+```text
+CALIBRATION_HOLDOUT_KIND = TARGET_ID_FREE_PERSISTED_GROUP_HOLDOUT
+```
+
+La calibration porte désormais sur `same persisted physical spectral groups, historical archive vs current recomputation` — jamais sur `reconstruction of historical target selection`. Aucune sémantique de target n'entre plus dans la définition du hold-out :
+
+```text
+HISTORICAL_TARGET_ID_REQUIRED             = NO
+HISTORICAL_GROUP_SELECTOR_OPERATOR_INPUT  = FORBIDDEN
+```
+
+**`CALIBRATION_CASE_FILTER`** (audité et vérifié réellement présent/valide/utilisable en 1C-7c2a2) :
+
+```text
+CALIBRATION_CASE_FILTER :
+  hamiltonian_case_id = reference
+
+  cas requis, exactement :
+    - triangle, S=1
+    - ring4,    S=1
+    - ring4,    S=2
+    - ring4,    S=3
+    - ring5,    S=1
+
+  tous avec : sector=default, J_uniform=1, J_override=none, h=0,
+    t=1, g_E=1, K=1
 ```
 
 ```text
+ALL_5_HOLDOUT_CASES_REQUIRED = YES
+
+Aucun sous-ensemble adaptatif, aucun fallback, aucun remplacement
+  automatique, aucune politique 3/5 ou 4/5. Si l'un des cinq artefacts
+  n'est pas disponible/valide/utilisable au moment d'une future
+  calibration réelle : CALIBRATION_STATUS = FAIL, jamais un
+  rétrécissement silencieux de l'ensemble.
+```
+
+**Cas explicitement exclus, avec raison** :
+
+```text
+j_break (triangle S=2, ring5 S=2) = EXCLUDED
+  -- introduit une perturbation physique réelle (J_override=1.5) ;
+     coïncide littéralement avec un point J0=1.5 de la grille normative
+     Level1C future ; l'utiliser calibrerait un garde de reproductibilité
+     numérique avec un cas physiquement perturbé, mélangeant deux axes
+     que ce projet maintient systématiquement disjoints (reproductibilité
+     du calcul vs réponse physique à la perturbation).
+
+triangle/ring5 S∈{2,3} reference = EXCLUDED FROM CALIBRATION HOLDOUT
+  -- appartiennent aux cas baseline normatifs Level1C
+     (REQUIRED_NON_REGRESSION, §20.19) ; les utiliser pour calibrer le
+     seuil qui contrôle ensuite ces mêmes cas introduirait une
+     circularité de niveau cas, évitable simplement en choisissant des
+     cas disjoints.
+```
+
+```text
+CALIBRATION_HOLDOUT_OVERLAP_WITH_REQUIRED_LEVEL1C = NONE
+```
+
+Les cinq cas retenus sont disjoints, par géométrie et/ou par `S`, de `triangle/ring5 × S∈{2,3}` et de toute grille `J0` normative Level1C.
+
+**`CALIBRATION_GROUP_FILTER`** (purement structurel, jamais basé sur une valeur d'observable ni sur une sémantique de target) :
+
+```text
+CALIBRATION_GROUP_FILTER :
+  group est effectivement persisté dans l'archive historique
+  AND status = complete_multiplet
+  AND twice_T résolu (non null)
+  AND translation_label.kind = NUMERIC
+  AND reflection_label.kind = NUMERIC
+  AND jeu complet de paires C_TT_conn hors-diagonale
+  AND jeu complet de paires rho_QQ hors-diagonale
+```
+
+Ne sont **jamais** utilisés pour décider de l'appartenance au hold-out : `target_id`, une règle de sélection de target, un rang énergétique, ou la magnitude numérique d'une observable.
+
+**Biais de sélection historique (documenté, non invalidant)** : les groupes persistés ne représentent que les groupes que la campagne Level1B avait effectivement produits (parce qu'au moins une target historique les avait sélectionnés) — ce n'est **pas** un échantillon statistiquement représentatif de tout le spectre. Cela n'invalide pas ce hold-out, dont l'objectif est un `empirical reproducibility check on an independent set of archived calculations`, jamais un `statistical sampling of the full spectrum`.
+
+**`CURRENT_MATCH`** (comparaison groupe historique ↔ recomputation courante) :
+
+```text
+CURRENT_MATCH exige :
+  même identité de cas (geometry, hamiltonian_case_id=reference, spin,
+    sector)
+  même spectral_window_group_index
+  même multiplicity
+  même twice_T résolu
+  translation labels concordants via symmetry_labels_match
+  reflection labels concordants via symmetry_labels_match
+
+Aucune recherche d'un groupe alternatif si un composant ne concorde pas.
+```
+
+**Rôle de `spectral_window_group_index` — distinction explicite avec le tracking inter-J0** :
+
+```text
+INTER_J0_TRACKING :
+  spectral_window_group_index = NOT identity
+    (le Hamiltonien change réellement -- un déplacement d'indice est un
+    phénomène physique attendu, jamais un signal de défaut)
+
+CALIBRATION_SAME_HAMILTONIAN_REPLAY :
+  spectral_window_group_index = REQUIRED structural reproducibility
+    component
+    (le Hamiltonien, la géométrie, le S, la fenêtre et la tolérance de
+    dégénérescence sont REJOUÉS À L'IDENTIQUE -- un désaccord d'indice
+    indique ici une différence réelle de décomposition spectrale,
+    jamais un phénomène physique bénin) -> CALIBRATION_FAIL, jamais un
+    rematching permissif
+```
+
+**Énergie** :
+
+```text
+representative_energy = NOT part of CURRENT_MATCH
+  -- ni identité, ni départageur, ni critère d'éligibilité
+```
+
+Raison spécifique à ce contexte (distincte de la raison déjà gelée pour le tracking) : utiliser une tolérance énergétique pour décider qu'un groupe est « le même » ferait dépendre l'identité d'une quantité numérique dont on cherche justement à tester la reproductibilité — une circularité à éviter explicitement, même si le Hamiltonien est ici rigoureusement identique.
+
+**Fenêtres historiques exactes** (inputs historiques gelés, jamais un deepening, jamais les `production_window` Level1C 9/15 qui n'ont aucun rapport avec ce hold-out) :
+
+```text
+triangle S=1 -> spectral_window = 16
+ring4    S=1 -> spectral_window = 20
+ring4    S=2 -> spectral_window = 20
+ring4    S=3 -> spectral_window = 20
+ring5    S=1 -> spectral_window = 24
+```
+
+```text
+CALIBRATION_HOLDOUT_DEGENERACY_TOLERANCE = valeur du manifeste Level1B
+  historique = 1e-10 -- aucune nouvelle tolérance.
+
+CALIBRATION_HOLDOUT_RESOURCE_GUARDRAILS = garde-fous du manifeste
+  Level1B historique (max_dense_dimension/max_sparse_dimension déjà
+  gelés) -- aucune politique concurrente redéfinie ici.
+```
+
+**Pipeline de recomputation** :
+
+```text
+current recomputation = current scientific primitives
+  appliquées directement au contrat cas/fenêtre historique gelé
+  (jamais le chemin de sélection de target Level1B)
+
+Le futur outil doit :
+  1. recomputer le spectre du cas historique (même Hamiltonien, même
+     fenêtre, même tolérance de dégénérescence) ;
+  2. produire les structures nécessaires (groupes, labels, observables) ;
+  3. charger les groupes historiques persistés ;
+  4. appliquer automatiquement CALIBRATION_GROUP_FILTER (jamais un
+     target_id) ;
+  5. comparer uniquement les groupes satisfaisant CURRENT_MATCH.
+```
+
+**Métriques et politiques numériques** (réaffirmées, non rouvertes sur le fond) :
+
+```text
+CALIBRATION_METRIC_CTT = E_CTT = MAX_ABS sur C_TT_conn(i,j), i!=j, pour
+  tous les groupes éligibles des cinq cas -- jamais moyenne/RMS/quantile
+
+CALIBRATION_METRIC_RHO = E_RHO = MAX_ABS uniquement sur les paires où
+  historique ET actuel sont TOUS DEUX non-null
+
 NULLITY_POLICY :
   historical null != current null -> CALIBRATION_STATUS = FAIL
-    (catégoriel, indépendant de toute tolérance numérique)
-  deux null -> même null_reason exigé explicitement (actuellement
-    trivialement vrai vu l'unique raison possible aujourd'hui, vérifié
-    quand même en défense en profondeur)
+  deux null -> même null_reason exigé explicitement
+
+NO_NUMERIC_RHO_CALIBRATION_RECORD -> CALIBRATION_FAIL (une calibration
+  valide doit dériver E_CTT numérique ET E_RHO numérique -- jamais l'un
+  sans l'autre)
+
+PAIR_SET_EQUALITY (précision par rapport à 1C-7b3) :
+  set(current C_TT pairs) == set(historical C_TT pairs)
+  set(current rho pairs)  == set(historical rho pairs)
+  -- égalité stricte des ensembles, JAMAIS une intersection silencieuse ;
+     tout écart -> CALIBRATION_FAIL
+
+NON_FINITE_POLICY : toute valeur C_TT_conn/rho_QQ non-null doit être
+  finie ; NaN/+inf/-inf -> calibration invalide, jamais inclus dans
+  MAX_ABS
+
+SYMMETRY_LABEL_REQUIREMENT : translation.kind = NUMERIC ET
+  reflection.kind = NUMERIC des deux côtés ; concordance via
+  matching.symmetry_labels_match (SYMMETRY_TOLERANCE déjà gelée,
+  réutilisée verbatim, JAMAIS recopiée vers la tolérance des observables
+  physiques)
+```
+
+**Artefacts historiques vérifiés (fait d'audit read-only, 1C-7c2a2)** : les cinq cas ont été trouvés réellement présents, valides (hash `records_sha256` vérifié, schéma v2 validé via les chargeurs déjà acceptés, index de groupes construit sans erreur) et utilisables (onze groupes éligibles au total sur les cinq cas, jeux de paires `C_TT_conn`/`rho_QQ` complets, au moins une valeur `rho_QQ` numérique par cas), sous l'exécution normative Level1B déjà documentée (« 1B-8g »). **Distinction impérative** : `operational location != normative identity`. L'emplacement observé (`/workspaces/level1b_campaign_output/`) est un **chemin opérationnel historique**, jamais une exigence scientifique — il peut changer, être déplacé, ou ne pas exister sous ce nom dans un autre environnement.
+
+**Identité normative historique attendue** (provenance, jamais un chemin) :
+
+```text
+historical_campaign_id           = level1b-reference-v1
+historical_manifest_fingerprint  = 159660cac738518dc620b9627ec95fd67c5dbc283707fdf72e572886364693ab
+historical_repository_commit     = 0ff65ac66b4aa054f739b350cd384c26ecd19752
++ les cinq case_id exacts requis
++ per-case records_sha256 -- MUST MATCH run.json au runtime (contrat
+  normatif ; les hashes individuels ne sont pas recopiés ici pour ne pas
+  alourdir ce document -- ils sont vérifiés à l'exécution et conservés
+  dans la provenance du futur artefact de calibration)
+```
+
+```text
+historical_output_dir = paramètre d'exécution explicite, fourni par
+  l'opérateur -- JAMAIS un glob, JAMAIS une sélection "latest"/mtime,
+  JAMAIS un chemin codé en dur comme identité scientifique. Le futur
+  outil localise les cinq cas déterministement sous
+  historical_output_dir/runs/<case_id>/.
+```
+
+**Environnement historique** :
+
+```text
+HISTORICAL_ENVIRONMENT_FINGERPRINT = UNAVAILABLE
+```
+
+Les `run.json` historiques ne portent aucun champ Python/NumPy/SciPy/BLAS-LAPACK. Ceci ne bloque **pas** ce hold-out — la portée de la calibration est précisément une comparaison contre des valeurs archivées dont l'environnement producteur n'a pas été entièrement capturé ; cette limitation reste documentée explicitement, jamais dissimulée.
+
+**Environnement courant** (inchangé, réaffirmé) :
+
+```text
+CALIBRATION_ENVIRONMENT = NORMATIVE_CAMPAIGN_ENVIRONMENT
+
+Le fingerprint courant doit contenir python/numpy/scipy/identité-version
+  BLAS-LAPACK/platform/architecture, ET être complet -- un champ
+  normativement requis valant "unavailable" doit empêcher une
+  calibration d'être acceptée (jamais un environnement partiellement
+  caractérisé accepté comme normatif).
+
+ENVIRONMENT_CHANGE -> RECALIBRATION_REQUIRED (inchangé)
 ```
 
 ```text
@@ -2228,9 +2446,64 @@ Cette valeur fournit UNIQUEMENT une échelle représentationnelle
   une convention de gouvernance à l'échelle de représentation, PAS une
   borne de précision de solveur.
 
+Précision d'implémentation (1C-7c2-fix, non encore codée) : toute
+  future implémentation DOIT garantir TOL >= E par une vérification
+  explicite (calcul de décennie + vérification + promotion), jamais par
+  un round(log10(E), N), qui peut violer ce contrat pour E légèrement
+  supérieur à une puissance de dix exacte.
+
 FIXED_FLOOR_CTT = NONE
 FIXED_FLOOR_RHO = NONE
 SAFETY_FACTOR   = NONE
+```
+
+**Artefact `FAIL`** :
+
+```text
+CALIBRATION_STATUS = FAIL
+  -> NON_REGRESSION_CTT_ABS_TOL = None
+  -> NON_REGRESSION_RHO_ABS_TOL = None
+
+même si des métriques intermédiaires E_CTT/E_RHO ont pu être calculées
+  à titre diagnostique -- aucune tolérance issue d'une calibration
+  invalide ne peut jamais être consommée comme normative.
+```
+
+**Représentativité et couverture dimensionnelle** (limite disclosée, jamais dissimulée) :
+
+```text
+HOLDOUT_DIMENSIONS              = 48, 152, 292, 432, 496
+HOLDOUT_MAX_DIMENSION           = 496
+NORMATIVE_LEVEL1C_MAX_DIMENSION = 1504
+HIGH_DIMENSION_COVERAGE         = NO
+HOLDOUT_REPRESENTATIVITY        = LIMITED
+```
+
+Aucune formulation future ne doit jamais affirmer que ce hold-out couvre ou borne rigoureusement les cas de dimension 1000/1504 de la campagne normative — le manifeste Level1B ne contient tout simplement aucun autre point de grille disjoint à cette échelle.
+
+**Portée épistémique** (réaffirmée) :
+
+```text
+CALIBRATION_INTERPRETATION = empirical reproducibility guard of the
+  current environment against archived historical values on an
+  independent hold-out set
+
+NOT universal solver accuracy
+NOT rigorous future numerical error bound
+NOT a high-dimension proof
+NOT a physical-response threshold
+```
+
+```text
+SUFFICIENT_FOR_EMPIRICAL_PIPELINE_GATE = YES
+HIGH_DIMENSION_COVERAGE                = NO
+```
+
+Le premier statut signifie uniquement que ce jeu permet de construire le garde empirique décidé — il ne transforme jamais ce hold-out en validation universelle du pipeline.
+
+```text
+CALIBRATION_RUN_POLICY = SINGLE_ACCEPTED_RUN (inchangé) -- aucun rerun
+  pour obtenir un seuil plus favorable.
 ```
 
 ### 20.23 Environnement normatif
@@ -2330,6 +2603,27 @@ NORMATIVE_CAMPAIGN_IMPLEMENTATION_READY = NO
 J0_CAMPAIGN_READY = YES  (inchangé depuis §19.15 -- readiness
   structurelle du préflight, jamais rétrogradée par ce document)
 ```
+
+**[HISTORIQUE — statut du hold-out `T_max` avant 1C-7c2b]** Les statuts ci-dessus dataient d'un moment où `CALIBRATION_SET=T_max` (§20.22, désormais superseded) était le seul contrat de calibration envisagé. Voir §20.30 pour l'état courant après le remplacement du hold-out.
+
+### 20.30 Readiness après 1C-7c2b (remplacement du hold-out de calibration)
+
+**[GELÉ]** `e98950fc92f2e55ebc4aca3e0bbd9906fe6f17de` (implémentation initiale 1C-7c2, fondée sur le hold-out `T_max` désormais superseded) reste **NON ACCEPTÉ** — il sera corrigé/remplacé par un futur commit (1C-7c2c) implémentant le hold-out `TARGET_ID_FREE_PERSISTED_GROUP_HOLDOUT` gelé en §20.22.
+
+```text
+NON_REGRESSION_CTT_ABS_TOL               = PENDING_CALIBRATION
+NON_REGRESSION_RHO_ABS_TOL               = PENDING_CALIBRATION
+NON_REGRESSION_TOLERANCE_STATUS          = NEEDS_CALIBRATION
+NON_REGRESSION_CONTRACT_READY            = CONDITIONAL
+NORMATIVE_PRODUCTION_CONTRACT_READY      = CONDITIONAL
+NORMATIVE_CAMPAIGN_IMPLEMENTATION_READY  = NO
+CALIBRATION_RUN_READY                    = NO
+
+TARGET_ID_FREE_HOLDOUT_CONTRACT_READY    = YES
+HOLDOUT_ARTIFACT_SET_READY               = YES
+```
+
+`TARGET_ID_FREE_HOLDOUT_CONTRACT_READY=YES` et `HOLDOUT_ARTIFACT_SET_READY=YES` signifient uniquement que le **contrat** du hold-out est entièrement gelé (§20.22) et que les **cinq artefacts historiques requis existent, sont valides et utilisables** (audité en 1C-7c2a2, lecture seule, jamais une exécution) — jamais que l'outil de calibration est implémenté, ni qu'une calibration réelle a été exécutée. `CALIBRATION_RUN_READY=NO` reste la distinction impérative : aucun outil ne consomme encore ce contrat.
 
 ### 20.29 Périmètre non ouvert par ce document
 
