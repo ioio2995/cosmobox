@@ -1811,3 +1811,521 @@ Statut courant, non ambigu : `GRID_PREFLIGHT_PASSED = YES` (§19.1), `J0_CAMPAIG
 ### 19.18 Périmètre non ouvert par ce document
 
 Ce document ne définit toujours pas : le format final du corpus normatif, les noms de fichiers de la campagne, un schéma de résultats de campagne, le tracking scientifique final, `Delta_C_TT` final, un seuil physique, un protocole de localisation blind exécuté, ou une reconstruction géométrique — tous appartiennent à des lots futurs distincts, non ouverts ici.
+
+## 20. Gel du contrat de production normative Level 1C, du tracking inter-J0 v1 et de la méthodologie de calibration de non-régression (1C-7a/1C-7b/1C-7b2/1C-7b3, gelé)
+
+**[GELÉ]** Transcription documentaire des décisions acceptées des audits de conception en lecture seule 1C-7a, 1C-7b, 1C-7b2 et 1C-7b3. **Aucun code, aucun schéma, aucun manifeste machine-readable, aucun outil de calibration, aucune campagne, aucun run, aucune diagonalisation, aucun calcul scientifique n'est produit par cette section** — c'est un gel de contrat, jamais une exécution.
+
+### 20.1 Statut des lots sources
+
+```text
+1C-7a  = ACCEPTÉ comme design de conception, corrections intégrées par
+         les audits suivants (1C-7b/1C-7b2/1C-7b3) -- aucun commit propre
+1C-7b  = ACCEPTÉ comme audit intermédiaire (tracking + non-régression),
+         corrections intégrées par 1C-7b2 -- aucun commit propre
+1C-7b2 = ACCEPTÉ DÉFINITIVEMENT en lecture seule -- taxonomie de
+         tracking v1 fermée -- aucun commit propre
+1C-7b3 = ACCEPTÉ DÉFINITIVEMENT en lecture seule -- méthodologie de
+         calibration de non-régression fermée -- aucun commit propre
+```
+
+Aucun de ces quatre lots ne possède de commit dédié : ce §20 est le premier gel documentaire de leur contenu combiné (même schéma que 1C-6a/1C-6b → 1C-6c, 1C-6d → 1C-6e, 1C-6f → 1C-6g).
+
+### 20.2 Séparation des phases
+
+```text
+PHASE_P = NORMATIVE_PRODUCTION
+PHASE_T = INTER_J0_AND_INTER_S_TRACKING
+PHASE_R = RESPONSE_ANALYSIS
+PHASE_G = GEOMETRY_INFERENCE
+
+P -> T -> R -> G
+```
+
+Règle : `R`/`G` ne modifient jamais `P`. Les artefacts de production sont immuables après validation.
+
+### 20.3 Ensemble normatif de cas
+
+```text
+geometry ∈ {triangle, ring5}
+S ∈ {2, 3}
+J0 ∈ {0.5, 0.75, 1.0, 1.25, 1.5}
+```
+
+Exactement 20 cas, ordre déterministe déjà gelé (§17/§18). Aucune extension de grille.
+
+### 20.4 Fenêtres de production
+
+`production_window` réutilise exactement la table déjà gelée en §19.8 (`PRODUCTION_WINDOW_RULE = A`, `PRODUCTION_WINDOW_SCOPE = PER_CASE`). En campagne normative, `production_window` est un **INPUT gelé**, jamais recalculé ni redérivé à l'exécution : aucune diagonalisation exploratoire pleine ne doit être relancée pour la retrouver, aucun deepening n'est autorisé.
+
+### 20.5 Unité d'artefact
+
+```text
+CASE_ARTIFACT_UNIT       = ONE_ARTIFACT_PER_CASE
+GLOBAL_CAMPAIGN_MANIFEST = REQUIRED
+```
+
+La forme JSON exacte (schéma, noms de fichiers) n'est pas définie ici — réservée à 1C-7d. Raisons de ce choix, brièvement : atomicité et isolation des échecs (un cas corrompu n'invalide jamais les 19 autres), auditabilité (hachage par cas), validation de reprise (`skipped_existing_valid` sans réexécution), réutilisation directe du patron de persistance Level 1B déjà éprouvé (`runs/<case_id>/{records.jsonl,run.json}`, `scripts/level1b_campaign/outputs.py`).
+
+### 20.6 Séparation structure / observables
+
+```text
+SPECTRAL_STRUCTURE_PRODUCTION  = ALL_COMPLETE_GROUPS_IN_PRODUCTION_WINDOW
+PHYSICAL_OBSERVABLE_PRODUCTION = PREREGISTERED_TARGETS_ONLY
+```
+
+Distinction centrale, jamais fusionnée : **tout** groupe `complete_multiplet` du `production_window` peut conserver les diagnostics structurels minimaux nécessaires au tracking (ci-dessous) ; les observables physiques (`C_TT_conn`, `rho_QQ`) restent réservés aux seules cibles pré-enregistrées.
+
+Diagnostics structurels minimaux, pour chaque groupe complet :
+
+```text
+spectral_window_group_index
+group_start_index
+group_end_index_exclusive
+complete_multiplet
+lower_bound_only
+multiplicity
+twice_T
+representative_energy, min_energy, max_energy
+translation label
+reflection label
+reflection_restriction_valid
+```
+
+`spectral_window_group_index` n'est **jamais** une identité inter-J0 ni une identité inter-S — un simple index de position intra-cas. L'énergie (`representative_energy`/`min_energy`/`max_energy`) est un diagnostic de support uniquement — jamais une identité, jamais un départageur (§20.11).
+
+### 20.7 Observables physiques
+
+```text
+C_TT_conn = REQUIRED (diagonale ET hors-diagonale, matrice complète)
+rho_QQ    = REQUIRED (mêmes cibles admissibles)
+G_ij^{alpha,beta}[P]        = DEFERRED
+flavor_singular_value_ratio = DEFERRED
+```
+
+Format logique recommandé pour `C_TT_conn`/`rho_QQ` : enregistrements longs `(i,j,value)` — la forme machine-readable exacte reste pour 1C-7d.
+
+`rho_QQ` : observable de contrôle indépendante, jamais l'observable primaire de géométrie.
+
+`G` (rappel) : corrélateur habillé de jauge (gauge-dressed correlator), **jamais** une quantité gravitationnelle — différé car le contrat de sélection/agrégation de chemin reste non résolu (risque de circularité déjà signalé, §4/§16 historique).
+
+`flavor_singular_value_ratio` : différé car dépendant du pipeline `G`, sans rôle inter-J0 établi pour cette première campagne.
+
+### 20.8 Targets
+
+```text
+triangle : fundamental REQUIRED ; first_excited REQUIRED ;
+           T_max CALIBRATION_ONLY
+ring5    : fundamental REQUIRED ; first_excited REQUIRED ;
+           T_3_2 REQUIRED ; T_max CALIBRATION_ONLY
+```
+
+Distinction :
+
+```text
+TARGET_PRODUCED         -- la cible a été trouvée et ses observables
+                            physiques produits
+TARGET_PRIMARY_ANALYSIS -- REQUIRED, entre dans le tracking/la réponse
+                            normative
+TARGET_CALIBRATION_ONLY -- T_max uniquement, jamais promu en analyse
+                            primaire
+```
+
+`T_max` n'est produit que s'il tombe naturellement dans `production_window` — aucun deepening n'est jamais demandé pour l'obtenir (règle déjà gelée, §15.1/§17.8).
+
+### 20.9 Baseline Level 1C
+
+```text
+LEVEL1C_BASELINE_STRATEGY = RECOMPUTE_COMPLETE_BASELINE
+```
+
+La baseline `J0=1` appartient aux 20 cas de la même campagne, avec la même provenance que les points perturbés — aucun sous-lot scientifique séparé, aucune réutilisation des fenêtres historiques Level 1B (16/24) comme production normative Level 1C (rappel §19.8).
+
+### 20.10 Tracking inter-J0 — topologie et direction
+
+```text
+INTER_J0_TRACKING_TOPOLOGY = BASELINE_CENTERED
+```
+
+Chaque `J0` perturbé est comparé directement à `J0=1` — jamais de chaînage voisin-à-voisin. Les côtés `+δ` et `−δ` restent des comparaisons indépendantes.
+
+```text
+track_v1(baseline_target_group, perturbed_case_complete_groups)
+direction unique : baseline -> perturbed, jamais symétrisée implicitement
+```
+
+### 20.11 Composants d'identité
+
+```text
+REQUIRED_IDENTITY_COMPONENTS :
+  - same geometry
+  - same sector identity
+  - complete_multiplet (des deux côtés)
+  - same resolved twice_T
+  - reflection_label.kind = NUMERIC des deux côtés
+  - reflection_restriction_valid = true des deux côtés
+  - reflection characters match via symmetry_labels_match
+      (SYMMETRY_TOLERANCE -- valeur déjà gelée dans matching.py,
+      réutilisée uniquement pour comparer les caractères de réflexion,
+      JAMAIS recopiée vers la tolérance des observables physiques,
+      catégorie distincte -- §20.19)
+
+Pour TRACKED_ONE_TO_ONE uniquement, en plus : same multiplicity
+
+TRANSLATION_ACROSS_J0_ROLE = NOT_AN_IDENTITY_REQUIREMENT
+  (diagnostic intra-cas uniquement, jamais un critère de tracking)
+
+energy (representative/min/max) = supporting diagnostic only,
+  jamais une identité, jamais un départageur -- même en cas d'égalité
+  structurelle résiduelle (§20.13)
+```
+
+### 20.12 Class pool
+
+```text
+CLASS_POOL = tous les groupes COMPLETS du production_window perturbé
+  partageant :
+    - le même twice_T que la baseline
+    - reflection NUMERIC + restriction_valid=true
+    - un caractère de réflexion concordant avec celui de la baseline
+      (symmetry_labels_match)
+```
+
+Un candidat qui partagerait le `twice_T` de la baseline mais dont la réflexion est `UNAVAILABLE` ou dont `reflection_restriction_valid=false` rend le statut `AMBIGUOUS` **avant** toute conclusion de vacuité du pool — un calcul non résolu ne prouve ni présence ni absence.
+
+### 20.13 Taxonomie de tracking v1 (fermée)
+
+```text
+TRACKED_ONE_TO_ONE
+AMBIGUOUS
+NOT_AVAILABLE
+DISCONTINUOUS
+TRACKED_SPLIT_BRANCH
+```
+
+Contrat exact, mutuellement exclusif :
+
+```text
+TRACKED_ONE_TO_ONE
+  = exactement 1 membre dans CLASS_POOL ET même multiplicité
+
+AMBIGUOUS
+  = identité de la baseline non résolue
+    OU identité d'un candidat autrement pertinent non résolue
+    OU >1 membres dans CLASS_POOL
+    OU multiplicity mismatch (candidat unique de CLASS_POOL mais
+       multiplicité différente de la baseline)
+    OU incertitude irrep répétée / fixed-T non démontré
+    OU reflection NOT_APPLICABLE/UNAVAILABLE là où une identité de
+       réflexion commune était requise
+
+NOT_AVAILABLE
+  = CLASS_POOL vide proprement dans le production_window disponible,
+    sans aucun composant d'identité requis non résolu
+
+DISCONTINUOUS
+  = RÉSERVÉ pour une incompatibilité d'identité dure POSITIVEMENT
+    établie -- AUCUN chemin mécanique de la taxonomie v1 ne peut
+    l'émettre (twice_T est un critère d'appartenance à CLASS_POOL,
+    jamais violé par un membre du pool) ; statut théoriquement défini,
+    non forcé
+
+TRACKED_SPLIT_BRANCH
+  = RESERVED_BUT_NOT_EMITTABLE en v1
+```
+
+### 20.14 Fenêtre limitée
+
+```text
+absence dans production_window != preuve de discontinuité physique
+```
+
+Une absence de candidat compatible dans la fenêtre disponible produit **toujours** `NOT_AVAILABLE`, jamais `DISCONTINUOUS` par simple absence — `production_window` garantit la suffisance pour les cibles `REQUIRED` sélectionnées par rang/label à ce `J0`, jamais qu'une branche ayant migré vers un rang supérieur reste dans cette même fenêtre étroite.
+
+### 20.15 Multiplicity mismatch
+
+```text
+multiplicité du candidat != multiplicité de la baseline (candidat par
+ailleurs unique de CLASS_POOL) -> AMBIGUOUS
+```
+
+Jamais `smaller -> TRACKED_SPLIT_BRANCH` / `larger -> DISCONTINUOUS`. Justification : le signe seul du mismatch ne prouve ni une identité de daughter branch (réduction) ni une incompatibilité dure (augmentation, qui peut résulter d'une dégénérescence accidentelle de regroupement) — sans décomposition parent validée ni contrôle fixed-T, aucune direction n'est exploitable scientifiquement.
+
+### 20.16 `BRANCH_C1`, `TRACKED_SPLIT_BRANCH` futur, `BRANCH_C2`
+
+```text
+BRANCH_C1 = structural diagnostic / parent subgroup classification
+BRANCH_C1_RESULT n'émet jamais TRACKED_SPLIT_BRANCH en tracking v1
+
+BRANCH_C2 = NOT_DEFINED / deferred (inchangé)
+```
+
+Conditions conceptuelles minimales pour une future v2 (non conçues ici) : décomposition du sous-groupe parent validée ; contrôle structurel de type fixed-T (ou équivalent) ; règle de correspondance daughter/classe unique. Aucune conception de `BRANCH_C2` n'est faite par ce document.
+
+### 20.17 Réponse, `Delta_C_TT`, incident/non-incident, localisation blind
+
+```text
+RESPONSE_ELIGIBILITY = RESPONSE_AVAILABLE | RESPONSE_NOT_AVAILABLE
+  -- orthogonal au statut de tracking, jamais fusionné
+```
+
+Exemple conceptuel : une branche structurellement `TRACKED_ONE_TO_ONE` dont le groupe continué n'est pas la cible pré-enregistrée au `J0` perturbé → `RESPONSE_NOT_AVAILABLE`. Aucun recalcul post-hoc d'observable pour un candidat non pré-enregistré.
+
+```text
+Delta_C_TT = dérivé en PHASE_R uniquement, jamais sérialisé en
+  production ; admissible seulement si TRACKED_ONE_TO_ONE ET
+  RESPONSE_AVAILABLE
+
+classification incident/non-incident = PHASE_R, jamais stockée comme
+  propriété normative d'un enregistrement de production
+
+BLIND_DEFECT_LOCALIZATION n'appartient jamais à PHASE_P -- les données
+  relationnelles nécessaires sont conservées, mais l'identité du site
+  perturbé reste uniquement dans la provenance, jamais fournie au
+  reconstructeur blind
+```
+
+### 20.18 Rôle inter-S
+
+```text
+INTER_S_LEVEL1C_ROLE = ROBUSTNESS_ONLY
+
+ordre :
+  1. tracking inter-J0 indépendamment à S=2
+  2. tracking inter-J0 indépendamment à S=3
+  3. comparaison inter-S ensuite, sur les seuls résultats
+     TRACKED_ONE_TO_ONE
+```
+
+Aucun matching multidimensionnel `J0×S` simultané.
+
+### 20.19 Gate de non-régression baseline
+
+```text
+BASELINE_NON_REGRESSION_CHECK = REQUIRED
+BASELINE_NON_REGRESSION_INDEPENDENT_OF_INTER_J0_TRACKING = YES
+```
+
+```text
+P -> BASELINE_NON_REGRESSION_GATE -> T -> R -> G
+```
+
+Périmètre `REQUIRED` exact :
+
+```text
+baseline J0=1, S ∈ {2,3}
+triangle : fundamental, first_excited
+ring5    : fundamental, first_excited, T_3_2
+
+champs REQUIRED : C_TT_conn(i,j) i!=j ; rho_QQ(i,j) ; multiplicity ;
+  twice_T ; translation label ; reflection label
+representative_energy = OPTIONAL_DIAGNOSTIC
+tout champ Level 1C sans équivalent historique = NOT_COMPARABLE
+```
+
+Sémantique d'égalité :
+
+```text
+labels discrets                -> égalité exacte
+labels de symétrie numériques  -> symmetry_labels_match / SYMMETRY_TOLERANCE
+C_TT_conn                      -> tolérance absolue dédiée (§20.22)
+rho_QQ                         -> tolérance absolue dédiée (§20.22)
+```
+
+Jamais une exigence générale d'identité bit-à-bit.
+
+```text
+D018_REUSE_FOR_BASELINE_NON_REGRESSION = NO (non rouvert)
+```
+
+Politique d'échec :
+
+```text
+un seul contrôle de non-régression baseline en échec
+-> NORMATIVE_CAMPAIGN_VALID = NO
+```
+
+Les artefacts produits restent conservés comme diagnostic non normatif — jamais détruits automatiquement.
+
+### 20.20 Nature des tolérances de non-régression
+
+```text
+NON_REGRESSION_*_ABS_TOL
+  = empirical reproducibility guard, pour un environnement logiciel/
+    runtime FIXÉ
+
+  NOT = physical-response threshold
+  NOT = rigorous numerical error bound
+```
+
+### 20.21 Deux tolérances distinctes
+
+```text
+NON_REGRESSION_CTT_ABS_TOL = PENDING_CALIBRATION
+NON_REGRESSION_RHO_ABS_TOL = PENDING_CALIBRATION
+NON_REGRESSION_TOLERANCE_STRUCTURE = ABSOLUTE_ONLY
+```
+
+Une tolérance globale par observable — jamais par géométrie, jamais par `S` (la source de divergence attendue, bruit de reproductibilité BLAS/LAPACK inter-build et ordre de sommation, ne varie pas qualitativement entre triangle/ring5 ou S=2/S=3, seulement en degré, déjà capturé par `MAX_ABS` sur le pire cas disponible).
+
+### 20.22 Méthodologie complète de calibration
+
+```text
+CALIBRATION_SET =
+  T_max, J0=1, restreint aux géométries/spins de la campagne :
+    triangle S=2, triangle S=3, ring5 S=2, ring5 S=3
+  uniquement là où naturellement présent dans le production_window gelé
+  (§20.4) -- jamais ring4, jamais S=1, jamais de deepening
+
+minimum requis : au moins un cas T_max utilisable PAR géométrie
+  (triangle ET ring5) ; absence totale pour une géométrie entière
+  -> CALIBRATION_STATUS = FAIL
+```
+
+```text
+CALIBRATION_METRIC_CTT :
+  E_CTT = MAX_ABS sur tous les enregistrements de calibration
+    (paires (i,j), i!=j, C_TT_conn hors-diagonale) de
+    |current - historical|
+  -- jamais une moyenne, un RMS, ou un quantile
+
+CALIBRATION_METRIC_RHO :
+  E_RHO = MAX_ABS sur les enregistrements où rho_QQ historique ET
+    actuel sont TOUS DEUX non-null selon la règle CONTRACTUELLE
+    NORMALIZATION_FLOOR déjà gelée, SANS seuil d'exclusion
+    supplémentaire arbitraire près du floor -- toute valeur
+    contractuellement non-null est incluse quelle que soit sa
+    proximité du floor
+```
+
+```text
+NULLITY_POLICY :
+  historical null != current null -> CALIBRATION_STATUS = FAIL
+    (catégoriel, indépendant de toute tolérance numérique)
+  deux null -> même null_reason exigé explicitement (actuellement
+    trivialement vrai vu l'unique raison possible aujourd'hui, vérifié
+    quand même en défense en profondeur)
+```
+
+```text
+TOLERANCE_DERIVATION_RULE = CEIL_DECADE_POLICY (convention de
+  gouvernance déterministe, jamais une marge de sécurité statistique,
+  jamais une borne rigoureuse) :
+
+  si E > 0 : TOL = 10 ** ceil(log10(E))
+  si E = 0 : TOL = 10 ** ceil(log10(FLOAT64_ZERO_ERROR_REFERENCE))
+             = 1e-15 (à ce jour)
+
+FLOAT64_ZERO_ERROR_REFERENCE = epsilon machine autour de l'unité --
+  invoqué UNIQUEMENT comme fait représentationnel (la plus petite
+  différence non nulle qu'une soustraction float64 de deux quantités
+  d'échelle O(1) puisse produire), JAMAIS comme une affirmation sur la
+  précision du solveur. 1e-15 est une convention de gouvernance à
+  l'échelle de représentation, PAS une borne de précision de solveur.
+
+FIXED_FLOOR_CTT = NONE
+FIXED_FLOOR_RHO = NONE
+SAFETY_FACTOR   = NONE
+```
+
+### 20.23 Environnement normatif
+
+```text
+CALIBRATION_ENVIRONMENT = NORMATIVE_CAMPAIGN_ENVIRONMENT
+```
+
+Fingerprint d'environnement minimal à capturer par la provenance (forme exacte différée) :
+
+```text
+python version, numpy version, scipy version,
+identité/version BLAS-LAPACK, plateforme, architecture
+```
+
+```text
+ENVIRONMENT_CHANGE -> RECALIBRATION_REQUIRED
+```
+
+Aucune notion de changement « suffisamment petit » — la tolérance étant une mesure empirique (§20.20), pas une borne rigoureuse, elle ne porte aucune garantie de validité hors de l'environnement où elle a été mesurée.
+
+### 20.24 Provenance et artefact de calibration
+
+Le futur pilote de calibration devra porter au minimum :
+
+```text
+code_commit
+manifest_fingerprint historique
+identifiant/hash de l'artefact historique source
+case ids (geometry, S, J0=1)
+identité de l'observable (C_TT_conn/rho_QQ, paire (i,j))
+calibration_formula_version
+environment fingerprint (§20.23)
+```
+
+```text
+CALIBRATION_ARTIFACT = REQUIRED
+```
+
+Contenu minimal : cas inclus, accord de nullité, `E_CTT`, `E_RHO`, tolérances dérivées, provenance, hashes. Forme JSON exacte non définie ici — réservée à un lot d'implémentation futur.
+
+### 20.25 Politique d'exécution de la calibration
+
+```text
+CALIBRATION_RUN_POLICY = SINGLE_ACCEPTED_RUN
+```
+
+Aucune répétition pour obtenir un seuil différent. Le pilote de calibration est une exécution autonome et distincte de la campagne normative elle-même :
+
+```text
+gel du contrat (ce document)
+  -> outil de calibration (implémentation, sans run)
+  -> exécution unique de calibration
+  -> gel documentaire des tolérances dérivées
+  -> manifeste/schéma/runner normatifs
+  -> campagne normative
+```
+
+### 20.26 Politique d'échec de calibration
+
+```text
+CALIBRATION_STATUS = FAIL si :
+  - désaccord de nullité
+  - désaccord structurel (site/twice_T/format non concordant)
+  - T_max absent pour une géométrie entière
+  - valeur non finie
+  - artefact historique manquant/illisible
+  - échec de capture du fingerprint d'environnement
+
+Si FAIL : NON_REGRESSION_TOLERANCE_STATUS reste NEEDS_CALIBRATION,
+  NORMATIVE_PRODUCTION_CONTRACT_READY reste CONDITIONAL -- aucune
+  tolérance n'est jamais inventée par repli.
+```
+
+### 20.27 `PHYSICAL_RESPONSE_THRESHOLD`
+
+```text
+PHYSICAL_RESPONSE_THRESHOLD = OPEN (inchangé)
+```
+
+Ne bloque ni `PHASE_P` ni `PHASE_T` — bloque uniquement le verdict physique final en `PHASE_R`.
+
+### 20.28 Readiness après 1C-7c
+
+```text
+INTER_J0_TRACKING_CONTRACT_READY          = YES
+NON_REGRESSION_CALIBRATION_CONTRACT_READY = YES
+
+NON_REGRESSION_TOLERANCE_STATUS = NEEDS_CALIBRATION
+NON_REGRESSION_CTT_ABS_TOL      = PENDING_CALIBRATION
+NON_REGRESSION_RHO_ABS_TOL      = PENDING_CALIBRATION
+
+NON_REGRESSION_CONTRACT_READY           = CONDITIONAL
+NORMATIVE_PRODUCTION_CONTRACT_READY     = CONDITIONAL
+NORMATIVE_CAMPAIGN_IMPLEMENTATION_READY = NO
+
+J0_CAMPAIGN_READY = YES  (inchangé depuis §19.15 -- readiness
+  structurelle du préflight, jamais rétrogradée par ce document)
+```
+
+### 20.29 Périmètre non ouvert par ce document
+
+Ce document ne définit toujours pas : le schéma machine-readable Level 1C, le manifeste de campagne, le runner normatif, l'outil de calibration, le format exact de l'artefact de calibration, le format exact du fingerprint d'environnement, `Delta_C_TT` numériquement calculé, un seuil physique choisi, un protocole de localisation blind exécuté, ou une reconstruction géométrique — tous appartiennent à des lots futurs distincts, non ouverts ici.
