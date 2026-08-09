@@ -29,12 +29,12 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-17de4e86a399bc2fb25a5e96929994f796733a3c
+b438cd03840451a8c7504057d3f8f2c1476bfb11
 ```
 
 **Level 1B : CLOS.** 1B-9g (clôture scientifique documentaire) accepté définitivement. Voir « Lot 1B-9g » ci-dessous et `docs/levels/level1/level1b-conclusion.md`.
 
-**Level 1C : lots 1C-0, 1C-1, 1C-3a, 1C-3b, 1C-4a acceptés définitivement** (commits respectifs cités dans leurs sections dédiées ci-dessous). **1C-2a/1C-2b/1C-2c** : voir la section dédiée ci-dessous — statut corrigé (1C-2b/1C-2c seuls acceptés définitivement en tant que jalons ; 1C-2a suspendu puis subsumé, jamais accepté séparément). **1C-4b** (audit d'utilité informationnelle de `T_max`, lecture seule, aucun commit propre) accepté définitivement — sa politique est pré-enregistrée par **1C-4c** ci-dessous.
+**Level 1C : lots 1C-0, 1C-1, 1C-3a, 1C-3b, 1C-4a, 1C-4b, 1C-4c, 1C-5a acceptés définitivement** (commits respectifs cités dans leurs sections dédiées ci-dessous ; 1C-4b et 1C-5a sont des audits de lecture seule sans commit propre). **1C-2a/1C-2b/1C-2c** : voir la section dédiée ci-dessous — statut corrigé (1C-2b/1C-2c seuls acceptés définitivement en tant que jalons ; 1C-2a suspendu puis subsumé, jamais accepté séparément). **1C-5b** (pré-enregistrement documentaire du contrat `STRUCTURALLY_ELIGIBLE` v1 et du statut de `J0`, ce commit) clôture documentairement 1C-5a — voir « Lot 1C-5a » et « Lot 1C-5b » ci-dessous.
 
 Historique récent accepté, dans l'ordre (aucun réécrit, aucun rebase/cherry-pick) :
 
@@ -349,6 +349,54 @@ Documentaire uniquement, aucune nouvelle science, aucune campagne, aucune diagon
 Corrige également, dans la présente section (voir ci-dessus, « Audits 1C-2a / 1C-2b / 1C-2c »), la formulation historique inexacte qui présentait les trois audits comme tous acceptés définitivement sans distinction.
 
 **Manifeste Level 1B inchangé** : `T_max` reste une cible historique valide de Level 1B (`experiments/level1/preregistered-manifest-v1.json`, non modifié). La politique `CALIBRATION_ONLY` concerne exclusivement la future inférence géométrique Level 1C.
+
+Fichiers de ce lot : `docs/levels/level1c/identifiability-preregistration.md`, `docs/governance/current-task.md`.
+
+**État local de `.gitignore`** : modification volontaire de Lionel (ajout de `results/` aux chemins ignorés), hors périmètre de ce lot — laissée telle quelle, non stagée, non commitée.
+
+## Lot 1C-5a (accepté définitivement, lecture seule, aucun commit propre)
+
+Audit d'identifiabilité du jeu de cibles Level 1C (après retrait de `T_max`, cf. 1C-4b/1C-4c) et du statut scientifique de la variation `J0`. Trois tours : rapport initial, une correction (comptage DOF sur la matrice complète et non sur les seules orbites hors-diagonale ; distinction « réponse permise » / « réponse démontrée » ; suppression d'une revendication d'unicité non prouvée sur `BLIND_DEFECT_LOCALIZATION`), puis un durcissement méthodologique final (versionnement fermé du critère d'éligibilité, remplaçant un critère informel « aucun théorème connu ne ferme DOF=0 »).
+
+**Verdicts acceptés** :
+
+```text
+INFERENCE_TARGET_CONTRACT             = DEFINED
+FUNDAMENTAL_INFORMATION_VALUE         = MEDIUM
+FIRST_EXCITED_INFORMATION_VALUE       = MEDIUM
+T_3_2_INFORMATION_VALUE               = MEDIUM (ring5) / NOT_APPLICABLE (triangle)
+MULTISTATE_COMMON_GEOMETRY_HYPOTHESIS = DEFENSIBLE
+J0_STATUS                             = LOCAL_RESPONSE_PROBE
+J0_EQ_1_ROLE                          = CALIBRATION_BASELINE
+DELTA_CTT_USEFULNESS                  = PROMISING
+BLIND_DEFECT_LOCALIZATION             = CONDITIONAL
+RELABEL_INVARIANCE_REQUIREMENT        = REQUIRED
+INTER_S_LEVEL1C_ROLE                  = ROBUSTNESS_ONLY
+TARGET_POLICY_RECOMMENDATION          = ELIGIBILITY_BASED (via STRUCTURALLY_ELIGIBLE v1)
+J0_CAMPAIGN_READY                     = NO
+1C5A_READINESS                        = READY_FOR_PREREGISTRATION
+```
+
+**Comptage DOF corrigé, matrice `C_TT` complète sous `j_break`** :
+
+```text
+triangle : N_serialized_values=9,  N_diagonal_orbits=2 ({D0},{D1,D2}),
+           N_offdiagonal_pair_orbits=2 ({01,02},{12}),
+           N_symmetry_orbits_total=4, DOF_max_before_global_closure=4,
+           DOF_max_after_global_closure=3, DOF_exact=UNKNOWN
+ring5    : N_serialized_values=25, N_diagonal_orbits=3 ({D0},{D1,D4},{D2,D3}),
+           N_offdiagonal_pair_orbits=6,
+           N_symmetry_orbits_total=9, DOF_max_before_global_closure=9,
+           DOF_max_after_global_closure=8, DOF_exact=UNKNOWN
+```
+
+Quantité historique distincte, conditionnelle (diagonales traitées comme déjà connues, hors-diagonale seule) : `offdiagonal_DOF_max` triangle `2→1`, ring5 `6→5` — **jamais confondue** avec le plafond de la matrice complète ci-dessus.
+
+Politique pré-enregistrée documentairement par **1C-5b** ci-dessous.
+
+## Lot 1C-5b — pré-enregistrement documentaire du contrat `STRUCTURALLY_ELIGIBLE` v1 et du statut de `J0` (ce commit)
+
+Documentaire uniquement, aucune nouvelle science, aucune campagne, aucune diagonalisation. Inscrit dans `docs/levels/level1c/identifiability-preregistration.md` une nouvelle section « §15. Contrat `STRUCTURALLY_ELIGIBLE` v1 et statut de `J0` » qui fige : le contrat `STRUCTURALLY_ELIGIBLE` v1 (6 critères, `STRUCTURALLY_ELIGIBLE_CONTRACT_VERSION = 1`) ; l'ensemble analytique gelé v1.1–v1.4 (commutation `C_ij=C_ji`, symétrie spatiale résiduelle, fermeture globale V23, théorème `T_max` — v1.1/v1.2 attribués aux fondations corrigées de l'audit 1C-2a, retenues telles que subsumées par 1C-2b/1C-2c) ; les règles de gouvernance/versionnement (aucune identité nouvelle ne modifie silencieusement v1 ; audit séparé + nouvelle version explicite + gel avant usage ; le versionnement n'excuse jamais d'ignorer une contradiction scientifique réelle) ; l'application du contrat (triangle/ring5, `T_max` exclu, formulation « canaux observationnels distincts / groupes spectraux non dupliqués », sans revendication d'indépendance informationnelle) ; les tables DOF corrigées (matrice complète, plus la quantité conditionnelle historique gardée séparée) ; `TARGET_POLICY = ELIGIBILITY_BASED` ; l'hypothèse multi-état comme non testée ; `J0_STATUS = LOCAL_RESPONSE_PROBE` et `J0_EQ_1_ROLE = CALIBRATION_BASELINE` ; `DELTA_CTT_USEFULNESS = PROMISING` (aucun nouvel observable/schéma/seuil) ; la distinction réponse permise/démontrée ; `BLIND_DEFECT_LOCALIZATION = CONDITIONAL` ; `RELABEL_INVARIANCE_REQUIREMENT = REQUIRED` ; la comparaison structurelle triangle/ring5 (aucune distance radiale posée comme vérité-cible) ; `INTER_S_LEVEL1C_ROLE = ROBUSTNESS_ONLY` ; une sous-section « Questions empiriques non résolues » ; et la confirmation explicite `J0_CAMPAIGN_READY = NO` avec la liste de ce qui reste non décidé (valeurs de `J0`, grille, fenêtres, seuils, algorithmes).
 
 Fichiers de ce lot : `docs/levels/level1c/identifiability-preregistration.md`, `docs/governance/current-task.md`.
 

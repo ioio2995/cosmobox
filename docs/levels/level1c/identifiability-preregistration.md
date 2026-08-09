@@ -423,3 +423,329 @@ C'est potentiellement un résultat physique en soi (une confirmation positive se
 ```
 
 Ce document fige uniquement une stratégie conceptuelle et des garde-fous de formulation ; il n'ouvre, n'autorise, ni n'engage aucun sous-lot d'exécution.
+
+## 15. Contrat `STRUCTURALLY_ELIGIBLE` v1 et statut de `J0` (1C-5a/1C-5b, gelé)
+
+**[GELÉ]** Pré-enregistrement documentaire issu de l'audit 1C-5a (accepté définitivement), **avant** toute conception de campagne `J0×S`. Aucune valeur de `J0`, aucune fenêtre, aucun seuil numérique de succès, aucun algorithme n'est fixé ici — voir §15.10 (« ce que ce document ne définit pas »).
+
+### 15.1 Contrat `STRUCTURALLY_ELIGIBLE` — Level 1C, v1
+
+```text
+STRUCTURALLY_ELIGIBLE_CONTRACT_VERSION = 1
+```
+
+Un groupe spectral est `STRUCTURALLY_ELIGIBLE` si et seulement si :
+
+```text
+1. status == complete_multiplet ;
+2. lower_bound_only == False ;
+3. l'identification du groupe (sélection par rang d'énergie ou par
+   twice_T) n'utilise aucune information géométrique destinée ensuite
+   à servir de cible d'inférence ;
+4. C_TT_conn complet est disponible : N diagonales + N(N-1)
+   hors-diagonales ordonnées ;
+5. l'application de l'ENSEMBLE GELÉ v1 de contraintes analytiques
+   Level 1C (§15.2) ne démontre PAS N_independent_geometry_DOF = 0
+   pour ce groupe ;
+6. si une revendication inter-S est faite pour ce groupe, un matching
+   inter-S admissible (`matching.match_spectral_group`, déjà accepté)
+   doit être disponible.
+```
+
+**Distinction impérative, jamais confondue** :
+
+```text
+STRUCTURALLY_ELIGIBLE  !=  INFORMATION_GEOMETRICALLY_DEMONSTRATED
+DOF_max > 0             !=  DOF_exact > 0
+```
+
+`STRUCTURALLY_ELIGIBLE` signifie exactement : « l'ensemble gelé v1 des contraintes analytiques Level 1C ne ferme pas ce secteur à `DOF=0` » — jamais : « une information géométrique est démontrée disponible ». `DOF_exact` reste `UNKNOWN` tant qu'il n'a pas été démontré par un protocole séparé (§15.9, §15.18).
+
+### 15.2 Ensemble analytique gelé v1 (liste fermée, aucune identité nouvelle)
+
+```text
+v1.1  C_ij = C_ji
+      (commutation d'opérateur exacte -- fondations corrigées issues de
+      l'audit 1C-2a, retenues telles que subsumées par 1C-2b/1C-2c)
+
+v1.2  symétrie spatiale résiduelle applicable au cas considéré
+      (ex. {identité, réflexion fixant le site 0} sous j_break --
+      fondations corrigées issues de l'audit 1C-2a, retenues telles que
+      subsumées par 1C-2b/1C-2c)
+
+v1.3  fermeture globale V23 :
+      sum_i C_ii + sum_{i!=j} C_ij = T(T+1)
+      (1C-3b, une seule relation scalaire globale par groupe, jamais
+      davantage)
+
+v1.4  théorème analytique du secteur de saveur maximale, lorsqu'il
+      s'applique (T=N/2) :
+      -> n_i=1 (opérateur, exact)
+      -> C_ii=3/4 exactement
+      -> C_ij=1/4 exactement pour tout i!=j
+      -> rho_QQ structurellement null
+      -> G_ij^{alpha,beta}[P]=0 pour tout i!=j
+      -> DOF géométrique C_TT = 0
+      (1C-4b/1C-4c)
+```
+
+Aucune identité au-delà de `v1.1`-`v1.4` n'est incluse dans l'ensemble gelé v1.
+
+### 15.3 Gouvernance et versionnement du contrat
+
+```text
+Une identité analytique découverte APRÈS le gel d'une version (v1,
+puis une éventuelle v2, v3, ...) :
+  1. ne modifie JAMAIS silencieusement la version en vigueur ;
+  2. doit être auditée séparément (un lot dédié, comme 1C-4b l'a été
+     pour le théorème T_max) ;
+  3. doit produire une nouvelle version explicite du contrat (v2, v3,
+     ...), jamais une réécriture silencieuse de v1 ;
+  4. doit être gelée AVANT toute campagne utilisant cette nouvelle
+     version -- jamais appliquée rétroactivement à une campagne déjà
+     lancée ou déjà interprétée sous une version antérieure.
+
+Le versionnement protège UNIQUEMENT contre la sélection post-hoc de
+cibles après observation de résultats numériques -- il n'autorise
+JAMAIS à ignorer une contradiction scientifique réelle : si une
+identité nouvellement découverte invalide une interprétation
+antérieure, cela doit être rapporté explicitement et sans délai,
+indépendamment de toute question de version.
+```
+
+### 15.4 Application du contrat v1 (état actuel)
+
+```text
+triangle :
+  fundamental    -> STRUCTURALLY_ELIGIBLE
+  first_excited  -> STRUCTURALLY_ELIGIBLE
+  T_max          -> CALIBRATION_ONLY / non éligible (v1.4 ferme DOF=0)
+
+ring5 :
+  fundamental    -> STRUCTURALLY_ELIGIBLE
+  first_excited  -> STRUCTURALLY_ELIGIBLE
+  T_3_2          -> STRUCTURALLY_ELIGIBLE
+  T_max          -> CALIBRATION_ONLY / non éligible (v1.4 ferme DOF=0)
+```
+
+Ces groupes constituent des **canaux observationnels distincts, non dupliqués** (`distinct observational channels`, `non-duplicate spectral groups`) — cette formulation n'affirme et ne présuppose **aucune indépendance informationnelle déjà démontrée** entre eux (voir §15.7).
+
+### 15.5 Comptage des DOF de la matrice complète `C_TT` sous `j_break`
+
+**Triangle (`N=3`)** :
+
+```text
+N_serialized_values = 9   (3 diagonales + 6 hors-diagonales ordonnées)
+
+N_diagonal_orbits = 2       {D0} , {D1,D2}
+N_offdiagonal_pair_orbits = 2   {(0,1),(0,2)} , {(1,2)}
+N_symmetry_orbits_total = 4
+
+DOF_max_before_global_closure = 4
+DOF_max_after_global_closure  = 3   (V23 ferme exactement UNE relation
+                                      scalaire globale, jamais davantage)
+DOF_exact = UNKNOWN
+```
+
+**Ring5 (`N=5`)** :
+
+```text
+N_serialized_values = 25   (5 diagonales + 20 hors-diagonales ordonnées)
+
+N_diagonal_orbits = 3       {D0} , {D1,D4} , {D2,D3}
+N_offdiagonal_pair_orbits = 6
+N_symmetry_orbits_total = 9
+
+DOF_max_before_global_closure = 9
+DOF_max_after_global_closure  = 8
+DOF_exact = UNKNOWN
+```
+
+**`3` et `8` sont des plafonds, jamais des rangs réellement démontrés indépendants.** `DOF_exact = UNKNOWN` dans les deux cas.
+
+**Quantité historique distincte, conditionnelle, jamais confondue avec le plafond de la matrice complète** : en traitant les diagonales comme des entrées déjà connues plutôt que comme faisant partie du pool de DOF, la fermeture ne porte plus que sur les orbites hors-diagonale seules :
+
+```text
+offdiagonal_DOF_max conditional on measured diagonals :
+  triangle : 2 -> 1
+  ring5    : 6 -> 5
+```
+
+Cette quantité **n'est pas** le DOF de la matrice complète (`3`/`8` ci-dessus) — une convention différente, gardée séparée.
+
+### 15.6 Politique de cibles : `ELIGIBILITY_BASED`
+
+```text
+TARGET_POLICY = ELIGIBILITY_BASED
+```
+
+```text
+Aucune liste future de target_id choisie opportunistement après
+observation de résultats numériques. Les groupes alimentant
+l'inférence Level 1C sont exactement ceux satisfaisant
+STRUCTURALLY_ELIGIBLE v1 (§15.1), jamais une sélection manuelle ad hoc.
+```
+
+**Non gelé par cette politique** : aucune métrique multi-état, aucune concaténation arbitraire des matrices de groupes éligibles distincts — le simple fait qu'un groupe soit éligible ne l'oblige jamais à être combiné avec un autre dans une structure unique.
+
+### 15.7 Hypothèse de cohérence inter-secteurs (multi-état)
+
+```text
+MULTISTATE_COMMON_GEOMETRY_HYPOTHESIS = DEFENSIBLE (comme critère, pas
+                                                      comme fait établi)
+```
+
+> Chaque groupe spectral fournit un canal observationnel distinct du même support microscopique. Une future structure géométrique candidate serait renforcée si une même reconstruction pouvait expliquer plusieurs groupes sans paramètres géométriques indépendants ajustés groupe par groupe.
+
+**Ceci reste une hypothèse à tester, jamais présupposée** — aucune géométrie commune n'est présupposée par ce document ; cette formulation ne fait que fixer un CRITÈRE d'évaluationméthodologique pour un futur candidat, cohérent avec §12 (hypothèse de cohérence inter-secteurs, déjà enregistrée en 1C-1).
+
+### 15.8 Statut scientifique de `J0`
+
+```text
+J0_STATUS = LOCAL_RESPONSE_PROBE
+
+J0 IS NOT GEOMETRY
+J0 IS NOT CURVATURE
+J0 IS NOT METRIC
+J0 IS NOT A GRAVITATIONAL SOURCE
+```
+
+`J_0` est le coefficient d'un terme de Hamiltonien **local, sur site** (couplage densité-densité type Hubbard-U entre les deux saveurs au même site), établi par lecture directe du code (1C-2a/1C-2b) — sans dimension spatiale, sans relation démontrée à une distance, une courbure, ou une métrique. `J_0 - 1` est une perturbation locale contrôlée, utilisée uniquement pour sonder la réponse des observables relationnelles déjà gauge-invariantes/SU(2)-invariantes — jamais pour être renommée en un concept géométrique ou gravitationnel non démontré.
+
+### 15.9 Rôle de `J0=1`
+
+```text
+J0_EQ_1_ROLE = CALIBRATION_BASELINE
+```
+
+```text
+J0=1  -> point symétrique de référence / calibration (groupe diédral
+         complet, riche en contrôles déjà établis)
+J0!=1 -> brisure locale contrôlée et connue
+comparaison -> réponse relationnelle à cette perturbation connue
+```
+
+`J0=1` ne devient jamais automatiquement une donnée principale d'inférence — rôle strictement auxiliaire/soustractif, jamais fusionné avec le rôle d'inférence (même séparation de principe que pour `T_max`, §6).
+
+### 15.10 `Delta C_TT` — outil d'analyse, pas un nouvel observable
+
+```text
+DELTA_CTT_USEFULNESS = PROMISING
+
+Delta C_ij(J0) = C_ij(J0) - C_ij(J0=1)
+```
+
+Uniquement comme outil potentiel d'analyse future (quantité dérivée de valeurs déjà sérialisées, comme le ratio `r_X` de 1C-2c). **Ce document ne crée aucun nouvel observable normatif, ne modifie aucun schéma, ne gèle aucun seuil, aucune normalisation, et n'impose `Delta_C` comme donnée obligatoire nulle part.**
+
+### 15.11 Réponse permise versus réponse démontrée
+
+```text
+absence de fermeture analytique (STRUCTURALLY_ELIGIBLE)
+!=
+réponse effective démontrée
+
+DOF structurellement permis (DOF_max > 0)
+n'implique PAS
+dC/dJ0 != 0
+```
+
+La variation effective reste, dans tous les cas, une propriété à mesurer par un protocole futur — jamais présupposée par l'éligibilité structurelle.
+
+### 15.12 `BLIND_DEFECT_LOCALIZATION`
+
+```text
+BLIND_DEFECT_LOCALIZATION = CONDITIONAL
+```
+
+```text
+Le reconstructeur ne reçoit PAS l'identité du site perturbé --
+uniquement la structure relationnelle admissible (matrice C_TT,
+diagonale incluse). Une localisation ne serait réussie que si un
+profil relationnel unique permet d'identifier de façon covariante le
+site exceptionnel.
+```
+
+La symétrie résiduelle garantit certaines égalités entre sites d'une même orbite (ex. `D1=D2` sous `{id, réflexion}`), mais **ne garantit pas** l'unicité de `D0` ni de son profil complet par rapport aux autres orbites — une coïncidence accidentelle reste possible en principe. Le succès de cette piste **doit être testé empiriquement** dans un futur lot ; il n'est jamais annoncé comme déjà acquis ici.
+
+### 15.13 Exigence d'invariance par relabellage
+
+```text
+RELABEL_INVARIANCE_REQUIREMENT = REQUIRED
+```
+
+Déjà un critère minimal gelé (`geometry-liberation.md §6`), confirmé et précisé ici :
+
+```text
+Interdit pour toute procédure future :
+  - hardcoder "site 0" comme information d'entrée scientifique ;
+  - supposer une correspondance fixe des indices entre deux runs
+    distincts ;
+  - utiliser la numérotation des sites comme coordonnée.
+
+Le site effectivement perturbé peut être connu dans la PROVENANCE
+expérimentale (métadonnée de calibration), mais ne doit jamais être
+fourni au reconstructeur lors d'un test blind (§15.12).
+```
+
+### 15.14 Triangle versus ring5 — différence structurelle
+
+```text
+triangle : 4 orbites totales C_TT sous j_break, DOF_max_after_V23 = 3
+           -- structure relationnelle très limitée.
+ring5    : 9 orbites totales C_TT sous j_break, DOF_max_after_V23 = 8
+           -- structure potentiellement plus riche (organisation par
+           distance combinatoire au défaut : orbites touchant le site 0
+           à distance 1/2, et orbites ne touchant pas le site 0 du tout).
+```
+
+`ring5` n'est **pas** défini par cela comme automatiquement géométrique, et aucune distance radiale n'est définie ici comme vérité-cible d'une future reconstruction — seule la richesse structurelle comparative (nombre d'orbites, présence de paires ne touchant pas le défaut) est enregistrée comme un fait déjà établi.
+
+### 15.15 Rôle de `S` en Level 1C
+
+```text
+INTER_S_LEVEL1C_ROLE = ROBUSTNESS_ONLY
+```
+
+`S` reste un paramètre de **troncature du quantum link model** (représentation de spin du champ de jauge) — jamais une coordonnée spatiale, une dimension géométrique, ou un paramètre métrique. Une comparaison inter-S sert exclusivement à vérifier que la structure relationnelle interprétée n'est pas un artefact d'une troncature particulière, avant toute interprétation géométrique — exactement le rôle déjà validé pour Level 1B.
+
+### 15.16 Questions empiriques non résolues (1C-5a/1C-5b)
+
+**[DÉCISION OUVERTE — aucune présentée comme résolue]**
+
+```text
+- DOF_exact réel des groupes STRUCTURALLY_ELIGIBLE (au-delà des
+  plafonds DOF_max de §15.5) ;
+- réponse effective de C_TT à une variation de J0 (dC/dJ0, §15.11) ;
+- redondance ou information commune réelle entre groupes spectraux
+  distincts (§15.4/§15.7) ;
+- existence effective d'un profil de défaut relationnel unique
+  (§15.12) ;
+- succès ou échec réel de BLIND_DEFECT_LOCALIZATION ;
+- structure de propagation de la réponse vers les paires ne touchant
+  pas directement le site perturbé ;
+- stabilité de cette structure sous variation de S ;
+- possibilité future d'une reconstruction géométrique commune à
+  plusieurs groupes (§15.7) ;
+- forme éventuelle d'une future transformation corrélateur -> distance
+  (aucune n'est adoptée ni même esquissée ici).
+```
+
+### 15.17 Statut de préparation d'une campagne `J0×S`
+
+```text
+J0_CAMPAIGN_READY = NO
+```
+
+Ce document ne définit PAS :
+
+```text
+- valeurs de J0, nombre de points J0, symétrie d'une grille autour de 1 ;
+- amplitudes de perturbation ;
+- ordre des runs ;
+- fenêtres spectrales (aucune fenêtre nouvelle, exploratoire ou
+  normative, n'est choisie ici) ;
+- critères de succès numériques ou seuils Delta_C ;
+- algorithme de blind localization.
+```
+
+Tout ce qui précède appartient à un futur lot distinct, séparé, non ouvert par ce document.
