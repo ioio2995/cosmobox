@@ -524,28 +524,78 @@ def test_reflection_public_fields_are_minimal() -> None:
     assert reflection_fields == {"reflection_label_kind", "reflection_restriction_valid"}
 
 
-def test_reflection_squared_identity_defect_zero_for_true_involution() -> None:
+# ---------------------------------------------------------------------------
+# R_rest^2 = I on the RESTRICTED operator (1C-6h correctif). A single
+# fixed GLOBAL unitary R_global is used for both cases below -- R_global
+# itself is block-diagonal (a genuine 2x2 involution block, and a genuine
+# 2x2 order-4 rotation block) and is therefore NOT a global involution
+# (R_global^2 != I_4) -- exactly the scenario the fix must handle
+# correctly: the verdict must depend on WHICH subspace is selected, never
+# on the global operator alone.
+# ---------------------------------------------------------------------------
+
+
+def _block_reflection_unitary():
     import numpy as np
     import scipy.sparse as sp
 
-    identity = sp.identity(4, format="csr", dtype=np.complex128)
-    assert preflight.reflection_squared_identity_defect(identity) == pytest.approx(0.0, abs=1e-12)
+    swap_block = np.array([[0.0, 1.0], [1.0, 0.0]], dtype=np.complex128)  # involution: swap^2 = I
+    rotation_block = np.array([[0.0, -1.0], [1.0, 0.0]], dtype=np.complex128)  # order 4: rot^2 = -I
+    dense = np.zeros((4, 4), dtype=np.complex128)
+    dense[0:2, 0:2] = swap_block
+    dense[2:4, 2:4] = rotation_block
+    return sp.csr_matrix(dense)
 
 
-def test_reflection_squared_identity_defect_nonzero_for_non_involution() -> None:
+def _standard_basis_group_state(indices: tuple[int, int]):
     import numpy as np
-    import scipy.sparse as sp
 
-    # A cyclic permutation of order 4 (a "quarter turn"): its square is a
-    # nontrivial permutation of order 2, not the identity -- a legitimate
-    # synthetic non-involution unitary, no physics involved.
-    n = 4
-    rows = list(range(n))
-    cols = [(i + 1) % n for i in range(n)]
-    data = [1.0 + 0j] * n
-    quarter_turn = sp.csr_matrix((data, (rows, cols)), shape=(n, n), dtype=np.complex128)
-    defect = preflight.reflection_squared_identity_defect(quarter_turn)
+    from cosmobox.level1.restricted import COMPLETE_MULTIPLET as _COMPLETE, SpectralGroupState
+
+    psi = np.zeros((4, 2), dtype=np.complex128)
+    psi[indices[0], 0] = 1.0
+    psi[indices[1], 1] = 1.0
+    return SpectralGroupState(psi=psi, status=_COMPLETE)
+
+
+def test_restricted_reflection_defect_zero_for_true_restricted_involution() -> None:
+    """psi spans the swap block: R_rest = [[0,1],[1,0]], R_rest^2 = I
+    exactly, even though the GLOBAL R_global is not itself an
+    involution (its rotation block has order 4)."""
+    r_global = _block_reflection_unitary()
+    group_state = _standard_basis_group_state((0, 1))
+    defect = preflight.restricted_reflection_squared_identity_defect(r_global, group_state)
+    assert defect == pytest.approx(0.0, abs=1e-12)
+
+
+def test_restricted_reflection_defect_nonzero_for_restricted_non_involution() -> None:
+    """psi spans the rotation block: R_rest = [[0,-1],[1,0]], correct
+    (2x2) dimensions, but R_rest^2 = -I != I -- must be flagged invalid."""
+    r_global = _block_reflection_unitary()
+    group_state = _standard_basis_group_state((2, 3))
+    defect = preflight.restricted_reflection_squared_identity_defect(r_global, group_state)
     assert defect > preflight.UNITARITY_TOLERANCE
+
+
+def test_global_reflection_involution_helper_was_removed() -> None:
+    """Non-regression (1C-6h correctif): the old, incorrect global-only
+    check must no longer exist under its previous name -- only the
+    restricted-operator helper is exposed, so nothing can silently fall
+    back to testing R_global^2=I instead of R_rest^2=I."""
+    assert not hasattr(preflight, "reflection_squared_identity_defect")
+    assert hasattr(preflight, "restricted_reflection_squared_identity_defect")
+
+
+def test_run_case_source_never_references_removed_global_check() -> None:
+    """Structural non-regression: run_case's own source must reference
+    the RESTRICTED helper name and must never mention the removed
+    global-only helper name, so a future edit cannot quietly reintroduce
+    a global-only R^2=I check under a different call site."""
+    import inspect
+
+    source = inspect.getsource(preflight.run_case)
+    assert "restricted_reflection_squared_identity_defect" in source
+    assert "reflection_squared_identity_defect(reflection_automorphism.unitary)" not in source
 
 
 # ---------------------------------------------------------------------------

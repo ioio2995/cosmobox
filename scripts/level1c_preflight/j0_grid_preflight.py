@@ -77,6 +77,7 @@ from cosmobox.level1.matching import NUMERIC, compute_restricted_symmetry_label,
 from cosmobox.level1.restricted import (
     COMPLETE_MULTIPLET,
     SpectralGroupState,
+    build_restricted_operator,
     canonical_multiplet_expectation,
     extract_group_state,
 )
@@ -460,24 +461,33 @@ def sanitize_v23_result(
 
 
 # ---------------------------------------------------------------------------
-# R^2 = I (1C-6f section 13/1C-6g section 18.13): reuses
-# automorphisms.UNITARITY_TOLERANCE verbatim -- never a newly invented
-# tolerance. Justification: R^2=I is a Frobenius-distance-from-identity
-# check on a low-dimensional double-precision unitary operator, exactly
-# the same computational style UNITARITY_TOLERANCE already governs for
-# this precise class of object (UnitaryAutomorphism.__post_init__'s own
-# U^dagger U - I check, and hamiltonian_commutator_defect's own
-# commutator-norm pattern) -- reused with this justification recorded
-# explicitly, per the 1C-6f/g requirement never to silently invent one.
+# R_rest^2 = I on the RESTRICTED reflection operator (1C-6h correctif,
+# ChatGPT audit): the frozen contract requires validating the involution
+# of R_rest = Psi^dagger R Psi for the SELECTED group's own subspace --
+# never the global unitary R alone, whose square is always exactly the
+# identity on the FULL Hilbert space by construction of a reflection
+# automorphism, and therefore proves nothing about how R acts once
+# restricted to one specific degenerate multiplet.
+#
+# Reuses restricted.build_restricted_operator verbatim -- never a second
+# construction of Psi^dagger R Psi (already built identically by
+# matching.compute_restricted_symmetry_label for its own unitarity/
+# stability checks) -- and automorphisms.UNITARITY_TOLERANCE verbatim,
+# never a newly invented tolerance: R_rest^2=I is exactly the same style
+# of Frobenius-distance-from-identity check on a low-dimensional
+# double-precision operator that UNITARITY_TOLERANCE already governs
+# elsewhere in this project (UnitaryAutomorphism.__post_init__'s own
+# U^dagger U - I check), now applied to the multiplicity x multiplicity
+# restricted operator instead of the full dimension x dimension one.
 # ---------------------------------------------------------------------------
 
 
-def reflection_squared_identity_defect(reflection_unitary: sp.spmatrix) -> float:
-    dimension = reflection_unitary.shape[0]
-    squared = (reflection_unitary @ reflection_unitary).tocsr()
-    difference = (squared - sp.identity(dimension, format="csr", dtype=np.complex128)).tocsr()
-    difference.eliminate_zeros()
-    return float(np.sqrt(np.sum(np.abs(difference.data) ** 2))) if difference.nnz else 0.0
+def restricted_reflection_squared_identity_defect(
+    reflection_unitary: sp.spmatrix, group_state: SpectralGroupState
+) -> float:
+    r_rest = build_restricted_operator(reflection_unitary, group_state)
+    identity = np.eye(r_rest.shape[0], dtype=np.complex128)
+    return float(np.linalg.norm(r_rest @ r_rest - identity, "fro"))
 
 
 # ---------------------------------------------------------------------------
@@ -554,7 +564,6 @@ def run_case(case: PreflightCase, manifest: Manifest) -> PublicCaseReport:
     reflection_automorphism = reflection_unitary_automorphism(
         lattice, N_FLAVORS, case.spin, basis.keys, key_index, external_charges=None
     )
-    reflection_squared_defect = reflection_squared_identity_defect(reflection_automorphism.unitary)
 
     resolved_twice_T: list[int | None] = [
         compute_twice_T(canonical_multiplet_expectation(flavor_casimir, state, hermitian=True))
@@ -600,7 +609,11 @@ def run_case(case: PreflightCase, manifest: Manifest) -> PublicCaseReport:
             reflection_label = compute_restricted_symmetry_label(terms.total, reflection_automorphism, state)
             translation_kind = translation_label.kind
             reflection_kind = reflection_label.kind
-            reflection_restriction_valid = reflection_kind == NUMERIC and reflection_squared_defect <= UNITARITY_TOLERANCE
+            if reflection_kind == NUMERIC:
+                restricted_defect = restricted_reflection_squared_identity_defect(reflection_automorphism.unitary, state)
+                reflection_restriction_valid = restricted_defect <= UNITARITY_TOLERANCE
+            else:
+                reflection_restriction_valid = False
 
             if role == TARGET_ROLE_REQUIRED and state.status == COMPLETE_MULTIPLET:
                 diagonal = {
