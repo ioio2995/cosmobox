@@ -2216,12 +2216,17 @@ TOLERANCE_DERIVATION_RULE = CEIL_DECADE_POLICY (convention de
   si E = 0 : TOL = 10 ** ceil(log10(FLOAT64_ZERO_ERROR_REFERENCE))
              = 1e-15 (à ce jour)
 
-FLOAT64_ZERO_ERROR_REFERENCE = epsilon machine autour de l'unité --
-  invoqué UNIQUEMENT comme fait représentationnel (la plus petite
-  différence non nulle qu'une soustraction float64 de deux quantités
-  d'échelle O(1) puisse produire), JAMAIS comme une affirmation sur la
-  précision du solveur. 1e-15 est une convention de gouvernance à
-  l'échelle de représentation, PAS une borne de précision de solveur.
+FLOAT64_ZERO_ERROR_REFERENCE = epsilon machine autour de l'unité.
+
+Cette valeur fournit UNIQUEMENT une échelle représentationnelle
+  canonique, utilisée par la convention de gouvernance lorsque
+  E_observed = 0. Elle ne constitue NI une borne sur la plus petite
+  différence non nulle possible entre deux valeurs float64 (cet
+  espacement dépend de la valeur/exposant considéré, pas d'une
+  constante unique) NI une borne sur l'erreur de diagonalisation NI
+  une borne sur la reproductibilité numérique du pipeline. 1e-15 est
+  une convention de gouvernance à l'échelle de représentation, PAS une
+  borne de précision de solveur.
 
 FIXED_FLOOR_CTT = NONE
 FIXED_FLOOR_RHO = NONE
