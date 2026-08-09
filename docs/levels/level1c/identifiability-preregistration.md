@@ -2564,18 +2564,45 @@ gel du contrat (ce document)
 
 ### 20.26 Politique d'échec de calibration
 
+**[ÉTAT COURANT — synthèse des règles déjà gelées en §20.22 pour le hold-out `TARGET_ID_FREE_PERSISTED_GROUP_HOLDOUT`, aucune science nouvelle]**
+
 ```text
 CALIBRATION_STATUS = FAIL si :
-  - désaccord de nullité
-  - désaccord structurel (site/twice_T/format non concordant)
-  - T_max absent pour une géométrie entière
-  - valeur non finie
-  - artefact historique manquant/illisible
-  - échec de capture du fingerprint d'environnement
+  - désaccord de nullité rho_QQ (historical null != current null, ou
+    deux null avec null_reason différent)
+  - désaccord structurel CURRENT_MATCH (case identity, spectral_window_
+    group_index, multiplicity, twice_T, labels de translation/réflexion)
+  - un des cinq cas hold-out requis est absent
+  - un des cinq cas hold-out requis est invalide
+  - un des cinq cas hold-out requis est inutilisable
+  - aucun groupe éligible (CALIBRATION_GROUP_FILTER) n'est disponible
+    dans un des cinq cas requis
+  - aucun enregistrement C_TT_conn numérique comparable n'est
+    disponible globalement (E_CTT doit être numérique)
+  - aucun enregistrement rho_QQ numérique comparable n'est disponible
+    globalement (E_RHO doit être numérique --
+    NO_NUMERIC_RHO_CALIBRATION_RECORD -> FAIL)
+  - jeu de paires C_TT_conn historique/courant non identique (égalité
+    stricte des ensembles, jamais une intersection)
+  - jeu de paires rho_QQ historique/courant non identique
+  - valeur non finie (NaN/+inf/-inf)
+  - artefact historique manquant/illisible/incohérent
+  - provenance historique non conforme (campaign_id/manifest_
+    fingerprint/repository_commit/records_sha256)
+  - échec de capture ou fingerprint courant incomplet de
+    l'environnement normatif
+
+ALL_5_HOLDOUT_CASES_REQUIRED = YES : un seul cas requis absent/invalide/
+  inutilisable suffit à FAIL -- aucun fallback, aucun sous-ensemble
+  adaptatif.
 
 Si FAIL : NON_REGRESSION_TOLERANCE_STATUS reste NEEDS_CALIBRATION,
-  NORMATIVE_PRODUCTION_CONTRACT_READY reste CONDITIONAL -- aucune
-  tolérance n'est jamais inventée par repli.
+  NORMATIVE_PRODUCTION_CONTRACT_READY reste CONDITIONAL,
+  NON_REGRESSION_CTT_ABS_TOL = None, NON_REGRESSION_RHO_ABS_TOL = None
+  -- même si des métriques E_CTT/E_RHO intermédiaires étaient
+  disponibles à titre diagnostique, aucune tolérance n'est jamais
+  inventée par repli ni publiée comme normative depuis une calibration
+  invalide.
 ```
 
 ### 20.27 `PHYSICAL_RESPONSE_THRESHOLD`
@@ -2606,6 +2633,10 @@ J0_CAMPAIGN_READY = YES  (inchangé depuis §19.15 -- readiness
 
 **[HISTORIQUE — statut du hold-out `T_max` avant 1C-7c2b]** Les statuts ci-dessus dataient d'un moment où `CALIBRATION_SET=T_max` (§20.22, désormais superseded) était le seul contrat de calibration envisagé. Voir §20.30 pour l'état courant après le remplacement du hold-out.
 
+### 20.29 Périmètre non ouvert par ce document
+
+Ce document ne définit toujours pas : le schéma machine-readable Level 1C, le manifeste de campagne, le runner normatif, l'outil de calibration, le format exact de l'artefact de calibration, le format exact du fingerprint d'environnement, `Delta_C_TT` numériquement calculé, un seuil physique choisi, un protocole de localisation blind exécuté, ou une reconstruction géométrique — tous appartiennent à des lots futurs distincts, non ouverts ici.
+
 ### 20.30 Readiness après 1C-7c2b (remplacement du hold-out de calibration)
 
 **[GELÉ]** `e98950fc92f2e55ebc4aca3e0bbd9906fe6f17de` (implémentation initiale 1C-7c2, fondée sur le hold-out `T_max` désormais superseded) reste **NON ACCEPTÉ** — il sera corrigé/remplacé par un futur commit (1C-7c2c) implémentant le hold-out `TARGET_ID_FREE_PERSISTED_GROUP_HOLDOUT` gelé en §20.22.
@@ -2624,7 +2655,3 @@ HOLDOUT_ARTIFACT_SET_READY               = YES
 ```
 
 `TARGET_ID_FREE_HOLDOUT_CONTRACT_READY=YES` et `HOLDOUT_ARTIFACT_SET_READY=YES` signifient uniquement que le **contrat** du hold-out est entièrement gelé (§20.22) et que les **cinq artefacts historiques requis existent, sont valides et utilisables** (audité en 1C-7c2a2, lecture seule, jamais une exécution) — jamais que l'outil de calibration est implémenté, ni qu'une calibration réelle a été exécutée. `CALIBRATION_RUN_READY=NO` reste la distinction impérative : aucun outil ne consomme encore ce contrat.
-
-### 20.29 Périmètre non ouvert par ce document
-
-Ce document ne définit toujours pas : le schéma machine-readable Level 1C, le manifeste de campagne, le runner normatif, l'outil de calibration, le format exact de l'artefact de calibration, le format exact du fingerprint d'environnement, `Delta_C_TT` numériquement calculé, un seuil physique choisi, un protocole de localisation blind exécuté, ou une reconstruction géométrique — tous appartiennent à des lots futurs distincts, non ouverts ici.
