@@ -749,3 +749,390 @@ Ce document ne définit PAS :
 ```
 
 Tout ce qui précède appartient à un futur lot distinct, séparé, non ouvert par ce document.
+
+## 16. Design de la campagne de réponse locale `J0` (1C-6a/1C-6b, gelé)
+
+**[GELÉ]** Pré-enregistrement documentaire des décisions scientifiques acceptées définitivement lors des audits en lecture seule **1C-6a** (design de la campagne) et **1C-6b** (stratégie de baseline `J0=1` et audit `BRANCH_C2`). **Ce document ne fixe encore AUCUNE valeur numérique de `δ`, AUCUNE fenêtre spectrale, AUCUN seuil, AUCUN algorithme** — voir §16.25 pour la liste exhaustive de ce qui reste ouvert.
+
+### 16.1 Question expérimentale (1C-6a)
+
+```text
+Pour les groupes spectraux STRUCTURALLY_ELIGIBLE v1, une perturbation
+locale contrôlée J0 != 1 produit-elle une variation de la matrice
+C_TT_conn complète qui :
+
+1. n'est pas restreinte aux seules entrées incidentes au site perturbé ;
+2. respecte la covariance imposée par les symétries résiduelles exactes ;
+3. n'est pas un artefact de la troncature S dans le domaine effectivement
+   testé ?
+```
+
+Le mot « reproductible » n'est jamais employé au sens expérimental/statistique : le calcul est une diagonalisation déterministe (D021), sans dérive instrumentale — il n'y a rien à « reproduire », seulement à structurer/qualifier.
+
+### 16.2 Hiérarchie d'hypothèses
+
+```text
+H0 -- absence de réponse informative
+H1 -- réponse locale triviale / incidente au défaut
+H2 -- réponse relationnelle sur des paires non incidentes au défaut
+H3 -- organisation commune compatible entre groupes spectraux distincts
+H4 -- NON PAS un palier séquentiel : robustesse inter-S, axe transversal
+      applicable à toute conclusion H1/H2/H3 retenue, à n'importe quel
+      niveau de la hiérarchie
+```
+
+Aucune des hypothèses H1–H4 n'est démontrée à ce jour par une campagne `J0` — aucune campagne `J0` n'a encore été exécutée.
+
+### 16.3 Variable `J0`
+
+```text
+J0_STATUS    = LOCAL_RESPONSE_PROBE
+J0_EQ_1_ROLE = CALIBRATION_BASELINE
+```
+
+`delta_J = J0 - 1` : variable conceptuelle de conception de grille **uniquement**. `delta_J` n'est jamais : un observable ; une normalisation ; une distance ; une métrique ; une courbure ; une source gravitationnelle.
+
+### 16.4 Forme de grille `J0`
+
+```text
+J0_GRID_SYMMETRY               = SYMMETRIC_AROUND_1
+J0_POINT_COUNT_RECOMMENDATION  = 5
+AMPLITUDE_POLICY                = PARAMETRIC_DELTA
+J0_1P5_STATUS                   = USEFUL_ANCHOR
+```
+
+Forme conceptuelle : `{1-2δ, 1-δ, 1, 1+δ, 1+2δ}`, avec `δ = OPEN` et la contrainte gelée : tout `J0` retenu doit satisfaire `J0 > 0` strictement (`J0=0` supprime qualitativement le terme sur site ; `J0<0` inverse la configuration d'occupation locale favorisée — un régime différent, jamais une simple perturbation plus forte du même régime). **Aucune valeur numérique de `δ` n'est fixée** (ni `0.25`, ni `0.5`) et aucune des valeurs `J0 ∈ {0.5, 0.75, 1.25, 1.5}` n'est gelée comme grille — `J0=1.5` reste exclusivement `USEFUL_ANCHOR` (seul point historiquement calculé, jamais démontré optimal).
+
+### 16.5 Ensemble `S`
+
+```text
+S_SET_RECOMMENDATION  = {2,3}
+BASELINE_S_SET         = {2,3}
+INTER_S_LEVEL1C_ROLE   = ROBUSTNESS_ONLY
+```
+
+`S=1` n'est pas inclus par inertie historique (aucune justification scientifique spécifique ne l'exige). Aucune convergence `S -> infini` n'est revendiquée.
+
+### 16.6 Ensembles de cibles
+
+```text
+PRIMARY_ANALYSIS_SET   = triangle{fundamental,first_excited} ∪
+                          ring5{fundamental,first_excited}
+SECONDARY_ANALYSIS_SET = ring5{T_3_2}
+CALIBRATION_SET         = T_max si naturellement disponible
+```
+
+```text
+TARGET_POLICY                          = ELIGIBILITY_BASED
+STRUCTURALLY_ELIGIBLE_CONTRACT_VERSION = 1
+```
+
+PRIMARY/SECONDARY sont des **rôles analytiques pré-enregistrés maintenant**, jamais une sélection post-hoc sur résultats — ils ne modifient en rien le contrat `STRUCTURALLY_ELIGIBLE` v1 (§15.1), qui reste l'unique critère d'éligibilité. `T_max` reste `CALIBRATION_ONLY` (§15.1 v1.4) ; aucune fenêtre plus profonde ne peut être demandée uniquement pour l'obtenir.
+
+### 16.7 Unité d'analyse
+
+```text
+unité = une matrice C_TT_conn complète (diagonale + hors-diagonale)
+        pour un groupe spectral admissible, à (geometry, J0, S) fixé
+
+intra-S / inter-J0            -> réponse locale
+inter-S / même J0              -> robustesse uniquement
+multi-group / même geometry,J0,S -> cohérence inter-secteurs
+```
+
+Aucune métrique multi-groupe n'est définie.
+
+### 16.8 Baseline Level 1C à `J0=1`
+
+```text
+LEVEL1B_REFERENCE_REUSE   = PARTIAL_ONLY
+LEVEL1C_BASELINE_STRATEGY = RECOMPUTE_COMPLETE_BASELINE
+```
+
+Raison : les artefacts Level 1B historiques (`reference`, `J0=1`) ne contiennent pas `C_TT_conn(i,i)` (production ajoutée seulement en 1C-3a, après la clôture de Level 1B) — ils ne satisfont donc pas le critère 4 de `STRUCTURALLY_ELIGIBLE` v1 (matrice complète). La nouvelle baseline `J0=1` :
+
+```text
+- doit être produite avec le pipeline Level 1C courant ;
+- contient la matrice C_TT_conn complète (diagonale + hors-diagonale) ;
+- appartient techniquement au corpus de production de la future
+  campagne J0 (un point sur l'axe J0 parmi d'autres, du point de vue de
+  l'ingénierie) ;
+- reste scientifiquement CALIBRATION_BASELINE (§16.3) -- jamais
+  PRIMARY_INFERENCE_POINT -- ces deux affirmations ne se contredisent
+  pas : elles portent sur des axes différents (catégorie de cible vs
+  rôle de la valeur J0 elle-même sur l'axe de perturbation) ;
+- ne fusionne jamais des valeurs historiques Level 1B avec les
+  nouvelles valeurs Level 1C (cross-check uniquement, §16.9).
+```
+
+### 16.9 Non-régression Level 1B
+
+```text
+BASELINE_NON_REGRESSION_CHECK = REQUIRED
+```
+
+Pour les quantités communes entre la nouvelle baseline Level 1C et l'ancienne référence Level 1B (hors-diagonale), les valeurs historiques servent uniquement de `NON_REGRESSION_CHECK`, dans les tolérances numériques déjà gelées.
+
+```text
+NON_REGRESSION_CHECK != scientific J0 response test
+```
+
+Le premier valide la continuité du pipeline, jamais une propriété physique nouvelle.
+
+### 16.10 Provenance baseline (exigences conceptuelles minimales)
+
+```text
+geometry ; S ; J0=1 ; identifiant de campagne/provenance Level 1C
+distinct de level1b-reference-v1 ; repository commit ; version de
+code/schéma ; fenêtre spectrale ; identité de groupe ; complete_multiplet ;
+lower_bound_only=False ; twice_T ; multiplicité ; labels de symétrie ;
+matrice C_TT_conn complète ; validation V23
+```
+
+Aucun identifiant concret n'est créé, aucun schéma n'est modifié par ce document.
+
+### 16.11 Préflight baseline
+
+```text
+BASELINE_PREFLIGHT_REQUIRED   = YES
+SPECTRAL_PREFLIGHT_REQUIRED   = YES
+```
+
+Le futur préflight doit inclure la baseline Level 1C elle-même (2 géométries × 2 `S`), pas seulement les points `J0!=1`. Aucune fenêtre numérique n'est choisie ici.
+
+### 16.12 Tracking inter-`J0`
+
+```text
+J0_GROUP_TRACKING_RECOMMENDATION = HYBRID_ARCHITECTURE
+```
+
+Architecture conceptuelle : (1) ancre de sélection par catégorie de cible (`target_selection.py`, inchangé) ; (2) labels du sous-groupe commun (`matching.py`, primitives inchangées) ; (3) décomposition du parent sous le sous-groupe résiduel (`BRANCH_C1`, §16.13) ; (4) état `AMBIGUOUS` explicite. `matching.py` n'est jamais modifié.
+
+```text
+matching.py = appariement inter-S à Hamiltonien fixé
+             != tracking inter-J0
+```
+
+**Sous-groupe commun** : lorsqu'une comparaison franchit la frontière `J0=1 ↔ J0!=1`, la translation est **exclue de l'identité de tracking** (transition `numeric -> not_applicable` structurellement attendue, jamais une discontinuité physique à elle seule) ; la réflexion reste un label spatial commun utilisable. Pour deux points `J0!=1` distincts, les règles usuelles de labels `not_applicable` (`matching.py`, inchangées) s'appliquent normalement.
+
+**Taxonomie conceptuelle** (non codée, aucun schéma créé) :
+
+```text
+TRACKED_ONE_TO_ONE   -- multiplicité inchangée, labels du sous-groupe
+                        commun cohérents
+TRACKED_SPLIT_BRANCH -- multiplicité strictement réduite, cohérente
+                        avec une sous-pièce du parent
+AMBIGUOUS            -- collision de branches sous tous les labels
+                        communs disponibles
+DISCONTINUOUS        -- twice_T incompatible (jamais un simple
+                        changement de multiplicité, jamais la
+                        transition attendue translation numeric ->
+                        not_applicable)
+NOT_AVAILABLE        -- cible non sélectionnée à ce point J0
+```
+
+### 16.13 `BRANCH_C1` — décomposition du parent
+
+```text
+BRANCH_C1 = PARENT_SUBGROUP_DECOMPOSITION
+statut    = DEFINED
+```
+
+Rôle : classification structurelle du multiplet parent sous le sous-groupe spatial résiduel commun, avec les primitives déjà existantes (`build_restricted_operator`, `compute_restricted_symmetry_label`) — aucune nouvelle diagonalisation du Hamiltonien complet. **BRANCH_C1 fournit des `candidate parent branch classes`, jamais automatiquement une `unique daughter identity`** — l'ambiguïté peut subsister (taxonomie `AMBIGUOUS` ci-dessus).
+
+Projecteurs (objets conceptuels, aucune densité gelée) :
+
+```text
+P_parent   = projecteur sur le multiplet spectral parent à J0=1
+P_r_global = projecteur de l'irrep/classe résiduelle r dans l'espace de
+             Hilbert complet
+Q_parent,r = projecteur sur V_parent ∩ V_r
+           = P_parent P_r_global = P_r_global P_parent
+             (lorsque [P_parent, P_r_global] = 0, ce qui est établi
+             lorsque le générateur résiduel commute avec le
+             Hamiltonien de référence)
+```
+
+### 16.14 SU(2) et réflexion
+
+```text
+[R, T^x] = 0
+[R, T^y] = 0
+[R, T^z] = 0
+```
+
+résultat structurel accepté : la réflexion agit spatialement (relabellage de site/lien) et laisse les indices de saveur strictement invariants (`specification.md` §11, covariance `U_A O_ij[P] U_A† = O_{A(i)A(j)}[A(P)]`, jamais de transformation des indices `alpha,beta`, y compris tout signe de Jordan-Wigner déjà absorbé par cette identité déjà validée V06/V07). Par conséquent, sous les conditions déjà établies :
+
+```text
+[P_r_global, T^a] = 0
+[Q_parent,r, T^a] = 0
+```
+
+### 16.15 `AVERAGE_CASIMIR_RESOLVED` vs `FIXED_T_SUBSPACE`
+
+Distinction critique, jamais confondue :
+
+```text
+AVERAGE_CASIMIR_RESOLVED = Tr(Psi† T² Psi)/d ≈ T(T+1)   -- disponible,
+                                                            via compute_twice_T
+FIXED_T_SUBSPACE          = Psi† T² Psi ≈ T(T+1) I_d      -- NON démontré
+                                                            par le pipeline
+                                                            courant
+```
+
+`compute_twice_T` ne vérifie que la trace normalisée (le premier), jamais la matrice complète (le second). Le premier n'implique jamais automatiquement le second.
+
+### 16.16 Conséquence sur V23 sous projection spatiale
+
+```text
+SUBPROJECTED_V23_STATUS = PRESERVED_IF_FIXED_T
+```
+
+(jamais `PRESERVED_BY_SU2` sans condition). Démontré sans `FIXED_T_SUBSPACE` : si une densité uniforme hypothétique est construite sur `Q_parent,r`, elle est SU(2)-invariante, donc `<T_i^a>=0` pour tout site/composante, donc `sum_i C_ii + sum_{i!=j} C_ij = <T²>_sub`. Nécessite `FIXED_T_SUBSPACE` : la dernière égalité `<T²>_sub = T(T+1)` — sans elle, une projection spatiale commutant avec SU(2) peut repondérer différemment, selon la classe `r`, plusieurs secteurs `T` déjà mélangés dans le parent (le lemme de Schur interdit un mélange ENTRE secteurs `T` distincts, mais pas une repondération différente de chacun selon `r`).
+
+### 16.17 Multiplicité des branches
+
+La dimension brute du sous-espace de réflexion n'est jamais utilisée comme multiplicité spatiale. Si (et seulement si) `FIXED_T_SUBSPACE` est démontré pour le parent considéré :
+
+```text
+V_parent ≅ M_parent ⊗ V_T,   dim(V_T) = 2T+1
+m_r_spatial = dim(Q_parent,r) / (2T+1)
+```
+
+L'ambiguïté pertinente concerne exclusivement plusieurs copies indiscernables dans l'espace de multiplicité `M_parent` sous l'ensemble complet des labels communs — jamais `dim(Q_parent,r) > 1` à elle seule.
+
+```text
+REPEATED_IRREP_POLICY = MORE_STRUCTURE_REQUIRED
+```
+
+par défaut, tant que `FIXED_T_SUBSPACE`/copie unique n'est pas démontré empiriquement (jamais présumé).
+
+### 16.18 `BRANCH_C2`
+
+```text
+BRANCH_C2                      = SUBPROJECTED_PARENT_EXPECTATION
+BRANCH_C2_CONTRACT              = NOT_DEFINED
+SUBPROJECTED_CANONICAL_DENSITY = NEW_ASSUMPTION
+```
+
+Aucune formule normative, aucune primitive, aucun observable n'est créé par ce document.
+
+### 16.19 Politique des branches scindées — première campagne
+
+```text
+SPLIT_BRANCH_RESPONSE_POLICY = STRUCTURAL_ONLY
+DELTA_CTT_SPLIT_BRANCH        = BLOCKED
+```
+
+```text
+TRACKED_ONE_TO_ONE   -> Delta_C_TT utilisable comme quantité dérivée
+TRACKED_SPLIT_BRANCH -> suivi/classification structurelle uniquement,
+                        aucun Delta_C_TT quantitatif
+```
+
+tant que `BRANCH_C2` n'est pas conçu, audité et gelé séparément.
+
+### 16.20 `Delta C_TT`
+
+```text
+Delta C_ij(J0,S) = C_ij(J0,S) - C_ij(J0=1,S)
+```
+
+conservée comme quantité dérivée potentielle, uniquement lorsque la correspondance physique est admissible (`TRACKED_ONE_TO_ONE`, §16.19) — aucune nouvelle observable normative, aucun seuil défini.
+
+### 16.21 Test incident / non-incident
+
+```text
+NONLOCAL_RESPONSE_TEST = ADMISSIBLE
+```
+
+uniquement avec la partition binaire `incident_to_defect` / `non_incident_to_defect` — aucune subdivision graduée par distance combinatoire comme vérité géométrique. Ce test ne démontre qu'une propagation relationnelle au-delà des entrées directement incidentes au défaut, jamais une géométrie.
+
+### 16.22 Protocole blind et invariance de relabellage
+
+```text
+BLIND_PROTOCOL              = DEFINED
+BLIND_DEFECT_LOCALIZATION   = CONDITIONAL
+RELABEL_TEST_POLICY          = EXHAUSTIVE
+```
+
+Entrée aveugle : matrice relationnelle admissible, sans identité du site perturbé. Sortie conceptuelle : site/orbite candidat ou `NO_UNIQUE_DEFECT`. Scoring futur (non codé) : `UNIQUE_CORRECT`/`UNIQUE_INCORRECT`/`AMBIGUOUS`/`NO_SIGNAL`. Énumération exhaustive des permutations pour les géométries actuelles (`triangle`: `3!`, `ring5`: `5!`) — les labels de sites ne deviennent jamais des coordonnées physiques.
+
+### 16.23 Seuils
+
+```text
+PHYSICAL_RESPONSE_THRESHOLD = OPEN
+```
+
+```text
+NUMERICAL_EQUALITY_TOLERANCE != PHYSICAL_RESPONSE_THRESHOLD
+```
+
+Les tolérances `1e-8` déjà gelées peuvent servir à des validations numériques déjà établies (V23, matching), jamais à déclarer automatiquement une réponse physiquement significative.
+
+### 16.24 Robustesse inter-S, ordre de campagne, gestion des échecs
+
+```text
+INTER_S_RESPONSE_ROBUSTNESS = PARTIALLY_DEFINED
+```
+
+Admissible dès maintenant : comparaison élément-par-élément de `C_TT_conn` (réutilise `robustness.py` inchangé) ; signe de `Delta_C_TT` lorsqu'il est admissible (§16.19/§16.20). Restent futurs : robustesse d'un ranking global, robustesse blind, robustesse d'une reconstruction géométrique/d'un embedding — aucun nouveau seuil.
+
+```text
+RUN_ORDER_POLICY = IRRELEVANT_BUT_FIXED
+```
+
+Calcul déterministe, aucune dérive instrumentale — mais la grille doit être gelée avant toute lecture de résultat, aucune adaptation silencieuse après résultat partiel.
+
+Gestion conceptuelle des échecs (aucun schéma créé) :
+
+```text
+cible absente/incomplète                     -> GROUP_UNEVALUABLE
+tracking inter-J0 ambigu/discontinu            -> comparaison inter-J0
+                                                   concernée UNEVALUABLE
+matching inter-S absent/ambigu                 -> ROBUSTNESS_UNEVALUABLE
+échec V23/intégrité                            -> CASE_INVALID
+échec ressource                                -> CASE_INVALID
+échec isolé != CAMPAIGN_INVALID automatiquement
+```
+
+Aucun rerun adaptatif silencieux.
+
+### 16.25 Rôles géométriques et gate de reconstruction
+
+```text
+triangle -> contrôle relationnel minimal
+ring5     -> support principal plus riche pour tester une réponse
+             relationnelle structurée
+```
+
+`ring5` n'est jamais qualifié de « géométrie émergente démontrée ».
+
+```text
+GEOMETRY_RECONSTRUCTION_GATE = CONDITIONAL
+```
+
+Conditions nécessaires (non suffisantes) avant tout futur lot corrélateur→distance : réponse effective dans au moins un groupe éligible ; réponse sur au moins une paire non incidente au défaut ; tracking non ambigu pour la revendication concernée ; covariance de relabellage exhaustive ; robustesse inter-S minimale ; absence de fermeture analytique `DOF=0` ; idéalement cohérence multi-groupe. Aucune transformation corrélateur→distance n'est définie par ce document.
+
+### 16.26 Statuts de préparation et points ouverts après 1C-6c
+
+```text
+1C6A_READ_ONLY_DESIGN                = ACCEPTÉ DÉFINITIVEMENT
+1C6B_READ_ONLY_AUDIT                 = ACCEPTÉ DÉFINITIVEMENT
+1C6B_READY_FOR_PREREGISTRATION       = YES
+J0_DESIGN_READY_FOR_PREREGISTRATION  = CONDITIONAL
+J0_CAMPAIGN_READY                    = NO
+```
+
+Points explicitement encore ouverts après 1C-6c :
+
+```text
+- valeur numérique de δ ;
+- préflight spectral/ressources (y compris pour la baseline J0=1) ;
+- fenêtres spectrales futures ;
+- PHYSICAL_RESPONSE_THRESHOLD ;
+- contrôle FIXED_T_SUBSPACE, si un jour nécessaire à BRANCH_C2 ;
+- BRANCH_C2 lui-même, volontairement différé.
+```
+
+`BRANCH_C2` n'est pas un blocage pour la première campagne : `SPLIT_BRANCH_RESPONSE_POLICY = STRUCTURAL_ONLY` (§16.19) permet de procéder sans lui pour tout groupe `TRACKED_ONE_TO_ONE`.
