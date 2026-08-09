@@ -1260,13 +1260,9 @@ exploratory_window
 
 **Aucune valeur numérique de fenêtre n'est fixée par ce document.** Les anciennes valeurs 1C-4a (`triangle`: 16/32 ; `ring5`: 24/48) restent `HISTORICAL_REFERENCE_ONLY` — jamais une garantie pour les nouveaux points de la grille `J0`.
 
-**Option de conception à évaluer dans le prochain lot d'implémentation, non gelée ici** :
+**[HISTORIQUE — statut au moment de 1C-6d/1C-6e]** `FULL_DENSE_EXPLORATORY_WINDOW = CANDIDATE_DESIGN` : option de conception à évaluer, non gelée à ce stade. Dans le chemin dense (`dimension <= 2000`, cf. §17.14), `np.linalg.eigh` calcule déjà le spectre complet avant toute rétention partielle — fixer `exploratory_window = dimension` distinguerait sans ambiguïté une cible réellement absente du spectre d'une cible seulement hors d'une fenêtre tronquée, sans coût de diagonalisation supplémentaire.
 
-```text
-FULL_DENSE_EXPLORATORY_WINDOW = CANDIDATE_DESIGN
-```
-
-Dans le chemin dense (`dimension <= 2000`, cf. §17.14), `np.linalg.eigh` calcule déjà le spectre complet avant toute rétention partielle — fixer `exploratory_window = dimension` distinguerait sans ambiguïté une cible réellement absente du spectre d'une cible seulement hors d'une fenêtre tronquée, sans coût de diagonalisation supplémentaire. Ceci reste une option à auditer, jamais gelée dans ce lot.
+**[ÉTAT COURANT — gelé par 1C-6f/1C-6g, voir §18]** `FULL_DENSE_EXPLORATORY_WINDOW = FROZEN` : le spectre exploratoire du préflight est désormais le spectre dense complet pour tous les cas actuels, et `production_window` est dérivée mécaniquement (§18.5–18.6) plutôt que devinée à l'avance.
 
 ### 17.10 Contrat d'aveuglement du préflight
 
@@ -1390,4 +1386,209 @@ Points explicitement encore ouverts après 1C-6e :
 - exécution des 20 cas ;
 - PHYSICAL_RESPONSE_THRESHOLD (toujours OPEN) ;
 - la campagne normative finale elle-même.
+```
+
+## 18. Design final des fenêtres et firewall du préflight aveugle (1C-6f/1C-6g, gelé)
+
+**[GELÉ]** Pré-enregistrement documentaire des décisions acceptées définitivement lors de l'audit en lecture seule **1C-6f** (design final des fenêtres et architecture du préflight aveugle), après un correctif portant sur un seul point : `PRODUCTION_WINDOW_RULE` (`B → A`), corrigé après audit du comportement réel de `lower_bound_only` dans `cosmobox.level0.degeneracy`. **Ce document ne fixe encore AUCUNE valeur numérique de fenêtre, AUCUN outil, AUCUNE exécution.**
+
+### 18.1 Spectre exploratoire complet
+
+```text
+FULL_DENSE_EXPLORATORY_WINDOW = FROZEN
+exploratory_window            = full_spectrum_dimension
+```
+
+pour tous les cas dont le dispatch est dense (`dimension <= max_dense_dimension=2000`, gelé Level0). Dimensions actuelles : `triangle S=2/S=3 = 88/128` ; `ring5 S=2/S=3 = 1000/1504` — les 20 cas de la grille `J0×S` sont tous dans ce chemin.
+
+`np.linalg.eigh` calcule déjà la totalité du spectre en un seul appel avant toute troncature de rétention — **aucune seconde diagonalisation n'est nécessaire pour approfondir la fenêtre dans le préflight dense**. Ceci n'est cependant jamais qualifié de surcoût nul : la rétention complète des eigenpairs augmente le travail aval (`_eigenpair_diagnostic` par eigenpair, construction des `SpectralGroupState`, vérifications de faisabilité `BRANCH_C1`) — jamais benchmarké, jamais garanti quant au pic mémoire réel (distinct du plancher de stockage `dimension²×16`, déjà établi §17.14).
+
+### 18.2 Distinction exploratoire / production
+
+```text
+exploratory_window != production_window
+```
+
+Le préflight inspecte structurellement le spectre complet ; la production normative ultérieure ne conserve que la fenêtre dérivée par l'algorithme gelé (§18.5–18.6). Le spectre exploratoire complet ne devient jamais, par lui-même, un corpus normatif (`PREFLIGHT_ARTIFACT_REUSE_FOR_NORMATIVE = NO`, §18.14).
+
+### 18.3 Politique de sélection et de gel de fenêtre
+
+```text
+WINDOW_SELECTION_POLICY   = FULL_SPECTRUM_DERIVED_PRODUCTION_WINDOW
+NUMERIC_WINDOW_FREEZE_POLICY = DERIVE_BY_PREREGISTERED_ALGORITHM
+```
+
+Aucune fenêtre numérique n'est devinée avant préflight. L'objet gelé avant exécution est l'**algorithme** de sélection de fenêtre, jamais un nombre fixe (`triangle=16`, `ring5=24`, etc.) — les anciennes fenêtres 1C-4a restent `HISTORICAL_REFERENCE_ONLY`, jamais une garantie pour la nouvelle grille.
+
+### 18.4 Cibles requises et déduplication
+
+Cibles inchangées (§16.6/§17.7) : `triangle` REQUIRED `{fundamental, first_excited}` ; `ring5` REQUIRED `{fundamental, first_excited, T_3_2}` ; `T_max` `CALIBRATION_ONLY` — n'entre jamais dans `last_required_end`, `production_window`, ni le verdict global du préflight.
+
+```text
+si plusieurs target IDs sélectionnent le même groupe spectral,
+  ce groupe compte UNE SEULE FOIS
+
+last_required_end = max(end_index_exclusive des groupes REQUIRED uniques)
+```
+
+### 18.5 Politique de marge
+
+```text
+SPECTRAL_MARGIN_POLICY = REUSE_1C4A
+```
+
+**Interprétation désormais explicite, jamais réinterprétée après coup** : la marge est un critère du **spectre exploratoire de préflight** — le préflight complet doit démontrer l'existence, après `last_required_end`, d'au moins un groupe complet supplémentaire (`start_index >= last_required_end`, `lower_bound_only=False`) — **jamais** une obligation de contenu de la production normative finale. Ce groupe de marge est uniquement un témoin structurel de complétude du dernier `REQUIRED` : il n'est ni une cible scientifique, ni un objet de matching, ni un objet d'analyse `C_TT_conn`. Rien n'exige qu'il reste lui-même intégralement conservé dans la production.
+
+### 18.6 Règle finale de `production_window`
+
+```text
+PRODUCTION_WINDOW_RULE = A
+
+production_window (cas général)                      = last_required_end + 1
+production_window (si last_required_end == full_spectrum_dimension) = full_spectrum_dimension
+```
+
+Justification : un état spectral distinct après le dernier groupe `REQUIRED` suffit à établir, par construction séquentielle de `analyze_spectral_degeneracies` (chaque frontière décidée uniquement par comparaison à l'ancre du groupe courant, jamais par anticipation), que ce groupe n'est plus terminal, donc `lower_bound_only=False` dans la production tronquée à cette valeur. Le groupe de marge complet observé lors du préflight n'a pas besoin d'être intégralement conservé dans la production.
+
+### 18.7 Portée des fenêtres
+
+```text
+PRODUCTION_WINDOW_SCOPE = PER_CASE
+```
+
+`production_window(geometry,S,J0)` est déterminée indépendamment pour chacun des 20 cas — aucune fenêtre commune imposée inter-`J0`, inter-`S`, ou inter-géométrie, sauf nécessité future explicitement démontrée. Le matching inter-S déjà gelé (`matching.py::SpectralGroupMatchKey`) ne porte aucun champ de fenêtre/dimension — aucune égalité de fenêtre n'est requise pour lui.
+
+### 18.8 Symétrie `±δ` et inter-S
+
+Des fenêtres numériques différentes entre `J0=1-x` et `J0=1+x`, ou entre `S=2` et `S=3`, ne rompent pas la symétrie scientifique de la grille si elles sont obtenues par exactement la même règle mécanique (§18.6). La politique gelée de paire indivisible (§17.15) porte sur la **faisabilité** de chaque côté de la paire, jamais sur l'égalité numérique de leurs fenêtres. `matching.py` n'est jamais modifié.
+
+### 18.9 Cible absente / non identifiable
+
+```text
+TARGET_NOT_IDENTIFIABLE = la cible ne peut pas être identifiée de
+  manière admissible par la règle de sélection sur le spectre complet
+```
+
+Jamais formulé comme « cible physiquement absente » sans preuve supplémentaire. Deux sous-causes conceptuelles distinctes (aucun schéma créé) :
+
+```text
+TARGET_ABSENT_IN_FULL_SPECTRUM -- aucun groupe à label résolu ne
+                                   correspond
+TARGET_SELECTION_AMBIGUOUS      -- ambiguïté de sélection, ou twice_T
+                                   non résolu empêchant une conclusion
+                                   unique
+```
+
+`fundamental` (rang 0) est toujours sélectionnable dès qu'au moins un groupe existe. `first_excited` (rang 1) échoue uniquement si moins de deux groupes existent dans le spectre complet — un fait structurel, jamais un artefact de fenêtre. `T_3_2` (`selection_kind=flavor_label`, `target_twice_T=3`, `selection_within_label=lowest_representative_energy`) et sa politique de désambiguïsation restent inchangés — une égalité non résolue dans la tolérance de dégénérescence reste `AMBIGUOUS`, jamais brisée par ordre d'itération ou par rang spectral.
+
+### 18.10 Contrat d'aveuglement — architecture
+
+```text
+PREFLIGHT_INFORMATION_FIREWALL = DEFINED
+```
+
+Deux couches :
+
+```text
+INTERNAL_PREFLIGHT_COMPUTATION -- calcule tout ce qui est nécessaire
+                                   (y compris C_TT_conn/V23)
+PUBLIC_PREFLIGHT_REPORT         -- expose exclusivement la whitelist
+                                   structurelle ci-dessous
+```
+
+**Whitelist publique** : `geometry`, `S`, `J0`, `full_spectrum_dimension`, indices/ordre spectral, `start_index`/`end_index_exclusive` de groupe, `multiplicity`, `twice_T`, `translation_label`, `reflection_label`, `reflection_restriction_valid`, `complete_multiplet`, `lower_bound_only`, statut de sélection de cible, rôle requis/non-requis, `V23 applicable`/`V23 is_valid` (booléens uniquement), `exploratory_window`, `production_window`, `last_required_end`, `margin_group_start`/`margin_group_end`, dispatch de l'eigensolver, statut de ressource, statut de préflight, `TRACKING_PREFLIGHT_STATUS`. Aucune donnée physique numérique interdite (§18.12) ne figure dans cette liste.
+
+```text
+ENERGY_PUBLIC_POLICY = INDICES_ONLY
+```
+
+Le rapport public n'expose jamais `eigenvalue`, `representative_energy`, `min_energy`/`max_energy`, ni aucun écart d'énergie numérique — ces valeurs peuvent être utilisées **en interne** par une primitive de sélection déjà gelée (ex. `lowest_representative_energy`) mais ne traversent jamais le firewall.
+
+### 18.11 V23
+
+```text
+PREFLIGHT_V23_POLICY = VALIDATE_WITHOUT_EXPOSING_VALUES
+```
+
+Architecture : calcul `C_TT_conn` complet en mémoire → validation `V23` interne (`local_observables.validate_flavor_total_sum`, inchangé) → sortie publique limitée à `applicable`/`is_valid`. Interdiction explicite d'exposer `measured`/`expected`/`residual`/valeurs diagonales ou hors-diagonale de `C_TT_conn` — implique une adaptation future de l'outil `jbreak_spectral_preflight.py` existant (qui les sérialise actuellement), non implémentée dans ce lot.
+
+### 18.12 Surfaces de fuite couvertes
+
+Le firewall couvre **toute** surface consultable par l'opérateur, pas seulement le JSON final : `stdout`/`stderr`, journaux, exceptions (capturées/assainies — un message d'exception brut de `validate_flavor_total_sum` peut intégrer `measured`/`expected`/`residual`), `repr()`/`str()` par défaut d'un objet interne portant des valeurs physiques, fichiers temporaires de débogage. Données interdites, quelle que soit la surface : `C_TT_conn` numérique, `Delta_C_TT`, réponse `rho_QQ`/`G`, amplitude de réponse incident/non-incident, résultat de localisation blind, reconstruction géométrique/distance/embedding/fit/courbure, énergies numériques. Aucune de ces données ne peut jamais modifier `δ`, la grille `J0`, l'ensemble des cibles, ou l'algorithme de fenêtre.
+
+### 18.13 `BRANCH_C1` — rôle minimal et exigence `R²=I`
+
+Exposition minimale : `reflection_label` + `reflection_restriction_valid` (booléen : stabilité + unitarité déjà gelées) — jamais la décomposition détaillée en valeurs propres/parités (qui appartient à la classification finale, hors périmètre du préflight). `BRANCH_C2` n'est jamais exécuté.
+
+**Exigence documentée pour le futur lot d'implémentation, non résolue ici** : la réflexion restreinte utilisée doit satisfaire `R²=I` dans une tolérance numérique **déjà gelée et réutilisée**, jamais une tolérance nouvellement inventée pour ce besoin — si aucune tolérance déjà gelée n'est directement applicable, un audit séparé devra être ouvert avant toute exploitation scientifique de la réflexion dans le nouveau préflight. Ceci n'est pas transformé en décision scientifique silencieuse par ce document.
+
+### 18.14 Tracking préflight, politique globale, réutilisation normative
+
+```text
+TRACKING_PREFLIGHT_STATUS ∈ {FEASIBLE, STRUCTURALLY_AMBIGUOUS, NOT_EVALUATED}
+```
+
+Vocabulaire exclusif au préflight — jamais confondu avec `TRACKED_ONE_TO_ONE`/`TRACKED_SPLIT_BRANCH`/`AMBIGUOUS`/`DISCONTINUOUS`/`NOT_AVAILABLE` (analyse finale).
+
+```text
+PREFLIGHT_GLOBAL_POLICY = ALL_REQUIRED_CASES
+```
+
+Un seul cas `REQUIRED` bloquant ⇒ `GLOBAL_PREFLIGHT=FAIL` ⇒ `J0_CAMPAIGN_READY=NO` — aucune réduction post-hoc de la grille.
+
+```text
+PREFLIGHT_ARTIFACT_REUSE_FOR_NORMATIVE = NO
+```
+
+Provenance différente, rôle exploratoire/structurel, rapport aveuglé, `production_window` dérivée après le préflight — la campagne normative doit être réexécutée sous le contrat final gelé (cohérent avec la distinction préflight/baseline déjà établie, §16.8/§17.12).
+
+`FULL_20_CASE_GRID` ⇒ 20 diagonalisations exploratoires conceptuelles, une par cas ; aucune re-diagonalisation nécessaire pour approfondir la fenêtre dans le chemin dense (§18.1). Aucune durée promise.
+
+### 18.15 Architecture future et tests futurs (non implémentés)
+
+```text
+scripts/level1c_preflight/j0_grid_preflight.py
+  -- orchestration des 20 cas ; spectre dense complet ; sélection de
+     cible ; dérivation de production_window ; contrôle de marge ; V23
+     interne ; firewall ; agrégation ALL_REQUIRED_CASES ; ordre
+     déterministe ; rapport public structurel
+
+src/cosmobox/level1/ -- aucune nouvelle primitive scientifique requise
+  à ce stade ; réutilisation maximale de l'existant
+```
+
+Interdictions : ne jamais modifier `matching.py` ; ne jamais créer de nouvelle observable ; ne jamais modifier le manifeste Level 1B.
+
+Tests minimaux requis avant toute exécution (futur lot, non exécutés ici) : grille `J0` gelée exacte ; exactement 20 cas ; ordre déterministe ; `exploratory_window=dimension` ; sélection des cibles `REQUIRED` ; déduplication des groupes ; `last_required_end` ; `production_window=last_required_end+1` avec repli `=dimension` ; présence du groupe de marge dans le spectre exploratoire ; `T_max` non bloquant ; portée `PER_CASE` ; fenêtres `±δ`/inter-S autorisées à différer ; `V23` bool-only public ; absence de fuite `C_TT`/énergie ; exceptions/logs assainis ; `reflection_restriction_valid` ; `R²=I` ; `TRACKING_PREFLIGHT_STATUS` ; priorité des statuts ; un cas `REQUIRED` bloquant → échec global ; aucun changement `matching.py` ; aucun lancement de campagne normative.
+
+### 18.16 Statuts de préparation et points ouverts après 1C-6g
+
+```text
+1C6F_READ_ONLY_DESIGN                  = ACCEPTÉ DÉFINITIVEMENT
+FULL_DENSE_EXPLORATORY_WINDOW          = FROZEN
+WINDOW_SELECTION_POLICY                = FULL_SPECTRUM_DERIVED_PRODUCTION_WINDOW
+PRODUCTION_WINDOW_RULE                 = A
+PRODUCTION_WINDOW_SCOPE                = PER_CASE
+NUMERIC_WINDOW_FREEZE_POLICY           = DERIVE_BY_PREREGISTERED_ALGORITHM
+ENERGY_PUBLIC_POLICY                   = INDICES_ONLY
+PREFLIGHT_INFORMATION_FIREWALL         = DEFINED
+PREFLIGHT_ARTIFACT_REUSE_FOR_NORMATIVE = NO
+PREFLIGHT_IMPLEMENTATION_READY         = CONDITIONAL
+GRID_PREFLIGHT_PASSED                  = NOT_EVALUATED
+J0_CAMPAIGN_READY                      = NO
+```
+
+Points explicitement encore ouverts après 1C-6g :
+
+```text
+- implémentation réelle du préflight ;
+- représentation exacte du rapport public ;
+- sanitization concrète des erreurs/logs ;
+- vérification/test R²=I, et éventuel audit séparé de tolérance R²
+  si aucune tolérance déjà gelée n'est directement applicable ;
+- exécution des 20 cas ;
+- production des valeurs numériques de production_window ;
+- GRID_PREFLIGHT_PASSED ;
+- PHYSICAL_RESPONSE_THRESHOLD (toujours OPEN) ;
+- la campagne normative Level 1C elle-même.
 ```
