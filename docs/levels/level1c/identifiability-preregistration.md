@@ -1592,3 +1592,222 @@ Points explicitement encore ouverts après 1C-6g :
 - PHYSICAL_RESPONSE_THRESHOLD (toujours OPEN) ;
 - la campagne normative Level 1C elle-même.
 ```
+
+**[ÉTAT COURANT — gelé par 1C-6h/1C-6i/1C-6j/1C-6k/1C-6l, voir §19]** L'implémentation, l'audit de readiness, la fermeture du firewall/provenance et l'exécution unique du préflight sont désormais faits et acceptés. `GRID_PREFLIGHT_PASSED = YES`. `PHYSICAL_RESPONSE_THRESHOLD` reste `OPEN` — non résolu par le préflight, qui n'a jamais eu vocation à le résoudre.
+
+## 19. Gel du résultat de préflight accepté et readiness de campagne (1C-6h/1C-6l, gelé)
+
+**[GELÉ]** Transcription documentaire du résultat structurel accepté de l'exécution unique du préflight (1C-6k), fermeture formelle de la phase de préflight, et mise à jour de la readiness de campagne. **Aucune conclusion physique n'est tirée dans cette section.**
+
+### 19.1 Statut de l'exécution
+
+```text
+1C-6h (implémentation)      = ACCEPTÉ DÉFINITIVEMENT
+1C-6i (audit readiness)     = ACCEPTÉ DÉFINITIVEMENT (a identifié firewall/provenance)
+1C-6j (correctifs finaux)   = ACCEPTÉ DÉFINITIVEMENT
+1C-6k (exécution unique)    = ACCEPTÉ DÉFINITIVEMENT
+
+nature      = exécution unique réelle du préflight aveugle, FULL_20_CASE_GRID
+invocations = 1 (aucune réexécution)
+
+PREFLIGHT_EXECUTION_RESULT = VALID_GLOBAL_SUFFICIENT
+GRID_PREFLIGHT_PASSED      = YES
+PREFLIGHT_EXECUTION_VALID  = YES
+```
+
+### 19.2 Artefact de référence (non versionné)
+
+```text
+relative_path = results/level1c/preflight/
+  j0_grid_preflight_b6cf68b772bc16ce71dc5032c677d23dd37ed827.json
+artifact_versioning = NON_VERSIONED  -- fichier ignoré par Git, jamais
+  embarqué par cette documentation
+
+PREFLIGHT_ARTIFACT_SHA256      = a40a9c05a464ea584dabc69ef7246feb68bd7efa433508f1ff52cfe15a158146
+PREFLIGHT_ARTIFACT_SIZE_BYTES  = 52840
+```
+
+Ce hash constitue la référence documentaire permettant de vérifier ultérieurement l'artefact local conservé.
+
+### 19.3 Provenance
+
+```text
+PREFLIGHT_CODE_COMMIT        = b6cf68b772bc16ce71dc5032c677d23dd37ed827
+PREFLIGHT_MANIFEST_FINGERPRINT = 159660cac738518dc620b9627ec95fd67c5dbc283707fdf72e572886364693ab
+PREFLIGHT_CONTRACT_VERSION   = level1c-j0-blind-preflight-v1
+```
+
+Le fingerprint correspond au manifeste normatif Level 1B déjà gelé (`experiments/level1/preregistered-manifest-v1.json`) — inchangé pour Level 1C.
+
+### 19.4 Conditions d'exécution validées
+
+```text
+stderr                = 0 byte
+JSON valide            = YES
+20 cas                 = YES
+ordre exact            = YES
+doublons               = 0
+dispatch dense         = 20/20
+firewall public valide = YES
+```
+
+### 19.5 Distributions publiques acceptées
+
+```text
+resource_feasible = 20 ; resource_blocking = 0
+window_sufficient = 20 ; window_insufficient = 0 ; window_inconclusive = 0 ; target_not_identifiable = 0
+tracking feasible = 20 ; tracking structurally_ambiguous = 0 ; tracking not_evaluated = 0
+```
+
+**Aucune conclusion physique n'est tirée de ces distributions.**
+
+### 19.6 `global_status`
+
+```text
+global_status = global_preflight_sufficient
+```
+
+Ce verdict signifie **uniquement** : la grille, les targets, les fenêtres spectrales, les validations structurelles et les ressources sont admissibles pour la campagne définie. Il ne signifie **jamais** : réponse physique détectée, géométrie émergente, robustesse physique démontrée, identifiabilité de géométrie démontrée, ou tout résultat Level 1C positif.
+
+### 19.7 Dimensions et fenêtre exploratoire
+
+```text
+triangle S=2 -> full_spectrum_dimension = 88
+triangle S=3 -> full_spectrum_dimension = 128
+ring5    S=2 -> full_spectrum_dimension = 1000
+ring5    S=3 -> full_spectrum_dimension = 1504
+```
+
+`exploratory_window = full_spectrum_dimension` pour les 20 cas.
+
+### 19.8 Fenêtres de production dérivées (`PRODUCTION_WINDOW_RULE = A`)
+
+**Ces valeurs ne sont pas de nouveaux choix humains** : ce sont les sorties déterministes de l'algorithme pré-enregistré (`production_window = last_required_end + 1`, sans repli `full_spectrum_dimension` nécessaire pour aucun des 20 cas), transcrites depuis le résultat accepté 1C-6k, jamais recalculées.
+
+```text
+triangle S=2 : J0=0.50 -> 5 ; J0=0.75 -> 5 ; J0=1.00 -> 9 ; J0=1.25 -> 5 ; J0=1.50 -> 5
+triangle S=3 : J0=0.50 -> 5 ; J0=0.75 -> 5 ; J0=1.00 -> 9 ; J0=1.25 -> 5 ; J0=1.50 -> 5
+ring5    S=2 : J0=0.50 -> 11 ; J0=0.75 -> 11 ; J0=1.00 -> 15 ; J0=1.25 -> 11 ; J0=1.50 -> 11
+ring5    S=3 : J0=0.50 -> 11 ; J0=0.75 -> 11 ; J0=1.00 -> 15 ; J0=1.25 -> 11 ; J0=1.50 -> 11
+```
+
+Métadonnée dérivée associée (`last_required_end`, jamais une règle générale) :
+
+```text
+production_window=5  -> last_required_end=4
+production_window=9  -> last_required_end=8
+production_window=11 -> last_required_end=10
+production_window=15 -> last_required_end=14
+```
+
+`PRODUCTION_WINDOW_RULE = A` reste la règle normative — la table ci-dessus est une **sortie dérivée gelée**, jamais une nouvelle règle de sélection ni une table manuelle s'y substituant.
+
+```text
+PRODUCTION_WINDOW_SCOPE = PER_CASE
+```
+
+reste explicitement maintenu : l'unité normative est le cas individuel `(geometry,S,J0)`, même si plusieurs cas aboutissent actuellement au même nombre. Les valeurs communes observées ci-dessous sont un résumé en prose, jamais une nouvelle règle :
+
+```text
+baseline (J0=1)     : triangle -> 9 ; ring5 -> 15 (S=2 et S=3)
+points perturbés     : triangle -> 5 ; ring5 -> 11 (tous J0!=1, S=2 et S=3)
+```
+
+**Symétrie `±δ` observée, non normative** : les paires `(0.5,1.5)` et `(0.75,1.25)` aboutissent, dans cette exécution, à des fenêtres identiques — un résultat structurel observé, jamais une exigence future : la règle reste que les fenêtres `±δ` auraient été autorisées à différer.
+
+**Inter-S observé, non normatif** : les fenêtres observées sont identiques entre `S=2` et `S=3` pour chaque `(geometry,J0)` — ceci n'introduit aucune contrainte d'égalité inter-S ; le scope reste `PER_CASE`.
+
+**Signification exacte de `production_window`** : nombre d'eigenpairs à conserver lors de la future production normative du cas correspondant, selon le contrat gelé — **jamais** un nombre de niveaux physiques pertinents, une dimension effective de géométrie, ou un nombre de modes émergents.
+
+**Baseline `J0=1`** : les fenêtres `9`/`15` sont des sorties du préflight courant, jamais une réutilisation des anciennes fenêtres Level 1B (16/24) comme production normative Level 1C. `LEVEL1C_BASELINE_STRATEGY = RECOMPUTE_COMPLETE_BASELINE` reste la stratégie pour la future campagne.
+
+### 19.9 Marge
+
+```text
+MARGIN_CONSISTENCY = PASS_20_OF_20
+```
+
+Signifie uniquement que chaque cas `window_sufficient` possédait la marge structurelle exigée dans le spectre exploratoire complet — les groupes de marge ne sont jamais des targets.
+
+### 19.10 Targets
+
+```text
+70 entrées de cibles publiques, 70 sélectionnées (selected)
+
+Répartition : fundamental=20, first_excited=20, T_max=20, T_3_2=10
+```
+
+Rôles inchangés :
+
+```text
+triangle : fundamental REQUIRED, first_excited REQUIRED, T_max OPTIONAL_CALIBRATION
+ring5    : fundamental REQUIRED, first_excited REQUIRED, T_3_2 REQUIRED, T_max OPTIONAL_CALIBRATION
+```
+
+### 19.11 V23
+
+```text
+REQUIRED targets = 50
+V23 applicable=true = 50 ; V23 is_valid=true = 50 ; V23 status=v23_ok = 50
+```
+
+Constat structurel public uniquement — aucune valeur `measured`/`expected`/`residual`/`C_TT` n'est ni recalculée ni documentée ici.
+
+### 19.12 Firewall
+
+```text
+PUBLIC_FIREWALL_VALID = YES
+```
+
+Aucune clé publique interdite détectée — aucune valeur physique cachée n'est reproduite dans ce document.
+
+### 19.13 Réflexion / tracking
+
+```text
+tracking_preflight_status = feasible pour 20/20 cas
+```
+
+Le vocabulaire final de tracking scientifique (`TRACKED_ONE_TO_ONE`/`TRACKED_SPLIT_BRANCH`/`AMBIGUOUS`/`DISCONTINUOUS`/`NOT_AVAILABLE`) n'a **pas** été produit par ce préflight et ne l'est jamais — ce résultat n'est jamais transformé en un verdict scientifique final.
+
+### 19.14 Fermeture du préflight
+
+```text
+LEVEL1C_J0_PREFLIGHT_STATUS = CLOSED_ACCEPTED
+PREFLIGHT_ARTIFACT_REUSE_FOR_NORMATIVE = NO
+```
+
+Le JSON de préflight ne devient jamais un corpus scientifique de campagne — la future production normative doit être ré-exécutée avec les `production_window` désormais gelées (§19.8), sous une provenance normative propre et distincte. Le préflight ne doit plus être relancé, sauf ouverture explicite d'un nouveau lot de gouvernance à la suite d'un changement de contrat, de code, ou de manifeste.
+
+### 19.15 Readiness de campagne
+
+```text
+J0_CAMPAIGN_READY = YES
+```
+
+Signification exacte : la campagne normative `J0×S` peut désormais être **préparée** et exécutée sous les paramètres déjà gelés — ceci ne signifie **pas** que la campagne démarre par ce document, et n'ouvre aucun sous-lot d'exécution.
+
+### 19.16 Ce qui reste explicitement ouvert
+
+```text
+PHYSICAL_RESPONSE_THRESHOLD = OPEN (inchangé, aucun seuil inventé ici)
+BRANCH_C2 = NOT_DEFINED / deferred (inchangé, non requis pour la première
+  campagne tant que les branches scindées restent exclues des
+  comparaisons quantitatives concernées)
+FIXED_T_REQUIRED_FOR_FIRST_CAMPAIGN = NO (inchangé, aucune nouvelle
+  hypothèse de projecteur/fixed-T)
+```
+
+**Distinction impérative** : `campaign execution readiness` (§19.15, désormais `YES`) n'est jamais confondue avec `physical-response decision readiness` (toujours conditionnée par `PHYSICAL_RESPONSE_THRESHOLD`, toujours `OPEN`) — la première concerne la faisabilité structurelle de lancer la campagne, la seconde concerne l'interprétation physique de ses résultats futurs, deux questions distinctes jamais fusionnées.
+
+### 19.17 Historique préservé
+
+```text
+GRID_PREFLIGHT_PASSED = NOT_EVALUATED  -- statut HISTORIQUE (avant 1C-6k)
+J0_CAMPAIGN_READY      = NO             -- statut HISTORIQUE (avant 1C-6l)
+```
+
+Statut courant, non ambigu : `GRID_PREFLIGHT_PASSED = YES` (§19.1), `J0_CAMPAIGN_READY = YES` (§19.15).
+
+### 19.18 Périmètre non ouvert par ce document
+
+Ce document ne définit toujours pas : le format final du corpus normatif, les noms de fichiers de la campagne, un schéma de résultats de campagne, le tracking scientifique final, `Delta_C_TT` final, un seuil physique, un protocole de localisation blind exécuté, ou une reconstruction géométrique — tous appartiennent à des lots futurs distincts, non ouverts ici.
