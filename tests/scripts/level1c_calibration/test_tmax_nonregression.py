@@ -165,6 +165,39 @@ class TestDeriveAbsoluteTolerance:
                     continue
                 assert m.derive_absolute_tolerance(candidate) >= candidate
 
+    def test_smallest_subnormal_still_satisfies_invariant(self):
+        e = np.nextafter(0.0, 1.0)
+        tol = m.derive_absolute_tolerance(e)
+        assert tol >= e
+        assert math.isfinite(tol)
+
+    def test_float64_max_raises_internal_failure_not_overflow_error(self):
+        with pytest.raises(m.CalibrationInternalFailure):
+            m.derive_absolute_tolerance(np.finfo(np.float64).max)
+
+    def test_float64_max_near_boundary_raises_internal_failure(self):
+        with pytest.raises(m.CalibrationInternalFailure):
+            m.derive_absolute_tolerance(np.finfo(np.float64).max * 0.999)
+
+    def test_overflow_never_raises_bare_overflow_error(self):
+        # derive_absolute_tolerance's own contract: total over every
+        # finite E >= 0, never letting a raw OverflowError escape.
+        try:
+            m.derive_absolute_tolerance(np.finfo(np.float64).max)
+        except OverflowError:
+            pytest.fail("a bare OverflowError must never escape derive_absolute_tolerance")
+        except m.CalibrationInternalFailure:
+            pass
+
+    def test_overflow_firewall_no_scientific_value_leaked(self):
+        e = np.finfo(np.float64).max
+        with pytest.raises(m.CalibrationInternalFailure) as excinfo:
+            m.derive_absolute_tolerance(e)
+        message = str(excinfo.value)
+        assert repr(e) not in message
+        assert "308" not in message and "309" not in message
+        assert excinfo.value.__cause__ is None
+
     def test_negative_is_rejected(self):
         with pytest.raises(ValueError):
             m.derive_absolute_tolerance(-1e-10)
@@ -288,6 +321,22 @@ class TestSelectRequiredCases:
         assert cases[("triangle", 1, "reference")].case_id == TRIANGLE_S1.case_id
         assert cases[("ring5", 1, "reference")].case_id == RING5_S1.case_id
 
+    def test_required_case_keys_is_frozenset(self):
+        assert isinstance(m.REQUIRED_CASE_KEYS, frozenset)
+        assert m.REQUIRED_CASE_KEYS == frozenset(m.REQUIRED_CASE_ORDER)
+
+    def test_required_case_order_is_a_tuple_never_a_set(self):
+        assert isinstance(m.REQUIRED_CASE_ORDER, tuple)
+
+    def test_select_required_cases_keys_equal_required_case_order_exactly(self):
+        cases = m.select_required_cases(REAL_MANIFEST)
+        assert tuple(cases.keys()) == m.REQUIRED_CASE_ORDER
+
+    def test_select_required_cases_order_is_stable_across_repeated_calls(self):
+        first = tuple(m.select_required_cases(REAL_MANIFEST).keys())
+        second = tuple(m.select_required_cases(REAL_MANIFEST).keys())
+        assert first == second == m.REQUIRED_CASE_ORDER
+
     def test_j_break_never_in_required_keys(self):
         assert all(key[2] != "j_break" for key in m.REQUIRED_CASE_KEYS)
 
@@ -368,6 +417,27 @@ class TestIsGroupEligible:
         n_nodes = self._n_nodes(TRIANGLE_S1)
         assert m.is_group_eligible(eligible, n_nodes=n_nodes) is True
         assert m.is_group_eligible(incomplete, n_nodes=n_nodes) is False
+
+    def test_eligible_groups_for_case_returns_ascending_group_index_even_if_source_is_reversed(self):
+        # index.groups is already canonically ordered upstream, but this
+        # confirms eligible_groups_for_case's own defensive sort (1C-7c3-fix)
+        # produces ascending order regardless of the input order.
+        n_nodes = self._n_nodes(TRIANGLE_S1)
+        group_2 = _build_group(TRIANGLE_S1, group_index=2, twice_T=5, multiplicity=6, documents=_full_pairs(TRIANGLE_S1))
+        group_0 = _build_group(TRIANGLE_S1, group_index=0, twice_T=1, multiplicity=2, documents=_full_pairs(TRIANGLE_S1))
+        group_1 = _build_group(TRIANGLE_S1, group_index=1, twice_T=3, multiplicity=4, documents=_full_pairs(TRIANGLE_S1))
+        fake_index = SimpleNamespace(groups=(group_2, group_0, group_1))
+        result = m.eligible_groups_for_case(fake_index, TRIANGLE_S1.case_id, n_nodes=n_nodes)
+        assert [g.spectral_window_group_index for g in result] == [0, 1, 2]
+
+    def test_eligible_groups_for_case_filters_by_case_id(self):
+        n_nodes = self._n_nodes(TRIANGLE_S1)
+        other_group = _build_group(RING5_S1, group_index=0, twice_T=1, multiplicity=2, documents=_full_pairs(RING5_S1))
+        own_group = _build_group(TRIANGLE_S1, group_index=0, twice_T=1, multiplicity=2, documents=_full_pairs(TRIANGLE_S1))
+        fake_index = SimpleNamespace(groups=(other_group, own_group))
+        result = m.eligible_groups_for_case(fake_index, TRIANGLE_S1.case_id, n_nodes=n_nodes)
+        assert len(result) == 1
+        assert result[0].case_id == TRIANGLE_S1.case_id
 
 
 # ---------------------------------------------------------------------------
@@ -789,6 +859,51 @@ def _build_full_historical_directory(tmp_path: Path, *, ctt_offset: float = 0.0,
     return base_dir
 
 
+# ---------------------------------------------------------------------------
+# prepare_holdout_cases -- ALL-5 prevalidation (1C-7c3-fix), zero
+# diagonalization, deterministic order.
+# ---------------------------------------------------------------------------
+
+
+class TestPrepareHoldoutCases:
+    def test_all_five_usable_returns_in_required_case_order(self, tmp_path):
+        historical_dir = _build_full_historical_directory(tmp_path)
+        manifest_loaded = REAL_MANIFEST
+        required = m.select_required_cases(manifest_loaded)
+        index = m.load_historical_index(historical_dir, manifest_loaded)
+        prepared = m.prepare_holdout_cases(index, required, historical_dir)
+        assert tuple(p.key for p in prepared) == m.REQUIRED_CASE_ORDER
+        assert all(len(p.eligible_groups) >= 1 for p in prepared)
+
+    def test_raises_before_returning_when_last_case_unusable(self, tmp_path):
+        base_dir = tmp_path / "historical"
+        for case in REAL_PLAN:
+            required = (case.geometry, case.spin, case.hamiltonian_case_id) in m.REQUIRED_CASE_KEYS
+            eligible = required and not (case.geometry == "ring5" and case.spin == 1)
+            _write_case_artifacts(base_dir, case, eligible=eligible)
+        required = m.select_required_cases(REAL_MANIFEST)
+        index = m.load_historical_index(base_dir, REAL_MANIFEST)
+        with pytest.raises(m.CalibrationConfigError, match="ring5"):
+            m.prepare_holdout_cases(index, required, base_dir)
+
+    def test_records_sha256_present_for_every_prepared_case(self, tmp_path):
+        historical_dir = _build_full_historical_directory(tmp_path)
+        required = m.select_required_cases(REAL_MANIFEST)
+        index = m.load_historical_index(historical_dir, REAL_MANIFEST)
+        prepared = m.prepare_holdout_cases(index, required, historical_dir)
+        for p in prepared:
+            assert len(p.records_sha256) == 64
+
+    def test_unexpected_exception_is_sanitized(self, tmp_path, monkeypatch):
+        historical_dir = _build_full_historical_directory(tmp_path)
+        required = m.select_required_cases(REAL_MANIFEST)
+        index = m.load_historical_index(historical_dir, REAL_MANIFEST)
+        monkeypatch.setattr(m, "eligible_groups_for_case", lambda *a, **k: (_ for _ in ()).throw(ValueError("SECRET_VALUE=1.23")))
+        with pytest.raises(m.CalibrationInternalFailure) as excinfo:
+            m.prepare_holdout_cases(index, required, historical_dir)
+        assert "SECRET_VALUE" not in str(excinfo.value)
+
+
 class TestRunCalibrationWiring:
     def test_full_success(self, tmp_path, monkeypatch):
         historical_dir = _build_full_historical_directory(tmp_path, ctt_offset=0.0, rho_offset=0.0)
@@ -831,11 +946,18 @@ class TestRunCalibrationWiring:
         assert artifact.historical_repository_commit == m.EXPECTED_HISTORICAL_REPOSITORY_COMMIT
         assert len(artifact.historical_cases) == 5
         assert all(case.eligible_group_count == 1 for case in artifact.historical_cases)
+        # historical_cases must preserve REQUIRED_CASE_ORDER exactly,
+        # never the frozenset's own randomized iteration order (1C-7c3-fix).
+        expected_case_ids = tuple(m.select_required_cases(REAL_MANIFEST)[key].case_id for key in m.REQUIRED_CASE_ORDER)
+        assert tuple(case.case_id for case in artifact.historical_cases) == expected_case_ids
 
         rendered = json.dumps(m._artifact_to_json(artifact))
         assert str(tmp_path) not in rendered
 
-    def test_no_eligible_group_in_one_case_fails(self, tmp_path, monkeypatch):
+    def test_no_eligible_group_in_last_case_raises_before_any_recomputation(self, tmp_path, monkeypatch):
+        # ring5 S=1 is the LAST case in REQUIRED_CASE_ORDER -- before the
+        # 1C-7c3-fix hardening, the other four cases would already have
+        # been diagonalized by the time this one was found unusable.
         base_dir = tmp_path / "historical"
         for case in REAL_PLAN:
             required = (case.geometry, case.spin, case.hamiltonian_case_id) in m.REQUIRED_CASE_KEYS
@@ -844,18 +966,29 @@ class TestRunCalibrationWiring:
 
         monkeypatch.setattr(m, "require_clean_worktree", lambda repo_root=None: None)
         monkeypatch.setattr(m, "resolve_calibration_code_commit", lambda repo_root=None: "b" * 40)
-        monkeypatch.setattr(m, "build_case_context", lambda case: SimpleNamespace(case_id=case.case_id))
-        monkeypatch.setattr(
-            m,
-            "compute_current_group_result",
-            lambda context, group_index: m.CurrentGroupResult(
-                multiplicity=1, twice_T=0, translation_label=SymmetryLabel(kind=NUMERIC, value=complex(1.0, 0.0)), reflection_label=SymmetryLabel(kind=NUMERIC, value=complex(-1.0, 0.0)), ctt={}, rho={}
-            ),
-        )
+        calls = {"count": 0}
+        monkeypatch.setattr(m, "build_case_context", lambda case: calls.__setitem__("count", calls["count"] + 1))
 
-        artifact = m.run_calibration(base_dir, manifest=REAL_MANIFEST)
-        assert artifact.status == m.CALIBRATION_FAIL
-        assert any("no eligible calibration group" in reason for reason in artifact.failure_reasons)
+        with pytest.raises(m.CalibrationConfigError, match="ring5"):
+            m.run_calibration(base_dir, manifest=REAL_MANIFEST)
+        assert calls["count"] == 0
+
+    def test_no_eligible_group_in_first_case_raises_before_any_recomputation(self, tmp_path, monkeypatch):
+        # triangle S=1 is the FIRST case in REQUIRED_CASE_ORDER.
+        base_dir = tmp_path / "historical"
+        for case in REAL_PLAN:
+            required = (case.geometry, case.spin, case.hamiltonian_case_id) in m.REQUIRED_CASE_KEYS
+            eligible = required and not (case.geometry == "triangle" and case.spin == 1)
+            _write_case_artifacts(base_dir, case, eligible=eligible)
+
+        monkeypatch.setattr(m, "require_clean_worktree", lambda repo_root=None: None)
+        monkeypatch.setattr(m, "resolve_calibration_code_commit", lambda repo_root=None: "b" * 40)
+        calls = {"count": 0}
+        monkeypatch.setattr(m, "build_case_context", lambda case: calls.__setitem__("count", calls["count"] + 1))
+
+        with pytest.raises(m.CalibrationConfigError, match="triangle"):
+            m.run_calibration(base_dir, manifest=REAL_MANIFEST)
+        assert calls["count"] == 0
 
     def test_structural_mismatch_fails_whole_calibration(self, tmp_path, monkeypatch):
         historical_dir = _build_full_historical_directory(tmp_path)
@@ -875,12 +1008,12 @@ class TestRunCalibrationWiring:
         assert artifact.non_regression_rho_abs_tol is None
 
     def test_fail_status_clears_both_tolerances_even_with_diagnostic_metrics(self, tmp_path, monkeypatch):
-        base_dir = tmp_path / "historical"
-        for case in REAL_PLAN:
-            required = (case.geometry, case.spin, case.hamiltonian_case_id) in m.REQUIRED_CASE_KEYS
-            eligible = required and not (case.geometry == "triangle" and case.spin == 1)
-            _write_case_artifacts(base_dir, case, eligible=eligible)
-
+        # A post-RUN_START scientific fail: ring5 S=1's one group
+        # mismatches structurally, while the other four cases' groups
+        # still produce valid diagnostic comparisons -- E_CTT/E_RHO end
+        # up numeric, but the overall status must still be FAIL with
+        # both tolerances voided.
+        historical_dir = _build_full_historical_directory(tmp_path)
         monkeypatch.setattr(m, "require_clean_worktree", lambda repo_root=None: None)
         monkeypatch.setattr(m, "resolve_calibration_code_commit", lambda repo_root=None: "b" * 40)
         monkeypatch.setattr(m, "build_case_context", lambda case: SimpleNamespace(case_id=case.case_id))
@@ -888,34 +1021,40 @@ class TestRunCalibrationWiring:
         def _fake_current(context, group_index):
             n_nodes_by_case = {case.case_id: len(build_lattice(case.geometry).nodes) for case in REAL_PLAN}
             pairs = build_ordered_pairs(n_nodes_by_case[context.case_id])
+            multiplicity = 999 if context.case_id == RING5_S1.case_id else 1
             return m.CurrentGroupResult(
-                multiplicity=1, twice_T=0, translation_label=SymmetryLabel(kind=NUMERIC, value=complex(1.0, 0.0)), reflection_label=SymmetryLabel(kind=NUMERIC, value=complex(-1.0, 0.0)), ctt={pair: 0.5 for pair in pairs}, rho={pair: (0.25, None) for pair in pairs}
+                multiplicity=multiplicity, twice_T=0, translation_label=SymmetryLabel(kind=NUMERIC, value=complex(1.0, 0.0)), reflection_label=SymmetryLabel(kind=NUMERIC, value=complex(-1.0, 0.0)), ctt={pair: 0.5 for pair in pairs}, rho={pair: (0.25, None) for pair in pairs}
             )
 
         monkeypatch.setattr(m, "compute_current_group_result", _fake_current)
-        artifact = m.run_calibration(base_dir, manifest=REAL_MANIFEST)
+        artifact = m.run_calibration(historical_dir, manifest=REAL_MANIFEST)
 
         assert artifact.status == m.CALIBRATION_FAIL
-        assert any("triangle" in reason and "eligible" in reason for reason in artifact.failure_reasons)
-        # the other 4 cases DID produce numeric E_CTT/E_RHO diagnostically
+        assert any(RING5_S1.case_id in reason and "MULTIPLICITY_MISMATCH" in reason for reason in artifact.failure_reasons)
+        # the other four cases DID produce numeric E_CTT/E_RHO diagnostically
         assert artifact.e_ctt is not None
+        assert artifact.e_rho is not None
         assert artifact.non_regression_ctt_abs_tol is None
         assert artifact.non_regression_rho_abs_tol is None
 
-    def test_environment_incomplete_fails(self, tmp_path, monkeypatch):
-        historical_dir = _build_full_historical_directory(tmp_path)
+    def test_environment_incomplete_raises_before_historical_load(self, tmp_path, monkeypatch):
         monkeypatch.setattr(m, "require_clean_worktree", lambda repo_root=None: None)
         monkeypatch.setattr(m, "resolve_calibration_code_commit", lambda repo_root=None: "b" * 40)
-        monkeypatch.setattr(m, "build_environment_fingerprint", lambda: {"python_version": "", "numpy_version": "1", "scipy_version": "1", "blas_lapack": {"blas_name": "x", "blas_version": "x", "lapack_name": "x", "lapack_version": "x"}, "platform": "p", "architecture": "a"})
-        monkeypatch.setattr(m, "build_case_context", lambda case: SimpleNamespace(case_id=case.case_id))
         monkeypatch.setattr(
             m,
-            "compute_current_group_result",
-            lambda context, group_index: m.CurrentGroupResult(multiplicity=1, twice_T=0, translation_label=SymmetryLabel(kind=NUMERIC, value=complex(1.0, 0.0)), reflection_label=SymmetryLabel(kind=NUMERIC, value=complex(-1.0, 0.0)), ctt={}, rho={}),
+            "build_environment_fingerprint",
+            lambda: {"python_version": "", "numpy_version": "1", "scipy_version": "1", "blas_lapack": {"blas_name": "x", "blas_version": "x", "lapack_name": "x", "lapack_version": "x"}, "platform": "p", "architecture": "a"},
         )
-        artifact = m.run_calibration(historical_dir, manifest=REAL_MANIFEST)
-        assert artifact.status == m.CALIBRATION_FAIL
-        assert any("environment" in reason for reason in artifact.failure_reasons)
+
+        def _forbidden(*a, **k):
+            raise AssertionError("must never be called when the environment is incomplete")
+
+        monkeypatch.setattr(m, "load_historical_index", _forbidden)
+        monkeypatch.setattr(m, "build_case_context", _forbidden)
+        monkeypatch.setattr(m, "compute_current_group_result", _forbidden)
+
+        with pytest.raises(m.CalibrationInternalFailure):
+            m.run_calibration(tmp_path / "does-not-matter", manifest=REAL_MANIFEST)
 
     def test_repository_commit_mismatch_raises_config_error(self, tmp_path, monkeypatch):
         base_dir = tmp_path / "historical"

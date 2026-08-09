@@ -112,20 +112,31 @@ from scripts.level1c_preflight.j0_grid_preflight import resolve_code_commit as _
 N_FLAVORS = 2
 REFERENCE_HAMILTONIAN_CASE_ID = "reference"
 
-REQUIRED_CASE_KEYS: frozenset[tuple[str, int, str]] = frozenset(
-    {
-        ("triangle", 1, REFERENCE_HAMILTONIAN_CASE_ID),
-        ("ring4", 1, REFERENCE_HAMILTONIAN_CASE_ID),
-        ("ring4", 2, REFERENCE_HAMILTONIAN_CASE_ID),
-        ("ring4", 3, REFERENCE_HAMILTONIAN_CASE_ID),
-        ("ring5", 1, REFERENCE_HAMILTONIAN_CASE_ID),
-    }
+REQUIRED_CASE_ORDER: tuple[tuple[str, int, str], ...] = (
+    ("triangle", 1, REFERENCE_HAMILTONIAN_CASE_ID),
+    ("ring4", 1, REFERENCE_HAMILTONIAN_CASE_ID),
+    ("ring4", 2, REFERENCE_HAMILTONIAN_CASE_ID),
+    ("ring4", 3, REFERENCE_HAMILTONIAN_CASE_ID),
+    ("ring5", 1, REFERENCE_HAMILTONIAN_CASE_ID),
 )
-"""Exactly the five cases frozen by 1C-7c2a/1C-7c2a2/1C-7c2b: same-
-geometry S=1 (triangle, ring5) plus ring4 S in {1,2,3}, all
-hamiltonian_case_id="reference" -- disjoint from the REQUIRED_NON_
-REGRESSION baseline (triangle/ring5 S in {2,3}) and from j_break.
-ALL_5_HOLDOUT_CASES_REQUIRED=YES: no fallback, no adaptive subset."""
+"""Exactly the five cases frozen by 1C-7c2a/1C-7c2a2/1C-7c2b, in a fixed,
+explicit, deterministic order (1C-7c3-fix: a tuple, never a bare
+frozenset iterated directly -- frozenset iteration order for str/tuple
+elements is randomized per-process by CPython's default PYTHONHASHSEED,
+confirmed empirically to differ across separate process invocations).
+This order governs select_required_cases, the case loop in
+run_calibration, and the historical_cases/failure_reasons ordering in
+the final artifact -- same-geometry S=1 (triangle, ring5) plus ring4 S
+in {1,2,3}, all hamiltonian_case_id="reference", disjoint from the
+REQUIRED_NON_REGRESSION baseline (triangle/ring5 S in {2,3}) and from
+j_break. ALL_5_HOLDOUT_CASES_REQUIRED=YES: no fallback, no adaptive
+subset."""
+
+REQUIRED_CASE_KEYS: frozenset[tuple[str, int, str]] = frozenset(REQUIRED_CASE_ORDER)
+"""Derived from REQUIRED_CASE_ORDER (never a second, independently
+maintained list) -- reserved for membership testing only (`in`,
+set-difference), never iterated directly for anything user-visible or
+order-sensitive."""
 
 EXPECTED_HISTORICAL_REPOSITORY_COMMIT = "0ff65ac66b4aa054f739b350cd384c26ecd19752"
 """The frozen provenance value documented in section 20.22 for the 1B-8g
@@ -291,13 +302,35 @@ def compute_file_sha256(path: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _power_of_ten_or_fail(exponent: int) -> float:
+    """10.0 ** exponent, sanitized: a decade that is not representable
+    as a finite float64 (an OverflowError near float64.max, or -- for
+    defense in depth on a platform/implementation that behaves
+    differently -- a silently returned inf) is never allowed to leak a
+    raw Python exception or an invented substitute value (never inf,
+    never float64.max: neither is the mathematically correct decade).
+    Raises CalibrationInternalFailure instead -- no new physical bound
+    is invented, this is purely a representability failure."""
+    try:
+        value = 10.0**exponent
+    except OverflowError:
+        raise CalibrationInternalFailure() from None
+    if not math.isfinite(value):
+        raise CalibrationInternalFailure()
+    return value
+
+
 def derive_absolute_tolerance(e: float) -> float:
     """CEIL_DECADE_POLICY: the smallest power of ten >= E for E > 0, or
     the smallest power of ten >= the float64 machine epsilon for E == 0
     -- a deterministic governance convention (docs section 20.22), never
     a rigorous numerical error bound, never a solver-accuracy claim,
     never a physical-response threshold. Raises ValueError for a
-    negative, NaN, or infinite E."""
+    negative, NaN, or infinite E. If the normative decade itself is not
+    representable as a finite float64 (E within roughly one decade of
+    float64.max), raises the sanitized CalibrationInternalFailure rather
+    than an uncaught OverflowError or an invented substitute -- this is
+    a representability limit of float64, never a new physical bound."""
     if isinstance(e, bool) or not isinstance(e, (int, float)):
         raise ValueError(f"E must be a real number, got {e!r}")
     e = float(e)
@@ -308,10 +341,10 @@ def derive_absolute_tolerance(e: float) -> float:
 
     x = float(np.finfo(np.float64).eps) if e == 0.0 else e
     exponent = math.floor(math.log10(x))
-    candidate = 10.0**exponent
+    candidate = _power_of_ten_or_fail(exponent)
     if candidate < x:
         exponent += 1
-        candidate = 10.0**exponent
+        candidate = _power_of_ten_or_fail(exponent)
     if candidate < x:
         # Defensive: this should be mathematically unreachable (a single
         # decade promotion always suffices for float64 log10's error
@@ -333,15 +366,19 @@ def select_required_cases(manifest: Manifest) -> dict[tuple[str, int, str], Camp
     correctly embedded, exactly as the historical campaign itself used
     them) -- raises CalibrationConfigError before any computation if
     even one is missing from build_campaign_plan(manifest). No fallback,
-    no adaptive subset (ALL_5_HOLDOUT_CASES_REQUIRED=YES)."""
+    no adaptive subset (ALL_5_HOLDOUT_CASES_REQUIRED=YES).
+
+    Returns a dict whose iteration order (a plain Python dict preserves
+    insertion order) is exactly REQUIRED_CASE_ORDER -- never derived by
+    iterating REQUIRED_CASE_KEYS (a frozenset) directly (1C-7c3-fix)."""
     plan = build_campaign_plan(manifest)
     by_key = {(case.geometry, case.spin, case.hamiltonian_case_id): case for case in plan}
-    missing = sorted(REQUIRED_CASE_KEYS - set(by_key))
+    missing = [key for key in REQUIRED_CASE_ORDER if key not in by_key]
     if missing:
         raise CalibrationConfigError(
             f"required calibration holdout case(s) missing from build_campaign_plan(manifest): {missing}"
         )
-    return {key: by_key[key] for key in REQUIRED_CASE_KEYS}
+    return {key: by_key[key] for key in REQUIRED_CASE_ORDER}
 
 
 # ---------------------------------------------------------------------------
@@ -416,11 +453,16 @@ def is_group_eligible(group: IndexedSpectralGroup, *, n_nodes: int) -> bool:
 
 
 def eligible_groups_for_case(index: CampaignArtifactIndex, case_id: str, *, n_nodes: int) -> tuple[IndexedSpectralGroup, ...]:
-    return tuple(
-        group
-        for group in index.groups
-        if group.case_id == case_id and is_group_eligible(group, n_nodes=n_nodes)
-    )
+    """index.groups is already canonically ordered (case order from the
+    manifest's own plan, then spectral_window_group_index ascending
+    within each case -- scripts.level1b_analysis.indexing's own
+    construction), so this filter already preserves that order. The
+    explicit sort below (1C-7c3-fix) changes no scientific identity --
+    it is a pure reordering by the same already-canonical key -- and is
+    kept only as defense in depth against that upstream guarantee ever
+    silently changing."""
+    matching = (group for group in index.groups if group.case_id == case_id and is_group_eligible(group, n_nodes=n_nodes))
+    return tuple(sorted(matching, key=lambda group: group.spectral_window_group_index))
 
 
 # ---------------------------------------------------------------------------
@@ -692,59 +734,131 @@ def _records_sha256_for_case(historical_output_dir: Path, case_id: str) -> str:
     return compute_file_sha256(historical_output_dir / "runs" / case_id / "records.jsonl")
 
 
+# ---------------------------------------------------------------------------
+# PRECONDITION_PHASE (1C-7c3-fix): every check below costs zero
+# diagonalization. RUN_START is defined as the point immediately after
+# this phase returns successfully -- no build_case_context call can
+# ever happen before every one of these checks has passed for ALL FIVE
+# required cases. A failure here is a PRE-RUN READINESS FAILURE: an
+# exception (CalibrationConfigError for configuration/historical-
+# archive problems, CalibrationInternalFailure for sanitized internal
+# ones), never a CalibrationArtifact, never a diagonalization, and
+# therefore never a consumption of CALIBRATION_RUN_POLICY=
+# SINGLE_ACCEPTED_RUN's one accepted attempt.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedHoldoutCase:
+    """One required case, fully validated as usable (>=1 eligible
+    group), with everything the RUN_START phase will need already
+    computed -- records_sha256 is never recomputed after RUN_START."""
+
+    key: tuple[str, int, str]
+    case: CampaignCaseSpec
+    n_nodes: int
+    eligible_groups: tuple[IndexedSpectralGroup, ...]
+    records_sha256: str
+
+
+def prepare_holdout_cases(
+    index: CampaignArtifactIndex, required_cases: Mapping[tuple[str, int, str], CampaignCaseSpec], historical_output_dir: Path
+) -> tuple[PreparedHoldoutCase, ...]:
+    """Precomputes eligibility for ALL FIVE required cases before any
+    diagonalization (1C-7c3-fix, closes the ALL-5 prevalidation gap):
+    if even one required case has zero eligible groups, raises
+    CalibrationConfigError listing every unusable case found -- never
+    after some other cases have already been diagonalized, and never a
+    fallback that proceeds with fewer than five. Iterates
+    REQUIRED_CASE_ORDER exactly (never a frozenset), so the returned
+    tuple's order is deterministic and reused, unchanged, everywhere
+    downstream (historical_cases, failure_reasons, the recomputation
+    loop itself). No diagonalization happens anywhere in this function
+    -- only structural filtering of already-loaded documents and a file
+    hash -- but the loop body is still wrapped in a sanitizing
+    try/except (matching the discipline used everywhere else in this
+    module): an unexpected exception here can only ever be an internal
+    inconsistency, never a reason to leak a raw message, and never a
+    reason to treat it as a legitimate CalibrationConfigError."""
+    prepared: list[PreparedHoldoutCase] = []
+    unusable_case_ids: list[str] = []
+    try:
+        for key in REQUIRED_CASE_ORDER:
+            case = required_cases[key]
+            geometry, _spin, _hamiltonian_case_id = key
+            n_nodes = len(build_lattice(geometry).nodes)
+            eligible = eligible_groups_for_case(index, case.case_id, n_nodes=n_nodes)
+            records_sha256 = _records_sha256_for_case(historical_output_dir, case.case_id)
+            prepared.append(
+                PreparedHoldoutCase(key=key, case=case, n_nodes=n_nodes, eligible_groups=eligible, records_sha256=records_sha256)
+            )
+            if not eligible:
+                unusable_case_ids.append(case.case_id)
+    except Exception:
+        raise CalibrationInternalFailure() from None
+
+    if unusable_case_ids:
+        raise CalibrationConfigError(
+            f"required calibration holdout case(s) have zero eligible calibration group: {unusable_case_ids}"
+        )
+    return tuple(prepared)
+
+
 def run_calibration(
     historical_output_dir: str | Path, manifest: Manifest | None = None, *, repo_root: str | None = None
 ) -> CalibrationArtifact:
     """Runs the full target-id-free calibration and returns the public
     artifact. NEVER called by this lot's tests or CLI default path --
     reserved for a future, single-invocation execution lot
-    (CALIBRATION_RUN_POLICY=SINGLE_ACCEPTED_RUN, unchanged)."""
+    (CALIBRATION_RUN_POLICY=SINGLE_ACCEPTED_RUN, unchanged).
+
+    PRECONDITION_PHASE (1C-7c3-fix): select_required_cases -> git
+    cleanliness -> current code SHA -> environment fingerprint ->
+    environment completeness -> historical archive validation
+    (load_historical_index, all 11 planned cases) -> eligibility for
+    ALL FIVE required cases (prepare_holdout_cases) -- every one of
+    these costs zero diagonalization, and a failure anywhere in this
+    phase raises before RUN_START, never producing a CalibrationArtifact
+    and never consuming the single accepted run.
+
+    RUN_START: immediately after prepare_holdout_cases returns. Only
+    real recomputation (CALIBRATION SCIENTIFIC FAIL, a CalibrationArtifact
+    with status=FAIL) happens from this point on."""
     resolved_manifest = manifest if manifest is not None else load_manifest()
     historical_output_dir = Path(historical_output_dir)
 
-    # Cheapest checks first, before any I/O or diagonalization: an
-    # unresolvable required case, a dirty worktree, or an incomplete
-    # environment all cost zero recomputation.
+    # --- PRECONDITION_PHASE: zero diagonalization above this line, and
+    # for every line below until RUN_START. ---
     required_cases = select_required_cases(resolved_manifest)
-
     require_clean_worktree(repo_root)
     code_commit = resolve_calibration_code_commit(repo_root)
     environment_fingerprint = build_environment_fingerprint()
-
-    failure_reasons: list[str] = []
     if not environment_fingerprint_is_complete(environment_fingerprint):
-        failure_reasons.append("current environment fingerprint is incomplete")
-
-    try:
-        index = load_historical_index(historical_output_dir, resolved_manifest)
-    except CalibrationConfigError:
-        raise
+        raise CalibrationInternalFailure()
+    index = load_historical_index(historical_output_dir, resolved_manifest)
+    prepared_cases = prepare_holdout_cases(index, required_cases, historical_output_dir)
+    # --- RUN_START: prepared_cases holds all five cases, each with
+    # >=1 eligible group, everything else about them already validated. ---
 
     case_summaries: list[HistoricalCaseSummary] = []
     comparisons: list[GroupComparison] = []
+    failure_reasons: list[str] = []
 
     try:
-        for key, case in required_cases.items():
-            geometry, _spin, _hamiltonian_case_id = key
-            n_nodes = len(build_lattice(geometry).nodes)
-            eligible = eligible_groups_for_case(index, case.case_id, n_nodes=n_nodes)
-            records_sha256 = _records_sha256_for_case(historical_output_dir, case.case_id)
+        for prepared in prepared_cases:
             case_summaries.append(
-                HistoricalCaseSummary(case_id=case.case_id, records_sha256=records_sha256, eligible_group_count=len(eligible))
+                HistoricalCaseSummary(
+                    case_id=prepared.case.case_id, records_sha256=prepared.records_sha256, eligible_group_count=len(prepared.eligible_groups)
+                )
             )
-
-            if not eligible:
-                failure_reasons.append(f"case {case.case_id!r}: no eligible calibration group found")
-                continue
-
-            context = build_case_context(case)
-            for historical_group in eligible:
+            context = build_case_context(prepared.case)
+            for historical_group in prepared.eligible_groups:
                 current = compute_current_group_result(context, historical_group.spectral_window_group_index)
                 comparison = compare_group(historical_group, current)
                 comparisons.append(comparison)
                 if not comparison.ok:
                     failure_reasons.append(
-                        f"case {case.case_id!r} group {historical_group.spectral_window_group_index}: {comparison.status}"
+                        f"case {prepared.case.case_id!r} group {historical_group.spectral_window_group_index}: {comparison.status}"
                     )
     except MemoryError:
         raise CalibrationInternalFailure() from None
