@@ -20,7 +20,7 @@ from scripts.level1c_baseline_gate.gate import (
     validate_gate_artifact_document,
 )
 
-from conftest import real_historical_group_data, real_level1c_baseline_case_id, write_fake_level1c_baseline_case
+from level1c_baseline_gate_helpers import real_historical_group_data, write_fake_level1c_baseline_case
 
 REPO_COMMIT = "79c0b8b8a5f2208acb6c4b8776ef6323ad8bbd98"
 

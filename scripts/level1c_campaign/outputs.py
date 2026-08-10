@@ -21,6 +21,20 @@ observable, never re-derives a payload, and never repairs a partially
 valid run silently. It does not loop over a campaign, does not launch
 one, and does not touch tracking/response/non-regression-gate concerns
 -- see the package docstring for the exact authorized scope.
+
+load_and_verify_case_artifact (1C-8e) is the shared, read-only
+integrity core reused by both scripts.level1c_baseline_gate.gate
+(1C-8d-fix) and scripts.level1c_tracking (1C-8e): it verifies run.json
+schema validity, run.json's own case_id, records.jsonl's exact-byte
+SHA-256 against run.json's records_sha256, record_count, per-record
+schema validity and campaign/manifest/repository provenance, and each
+record's scientific identity (geometry/spin/sector/Hamiltonian) against
+the exact CampaignCaseSpec build_level1c_campaign_plan(manifest)
+produces for that case_id. It deliberately does NOT check run_status or
+normative_case_valid -- callers apply their own validity gating on top
+(the baseline gate requires run_status=success AND normative_case_
+valid=true; tracking's perturbed side requires only run_status=success,
+section 1C-8e "PERTURBED_NORMATIVE_CASE_VALIDITY_ROLE").
 """
 
 from __future__ import annotations
@@ -30,6 +44,7 @@ import json
 import os
 import uuid
 from pathlib import Path
+from typing import Mapping
 
 from experiments.level1.planning import CampaignCaseSpec
 from experiments.level1c.case_artifact import (
@@ -43,11 +58,20 @@ from experiments.level1c.case_artifact import (
     validate_target_selections_match_manifest,
 )
 from experiments.level1c.manifest import Level1CManifest
+from experiments.level1c.planning import build_level1c_campaign_plan
 from experiments.level1c.result_schema import validate_result_record
 
 from .runner import Level1CCaseExecutionResult
 
 _FAILURE_RUN_STATUSES = (FAILED, RESOURCE_GUARDRAIL_EXCEEDED)
+
+
+class Level1CArtifactIntegrityError(RuntimeError):
+    """Raised by load_and_verify_case_artifact for any integrity or
+    provenance failure of a persisted Level1C case artifact -- never a
+    bare exception. Callers (scripts.level1c_baseline_gate.gate,
+    scripts.level1c_tracking) catch this and re-raise their own,
+    module-scoped exception type, preserving the exact message."""
 
 
 def _case_run_dir(output_dir: Path, case_id: str) -> Path:
@@ -196,6 +220,157 @@ def write_case_failure(
     run_document = to_json_dict(artifact)
     validate_case_run_document(run_document)
     _atomic_write_bytes(case_dir / "run.json", canonical_json_bytes(run_document))
+
+
+def _case_hamiltonian_identity_tuple(case: CampaignCaseSpec) -> tuple:
+    """Generic, non-holdout-specific tuple representation of a
+    CampaignCaseSpec's own Hamiltonian, for comparison against a
+    document's identity.hamiltonian."""
+    parameters = case.hamiltonian_parameters
+    h_is_zero = all(bool((matrix == 0).all()) for matrix in parameters.h)
+    return (
+        tuple(float(value) for value in parameters.J),
+        h_is_zero,
+        float(parameters.t),
+        float(parameters.g_E),
+        float(parameters.K),
+    )
+
+
+def _document_hamiltonian_identity_tuple(hamiltonian: Mapping) -> tuple:
+    return (
+        tuple(float(value) for value in hamiltonian["J"]),
+        hamiltonian["h_is_zero"],
+        float(hamiltonian["t"]),
+        float(hamiltonian["g_E"]),
+        float(hamiltonian["K"]),
+    )
+
+
+def _expected_campaign_case_spec(level1c_manifest: Level1CManifest, case_id: str) -> CampaignCaseSpec:
+    """The exact CampaignCaseSpec build_level1c_campaign_plan(manifest)
+    itself produces for `case_id` -- never a heuristic reconstruction.
+    Raises Level1CArtifactIntegrityError if case_id is not one of the
+    manifest's own planned cases."""
+    for case in build_level1c_campaign_plan(level1c_manifest):
+        if case.case_id == case_id:
+            return case
+    raise Level1CArtifactIntegrityError(f"case_id {case_id!r} is not present in build_level1c_campaign_plan(level1c_manifest)")
+
+
+def _require_record_matches_expected_case(record: Mapping, expected_case: CampaignCaseSpec, *, case_id: str, line_index: int) -> None:
+    identity = record["identity"]
+    if identity["geometry"] != expected_case.geometry:
+        raise Level1CArtifactIntegrityError(
+            f"records.jsonl line {line_index} for case {case_id!r}: identity.geometry "
+            f"({identity['geometry']!r}) does not match the expected case's geometry ({expected_case.geometry!r})"
+        )
+    if identity["spin"] != expected_case.spin:
+        raise Level1CArtifactIntegrityError(
+            f"records.jsonl line {line_index} for case {case_id!r}: identity.spin ({identity['spin']!r}) "
+            f"does not match the expected case's spin ({expected_case.spin!r})"
+        )
+    if identity["sector"] != expected_case.sector_id:
+        raise Level1CArtifactIntegrityError(
+            f"records.jsonl line {line_index} for case {case_id!r}: identity.sector ({identity['sector']!r}) "
+            f"does not match the expected case's sector_id ({expected_case.sector_id!r})"
+        )
+    if _document_hamiltonian_identity_tuple(identity["hamiltonian"]) != _case_hamiltonian_identity_tuple(expected_case):
+        raise Level1CArtifactIntegrityError(
+            f"records.jsonl line {line_index} for case {case_id!r}: identity.hamiltonian does not match the "
+            "expected case's own hamiltonian_parameters"
+        )
+
+
+def load_and_verify_case_run_document(output_dir: Path, case_id: str) -> dict:
+    """Reads and schema-validates runs/<case_id>/run.json, and verifies
+    its own case_id matches the requested one. The FIRST step of the
+    frozen chain (case_id -> run_status -> normative_case_valid ->
+    records_sha256 -> record_count -> per-record provenance -> exact
+    CampaignCaseSpec scientific identity, 1C-8d-fix): deliberately
+    split from load_and_verify_case_records so a caller can apply its
+    own run_status/normative_case_valid gating (each caller's own
+    validity semantics) BEFORE the heavier records.jsonl integrity
+    checks ever run -- never after, so a technically-failed or
+    normatively-invalid case is rejected before its (possibly absent or
+    irrelevant) records.jsonl is ever touched."""
+    case_dir = Path(output_dir) / "runs" / case_id
+    run_path = case_dir / "run.json"
+    if not run_path.exists():
+        raise Level1CArtifactIntegrityError(f"missing Level1C run.json for case {case_id!r} under {output_dir}")
+
+    try:
+        run_document = json.loads(run_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Level1CArtifactIntegrityError(f"Level1C run.json for case {case_id!r} could not be parsed: {exc}") from exc
+
+    validate_case_run_document(run_document)
+
+    if run_document["case_id"] != case_id:
+        raise Level1CArtifactIntegrityError(
+            f"run.json case_id ({run_document['case_id']!r}) does not match the requested case_id ({case_id!r})"
+        )
+
+    return run_document
+
+
+def load_and_verify_case_records(
+    output_dir: Path, case_id: str, run_document: Mapping, *, level1c_manifest: Level1CManifest
+) -> tuple[dict, ...]:
+    """The SECOND step of the frozen chain: records.jsonl's exact-byte
+    SHA-256 against run_document's own records_sha256 (never
+    reconstructed from parsed JSON), record_count, per-record schema
+    validity and campaign/manifest/repository provenance consistency
+    with run_document, and per-record scientific identity consistency
+    with the exact CampaignCaseSpec build_level1c_campaign_plan(manifest)
+    produces for this case_id. Callers must call load_and_verify_case_
+    run_document first and apply their own run_status/normative_case_
+    valid gating before calling this."""
+    case_dir = Path(output_dir) / "runs" / case_id
+    records_path = case_dir / "records.jsonl"
+    if not records_path.exists():
+        raise Level1CArtifactIntegrityError(f"missing records.jsonl for case {case_id!r} under {output_dir}")
+
+    try:
+        records_bytes = records_path.read_bytes()
+    except OSError as exc:
+        raise Level1CArtifactIntegrityError(f"records.jsonl for case {case_id!r} could not be read: {exc}") from exc
+
+    actual_sha256 = hashlib.sha256(records_bytes).hexdigest()
+    if actual_sha256 != run_document["records_sha256"]:
+        raise Level1CArtifactIntegrityError(
+            f"records.jsonl for case {case_id!r} SHA-256 ({actual_sha256}) does not match run.json "
+            f"records_sha256 ({run_document['records_sha256']!r}) -- integrity check failed on the exact "
+            "persisted bytes, never reconstructed from parsed JSON"
+        )
+
+    try:
+        records = load_case_records(case_dir)
+    except ValueError as exc:
+        raise Level1CArtifactIntegrityError(f"records.jsonl for case {case_id!r} could not be loaded: {exc}") from exc
+
+    if len(records) != run_document["record_count"]:
+        raise Level1CArtifactIntegrityError(
+            f"records.jsonl for case {case_id!r} has {len(records)} document(s), run.json record_count is "
+            f"{run_document['record_count']!r}"
+        )
+
+    expected_case = _expected_campaign_case_spec(level1c_manifest, case_id)
+
+    for index, record in enumerate(records):
+        try:
+            validate_result_record(record)
+        except ValueError as exc:
+            raise Level1CArtifactIntegrityError(f"records.jsonl line {index} for case {case_id!r} failed schema validation: {exc}") from exc
+        for key in ("campaign_id", "manifest_fingerprint", "repository_commit"):
+            if record[key] != run_document[key]:
+                raise Level1CArtifactIntegrityError(
+                    f"records.jsonl line {index} for case {case_id!r} has {key} ({record[key]!r}) that does not "
+                    f"match run.json's own {key} ({run_document[key]!r})"
+                )
+        _require_record_matches_expected_case(record, expected_case, case_id=case_id, line_index=index)
+
+    return tuple(records)
 
 
 def load_case_records(case_dir: Path) -> tuple[dict, ...]:
