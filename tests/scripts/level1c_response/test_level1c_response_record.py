@@ -220,3 +220,106 @@ def test_no_physical_verdict_or_incident_or_g_fields_in_schema() -> None:
         lowered = key.lower()
         for forbidden in forbidden_substrings:
             assert forbidden not in lowered, f"unexpected field {key!r} suggests a forbidden concept ({forbidden!r})"
+
+
+# ---------------------------------------------------------------------------
+# JSON-direct schema tests (1C-8f-fix): documents built by hand, never via
+# ResponseRecord/RhoPairControl -- these prove the SCHEMA ITSELF is airtight,
+# independent of the Python dataclasses' own guardrails (which would never
+# let such a document be constructed in the first place).
+# ---------------------------------------------------------------------------
+
+_BASE_DOCUMENT = {
+    "schema_version": "level1c-response-record-v1",
+    "campaign_id": "level1c-j0-response-v1",
+    "repository_commit": REPO_COMMIT,
+    "manifest_fingerprint": "fp",
+    "geometry": "triangle",
+    "spin": 2,
+    "baseline_case_id": "baseline-case",
+    "perturbed_case_id": "perturbed-case",
+    "baseline_hamiltonian_case_id": "j0-1.00",
+    "perturbed_hamiltonian_case_id": "j0-0.75",
+    "target_id": "fundamental",
+}
+
+
+def _not_available_document(*, failure_reasons: list[str]) -> dict:
+    return {
+        **_BASE_DOCUMENT,
+        "tracking_status": AMBIGUOUS_TRACKING_STATUS,
+        "response_eligibility": RESPONSE_NOT_AVAILABLE,
+        "baseline_group_index": None,
+        "perturbed_group_index": None,
+        "delta_ctt_pairs": None,
+        "rho_pair_controls": None,
+        "failure_reasons": failure_reasons,
+    }
+
+
+def _available_document(*, rho_pair_controls: list[dict]) -> dict:
+    return {
+        **_BASE_DOCUMENT,
+        "tracking_status": TRACKED_ONE_TO_ONE,
+        "response_eligibility": RESPONSE_AVAILABLE,
+        "baseline_group_index": 0,
+        "perturbed_group_index": 5,
+        "delta_ctt_pairs": [{"i": 0, "j": 1, "baseline_value": 0.5, "perturbed_value": 0.75, "delta": 0.25}],
+        "rho_pair_controls": rho_pair_controls,
+        "failure_reasons": [],
+    }
+
+
+def test_json_direct_not_available_empty_failure_reasons_rejected() -> None:
+    document = _not_available_document(failure_reasons=[])
+    with pytest.raises(ValueError, match="failure_reasons"):
+        validate_response_record_document(document)
+
+
+def test_json_direct_not_available_nonempty_failure_reasons_accepted() -> None:
+    document = _not_available_document(failure_reasons=["BASELINE_UNAVAILABLE: x"])
+    validate_response_record_document(document)
+
+
+def test_json_direct_rho_baseline_numeric_with_null_reason_rejected() -> None:
+    document = _available_document(
+        rho_pair_controls=[{"i": 0, "j": 1, "baseline_value": -0.5, "baseline_null_reason": "zero_local_charge_variance", "perturbed_value": -0.4, "perturbed_null_reason": None}]
+    )
+    with pytest.raises(ValueError):
+        validate_response_record_document(document)
+
+
+def test_json_direct_rho_baseline_null_with_empty_reason_rejected() -> None:
+    document = _available_document(
+        rho_pair_controls=[{"i": 0, "j": 1, "baseline_value": None, "baseline_null_reason": None, "perturbed_value": -0.4, "perturbed_null_reason": None}]
+    )
+    with pytest.raises(ValueError):
+        validate_response_record_document(document)
+
+
+def test_json_direct_rho_perturbed_numeric_with_null_reason_rejected() -> None:
+    document = _available_document(
+        rho_pair_controls=[{"i": 0, "j": 1, "baseline_value": -0.5, "baseline_null_reason": None, "perturbed_value": -0.4, "perturbed_null_reason": "zero_local_charge_variance"}]
+    )
+    with pytest.raises(ValueError):
+        validate_response_record_document(document)
+
+
+def test_json_direct_rho_perturbed_null_with_empty_reason_rejected() -> None:
+    document = _available_document(
+        rho_pair_controls=[{"i": 0, "j": 1, "baseline_value": -0.5, "baseline_null_reason": None, "perturbed_value": None, "perturbed_null_reason": None}]
+    )
+    with pytest.raises(ValueError):
+        validate_response_record_document(document)
+
+
+def test_json_direct_rho_all_four_valid_combinations_accepted() -> None:
+    document = _available_document(
+        rho_pair_controls=[
+            {"i": 0, "j": 1, "baseline_value": -0.5, "baseline_null_reason": None, "perturbed_value": -0.4, "perturbed_null_reason": None},
+            {"i": 1, "j": 2, "baseline_value": -0.5, "baseline_null_reason": None, "perturbed_value": None, "perturbed_null_reason": "zero_local_charge_variance"},
+            {"i": 2, "j": 0, "baseline_value": None, "baseline_null_reason": "zero_local_charge_variance", "perturbed_value": -0.4, "perturbed_null_reason": None},
+            {"i": 0, "j": 2, "baseline_value": None, "baseline_null_reason": "zero_local_charge_variance", "perturbed_value": None, "perturbed_null_reason": "normalization_denominator_below_floor"},
+        ]
+    )
+    validate_response_record_document(document)

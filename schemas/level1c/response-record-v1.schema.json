@@ -65,7 +65,8 @@
   "else": {
     "properties": {
       "delta_ctt_pairs": {"type": "null"},
-      "rho_pair_controls": {"type": "null"}
+      "rho_pair_controls": {"type": "null"},
+      "failure_reasons": {"minItems": 1}
     }
   },
   "$defs": {
@@ -96,7 +97,19 @@
         "perturbed_value": {"type": ["number", "null"]},
         "perturbed_null_reason": {"type": ["string", "null"]}
       },
-      "description": "Deliberately no delta/ratio/relative_change field: rho_QQ is a pairwise concordance control juxtaposed side-by-side, never a response amplitude (RHO_RESPONSE_ROLE=PAIRWISE_CONCORDANCE_CONTROL)."
+      "allOf": [
+        {
+          "if": {"required": ["baseline_value"], "properties": {"baseline_value": {"type": "null"}}},
+          "then": {"required": ["baseline_null_reason"], "properties": {"baseline_null_reason": {"type": "string", "minLength": 1}}},
+          "else": {"properties": {"baseline_null_reason": {"const": null}}}
+        },
+        {
+          "if": {"required": ["perturbed_value"], "properties": {"perturbed_value": {"type": "null"}}},
+          "then": {"required": ["perturbed_null_reason"], "properties": {"perturbed_null_reason": {"type": "string", "minLength": 1}}},
+          "else": {"properties": {"perturbed_null_reason": {"const": null}}}
+        }
+      ],
+      "description": "Deliberately no delta/ratio/relative_change field: rho_QQ is a pairwise concordance control juxtaposed side-by-side, never a response amplitude (RHO_RESPONSE_ROLE=PAIRWISE_CONCORDANCE_CONTROL). value==null <=> null_reason is a non-empty string, independently for baseline and perturbed (1C-8f-fix) -- mirrors the identical idiom already frozen in schemas/level1c/result-record-v1.schema.json $defs.normalizedMoment."
     }
   }
 }
