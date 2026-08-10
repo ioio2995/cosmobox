@@ -43,6 +43,7 @@ import hashlib
 import json
 import os
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
@@ -397,5 +398,91 @@ def load_case_records(case_dir: Path) -> tuple[dict, ...]:
         if not isinstance(parsed, dict):
             raise ValueError(f"records.jsonl line {index} is not a JSON object, got {type(parsed)}")
         documents.append(parsed)
+
+    return tuple(documents)
+
+
+# ---------------------------------------------------------------------------
+# Resume validation for the PHASE_P campaign loop (1C-8h)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class Level1CCaseRunValidation:
+    """Whether an existing runs/<case_id>/ directory is exactly reusable
+    for PHASE_P (never re-executed). `is_valid=True` iff every reuse
+    condition holds; `reason` is set if and only if `is_valid` is False
+    -- never an exception for a simple "not reusable" outcome (mirrors
+    scripts.level1b_campaign.outputs.CaseRunValidation's own contract)."""
+
+    is_valid: bool
+    reason: str | None
+
+    def __post_init__(self) -> None:
+        if self.is_valid != (self.reason is None):
+            raise ValueError("reason must be set if and only if is_valid is False")
+
+
+def validate_existing_level1c_case_run(
+    output_dir: Path, case_id: str, *, level1c_manifest: Level1CManifest, repository_commit: str
+) -> Level1CCaseRunValidation:
+    """Answers exactly: does `<output_dir>/runs/<case_id>/` already hold
+    an exactly-reusable PHASE_P run for (case_id, level1c_manifest.
+    campaign_id, level1c_manifest.fingerprint, repository_commit)? Never
+    re-executes run_level1c_case, never raises for a simple "not
+    reusable" outcome -- every failure mode returns
+    Level1CCaseRunValidation(False, reason) instead.
+
+    Reuses load_and_verify_case_run_document/load_and_verify_case_records
+    verbatim (never a third JSON/JSONL parser) for schema validity,
+    exact-byte SHA-256, record_count, and per-record scientific identity.
+    Those two shared functions deliberately verify only INTERNAL
+    consistency (records agree with their own run.json; run.json's own
+    case_id matches the directory) -- neither ever compares campaign_id/
+    manifest_fingerprint/repository_commit against what THIS caller
+    currently expects. That external provenance check is added here
+    explicitly (the same 3-line pattern already applied twice by
+    scripts.level1c_tracking.tracking's own load_baseline_for_tracking/
+    load_perturbed_for_tracking) -- without it, a run.json produced under
+    a different campaign_id/manifest_fingerprint/repository_commit would
+    be wrongly treated as reusable.
+
+    run_status must be 'success' -- any other value (including
+    'failed'/'resource_guardrail_exceeded') is simply not reusable, and
+    is retried unconditionally on the next campaign loop pass (no
+    terminal failure state; RUN_STATUS_SEMANTICS=TECHNICAL_EXECUTION_
+    STATUS, 1C-8c-fix). normative_case_valid is NEVER consulted here: a
+    technically successful, structurally intact run is a valid,
+    immutable PHASE_P artifact regardless of its normative verdict --
+    that verdict belongs exclusively to downstream consumers (the
+    baseline gate, tracking) which apply their own, stricter criteria on
+    top of this same artifact, never conflated with PHASE_P's own resume
+    criterion.
+    """
+    try:
+        run_document = load_and_verify_case_run_document(output_dir, case_id)
+    except Level1CArtifactIntegrityError as exc:
+        return Level1CCaseRunValidation(is_valid=False, reason=str(exc))
+
+    if run_document["run_status"] != "success":
+        return Level1CCaseRunValidation(is_valid=False, reason=f"run_status is {run_document['run_status']!r}, not 'success'")
+
+    for key, expected in (
+        ("campaign_id", level1c_manifest.campaign_id),
+        ("manifest_fingerprint", level1c_manifest.fingerprint),
+        ("repository_commit", repository_commit),
+    ):
+        if run_document[key] != expected:
+            return Level1CCaseRunValidation(
+                is_valid=False,
+                reason=f"run.json {key} ({run_document[key]!r}) does not match expected ({expected!r})",
+            )
+
+    try:
+        load_and_verify_case_records(output_dir, case_id, run_document, level1c_manifest=level1c_manifest)
+    except Level1CArtifactIntegrityError as exc:
+        return Level1CCaseRunValidation(is_valid=False, reason=str(exc))
+
+    return Level1CCaseRunValidation(is_valid=True, reason=None)
 
     return tuple(documents)
