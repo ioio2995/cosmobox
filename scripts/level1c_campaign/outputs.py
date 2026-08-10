@@ -484,5 +484,3 @@ def validate_existing_level1c_case_run(
         return Level1CCaseRunValidation(is_valid=False, reason=str(exc))
 
     return Level1CCaseRunValidation(is_valid=True, reason=None)
-
-    return tuple(documents)

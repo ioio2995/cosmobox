@@ -879,6 +879,20 @@ Fichiers de ce lot : `scripts/level1c_campaign/outputs.py` (ajout de `Level1CCas
 
 Ce commit reste en attente d'audit, non présenté comme accepté. Le pointeur « Dernier commit accepté » reste `650ead1886b8db24f6eecd4c08c894b76bf35fa6` (non avancé). Attends l'audit de ChatGPT puis la décision de Lionel. Aucun lot suivant ne démarre.
 
+**Audit ChatGPT sur 1C-8h (commit `72fa7ebf9168fe75c6282015912f543bc21d019f`)** : cœur accepté sur le fond (`P_CAMPAIGN_LOOP=OK`, `P_RESUME=OK`, `P_EXTERNAL_PROVENANCE_CHECK=OK`, `EXCEPTION_SEMANTICS=OK`, `SCIENTIFIC_DRIFT=NONE`), acceptation définitive suspendue pour un seul défaut mécanique : un second `return tuple(documents)` inatteignable, introduit accidentellement après le `return Level1CCaseRunValidation(is_valid=True, reason=None)` final de `validate_existing_level1c_case_run` — aucun effet comportemental ou scientifique, corrigé par `1C-8h-fix` ci-dessous.
+
+## Lot 1C-8h-fix — suppression du code mort résiduel (ce commit)
+
+Supprime exclusivement la ligne `return tuple(documents)` inatteignable (et la ligne vide qui la précédait) après le retour final de `validate_existing_level1c_case_run` (`scripts/level1c_campaign/outputs.py`). Le `return tuple(documents)` légitime de `load_case_records` reste inchangé. Aucune autre modification — diff fonctionnel réel : suppression de 2 lignes.
+
+Tests : `tests/scripts/level1c_campaign` = 83 passed (inchangé) ; suite Level1C réunie (`level1c_campaign + level1c_baseline_gate + level1c_tracking + level1c_response + experiments/level1c`) = 396 passed (inchangé) ; suite complète du dépôt = 2160 passed (inchangé), ~71s. Aucune régression, comme attendu pour un correctif de code mort.
+
+`DEAD_CODE_REMOVED=YES`, `PHASE_P_BEHAVIOR_CHANGED=NO`, `SCIENTIFIC_BEHAVIOR_CHANGED=NO`, `REAL_NORMATIVE_CAMPAIGN_EXECUTED=NO`.
+
+Fichiers de ce lot : `scripts/level1c_campaign/outputs.py` (suppression de 2 lignes uniquement), `docs/governance/current-task.md`. Aucun autre fichier touché.
+
+Ce commit reste en attente d'audit, non présenté comme accepté. Le pointeur « Dernier commit accepté » reste `650ead1886b8db24f6eecd4c08c894b76bf35fa6` (non avancé tant que ChatGPT n'a pas audité ce correctif). Attends l'audit de ChatGPT puis la décision de Lionel. Aucun lot suivant ne démarre.
+
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)
 
 Entrée de lancement explicite (`prepare_normative_launch`/`launch_normative_campaign` dans `scripts/level1b_campaign/launch.py`, plus une CLI mince `scripts/run_level1b_campaign.py`) qui vérifie toutes les préconditions normatives de la campagne puis appelle `run_campaign` (lot 1B-8d, inchangé) exactement comme celui-ci est déjà défini. Aucune logique scientifique nouvelle ; aucune reconstruction du plan (`run_campaign` construit déjà `build_campaign_plan(manifest)` exactement une fois).
