@@ -29,7 +29,7 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-5159c2d68a060858cfd751e9b76365eecb2aba3e
+79c0b8b8a5f2208acb6c4b8776ef6323ad8bbd98
 ```
 
 **Level 1B : CLOS.** 1B-9g (clôture scientifique documentaire) accepté définitivement. Voir « Lot 1B-9g » ci-dessous et `docs/levels/level1/level1b-conclusion.md`. **Le manifeste Level 1B (`experiments/level1/preregistered-manifest-v1.json`) reste inchangé.**
@@ -672,7 +672,7 @@ Fichiers de ce lot : `experiments/level1c/case_artifact.py` (étendu : `required
 
 **Audit ChatGPT : NON ACCEPTÉ EN L'ÉTAT.** Verdict détaillé : `PHASE_P_COMPUTATION=OK`, `STRUCTURAL_PRODUCTION=OK`, `TARGET_SELECTION_PERSISTENCE=OK`, `OBSERVABLE_PRODUCTION=OK`, `ATOMIC_OUTPUTS=OK`. Blocker exact : `NORMATIVE_CASE_SUCCESS_SEMANTICS_NOT_FROZEN` — la séparation introduite entre `run_status` (technique) et le required-target gate (scientifique) était conceptuellement correcte mais n'avait jamais été explicitement ratifiée avant implémentation, et le verdict scientifique du cas n'était exposé que comme une propriété calculée à la volée, jamais persisté durablement dans l'artefact lui-même. Corrigé sans réouverture scientifique par `1C-8c-fix` ci-dessous, qui ratifie formellement `RUN_STATUS_SEMANTICS=TECHNICAL_EXECUTION_STATUS` et introduit le champ persistant `normative_case_valid`.
 
-## Lot 1C-8c-fix — gel et persistance de la validité normative du cas (ce commit)
+## Lot 1C-8c-fix — gel et persistance de la validité normative du cas (commit `79c0b8b8a5f2208acb6c4b8776ef6323ad8bbd98`, ACCEPTÉ DÉFINITIVEMENT)
 
 Corrige uniquement le blocker `NORMATIVE_CASE_SUCCESS_SEMANTICS_NOT_FROZEN` de 1C-8c, sans toucher au moteur de production (`scripts/level1c_campaign/runner.py` inchangé, aucune diagonalisation nécessaire), au manifeste, au planning, ni à aucune décision scientifique (grille `J0`, fenêtres, cibles, tracking, tolérances, `PHYSICAL_RESPONSE_THRESHOLD` — tous inchangés). Aucun campagne runner, aucune gate de non-régression baseline, aucun tracking inter-J0, aucune phase R, aucun `campaign.json`, aucune campagne réelle des 20 cas.
 
@@ -686,7 +686,47 @@ Documenté pour les lots futurs (non implémenté ici) : `CASE_TECHNICALLY_SUCCE
 
 Tests (14 nets ajoutés : 12 dans `test_level1c_case_artifact.py`, 2 dans `test_level1c_outputs.py`) : succès avec toutes cibles `REQUIRED` valides → `normative_case_valid=True` ; `REQUIRED` `ambiguous`/`not_in_window`/`selected`+`partial_subspace` → `False` ; `T_max` `ambiguous`/`selected`+`partial_subspace` (CALIBRATION_ONLY) → toujours `True` si les `REQUIRED` sont valides ; `failed`/`resource_guardrail_exceeded` → `None` ; booléen incohérent avec `target_selections` (dans les deux sens) → rejet ; `normative_case_valid` doit être un booléen strict pour un succès (jamais `None`) → rejet ; `run.json` porte le champ correctement pour succès et échec ; `write_case_success` n'échoue jamais pour un cas normativement invalide construit à partir d'un résultat réel altéré (`first_excited` rendu `ambiguous`), `run_status` reste `success`, artefact conforme au schéma. Aucune nouvelle diagonalisation nécessaire (`scripts/level1c_campaign/runner.py` inchangé ; le seul test touchant un résultat réel réutilise les fixtures déjà calculées de 1C-8c). Résultats observés par Claude (non exécutés par ChatGPT) : `tests/experiments/level1c + tests/scripts/level1c_campaign` = 164 passed ; suite connexe = 1319 passed ; suite complète du dépôt = 1928 passed, ~55-60s (aucune diagonalisation supplémentaire par rapport à 1C-8c).
 
-Fichiers de ce lot : `experiments/level1c/case_artifact.py` (étendu), `schemas/level1c/case-run-v1.schema.json` (étendu, `schema_version` inchangé), `scripts/level1c_campaign/outputs.py` (étendu), `tests/experiments/level1c/test_level1c_case_artifact.py` (étendu), `tests/scripts/level1c_campaign/test_level1c_outputs.py` (étendu), `docs/governance/current-task.md`. `scripts/level1c_campaign/runner.py` non modifié. Aucun runner de campagne, aucune diagonalisation nouvelle, aucune campagne réelle. Ce commit reste en attente d'audit, non présenté comme accepté.
+Fichiers de ce lot : `experiments/level1c/case_artifact.py` (étendu), `schemas/level1c/case-run-v1.schema.json` (étendu, `schema_version` inchangé), `scripts/level1c_campaign/outputs.py` (étendu), `tests/experiments/level1c/test_level1c_case_artifact.py` (étendu), `tests/scripts/level1c_campaign/test_level1c_outputs.py` (étendu), `docs/governance/current-task.md`. `scripts/level1c_campaign/runner.py` non modifié.
+
+**1C-8c + 1C-8c-fix ACCEPTÉS DÉFINITIVEMENT ENSEMBLE.** État gelé : `RUN_STATUS_SEMANTICS=TECHNICAL_EXECUTION_STATUS`, `NORMATIVE_PHASE_P_IMPLEMENTATION_READY=YES`, `NORMATIVE_CAMPAIGN_IMPLEMENTATION_READY=NO`.
+
+## Lot 1C-8d — implémentation de la gate de non-régression baseline (ce commit)
+
+Implémente l'outil situé exactement entre P et T (§20.19) : `P -> BASELINE_NON_REGRESSION_GATE -> T`. Ce lot livre l'outil, son schéma et ses tests ; **aucune exécution normative réelle de la gate sur les quatre baselines n'a été effectuée** (aucun cas Level1C réel n'existe encore sur disque, aucune campagne des 20 cas n'a été lancée).
+
+**Audit D022 préalable (§22 du mandat)** : un premier arrêt `BLOCKED` a été produit avant tout code, correctement identifié par l'audit de Lionel comme une prudence justifiée mais une conclusion excessive. Après audit conceptuel du sélecteur et du runner historique Level1B, la conclusion corrigée et retenue est :
+
+```text
+BASELINE_REQUIRED_TARGET_MAPPING_FROM_PERSISTED_LEVEL1B
+= PROVABLE
+```
+
+`fundamental`/`first_excited` sont positionnels (`spectral_window_group_index` 0/1, une conséquence directe et déjà gelée de D022 — aucune preuve nécessaire). `T_3_2` (ring5, `flavor_label`) est prouvé par **exclusion fermée** sur l'ensemble clos des cibles du manifeste historique : le runner Level1B ne persiste jamais un groupe non sélectionné par au moins une cible ; pour chaque groupe persisté, chaque cible du manifeste est testée contre sa propre condition nécessaire et déterministe (`fundamental`→index 0, `first_excited`→index 1, `flavor_label`→`twice_T==target_twice_T`) ; un groupe n'est retenu comme preuve de `T_3_2` que s'il satisfait la condition de `T_3_2` **et** qu'aucune autre cible du manifeste ne peut également l'expliquer ; `FAIL` si zéro ou plus d'un groupe satisfont cette preuve. Ceci n'est **jamais** la règle rejetée « unique groupe avec ce `twice_T` = la cible » (testée et explicitement rejetée, voir `test_no_unique_twice_t_heuristic_shortcut_exists`) — c'est une preuve par élimination sur un ensemble de causes fermé, jamais une reconstruction du pool de candidats historique.
+
+**`T_3_2_HISTORICAL_MAPPING_PROOF`** (vérifié en lecture seule contre l'archive réelle `/workspaces/level1b_campaign_output/`, aucune diagonalisation) :
+
+```text
+ring5 S2 reference : groupes persistés = [(0,twice_T=1), (1,twice_T=1), (2,twice_T=3)]
+  exclusion : groupe 0 -> causes possibles = [fundamental] seul
+              groupe 1 -> causes possibles = [first_excited] seul
+              groupe 2 -> causes possibles = [T_3_2] seul (fundamental exclu : index!=0 ;
+                          first_excited exclu : index!=1 ; T_max exclu : twice_T=5!=3)
+  => T_3_2 prouvé = spectral_window_group_index 2
+
+ring5 S3 reference : identique -> T_3_2 prouvé = spectral_window_group_index 2
+```
+
+`2` est un résultat de cette exécution historique précise, jamais codé en dur comme règle universelle — l'algorithme (`historical_group_index_for_required_target`) recalcule la preuve générique à chaque appel.
+
+**Périmètre** : 4 baselines REQUIRED (`triangle`/`ring5` × `S∈{2,3}`) ; cibles comparées `triangle`={fundamental, first_excited}, `ring5`={fundamental, first_excited, T_3_2} ; `T_max` **exclu** de la comparaison (mais toujours consulté en interne par la preuve d'exclusion). Champs REQUIRED comparés : `C_TT_conn(i,j) i!=j`, `rho_QQ(i,j)`, `multiplicity`, `twice_T`, labels de translation/réflexion (`symmetry_labels_match`, `SYMMETRY_TOLERANCE` — jamais `1e-15`). `representative_energy` = `OPTIONAL_DIAGNOSTIC`, jamais dans PASS/FAIL. `CTT`/`rho` : égalité stricte des jeux de paires puis `max_abs_diff <= tol` ; `rho` null/null exige `null_reason` identique, numeric/null toujours `FAIL`. Tolérances consommées depuis `Level1CManifest.non_regression_calibration` (`1e-15`/`1e-15`), jamais recopiées arbitrairement, aucune recalibration.
+
+Réutilise `scripts/level1b_analysis/indexing.py` (`build_campaign_artifact_index`, `IndexedSpectralGroup`) et `scripts/level1c_calibration/tmax_nonregression.py::extract_historical_ctt_pairs`/`extract_historical_rho_pairs` (primitives génériques d'extraction de paires, aucune sémantique de holdout). Provenance vérifiée des deux côtés (`campaign_id`/`manifest_fingerprint`/`repository_commit` Level1C et Level1B). Artefact dédié `schemas/level1c/baseline-nonregression-v1.schema.json` (`schema_version=level1c-baseline-nonregression-v1`, ratifié) : 4 `case_comparisons` exactement, statuts `PASS`/`FAIL` uniquement (aucun `PARTIAL`), `E_CTT`/`E_RHO` diagnostiques globaux jamais utilisés pour dériver une nouvelle tolérance. `gate_status=PASS` ssi les 4 baselines sont présentes/valides (`run_status=success` ET `normative_case_valid=true`, sinon `FAIL` sans comparaison partielle silencieuse) ET toutes les comparaisons structurelles/CTT/rho passent ET la provenance est cohérente — un seul échec suffit, l'absence d'une seule baseline n'empêche jamais l'évaluation des trois autres.
+
+Tests (52, entièrement synthétiques sauf lecture réelle en lecture seule de l'archive Level1B pour la preuve `T_3_2` et les scénarios d'intégration PASS/FAIL) : preuve d'exclusion (positionnel, exclusion réussie, aucun candidat, plusieurs candidats, collision avec une autre cible, `T_max` jamais exclu du calcul mais jamais comparé, rejet explicite de l'heuristique interdite) ; comparaisons structurelles/CTT/rho (bornes de tolérance `<`/`==`/`>`, `null`/`null` même raison/raison différente, `numeric`/`null`, jeux de paires différents, valeurs non finies, `representative_energy` seul jamais bloquant) ; intégration complète (4/4 correspondance exacte → `PASS`, une baseline manquante → `FAIL` sans bloquer les 3 autres, provenance incohérente → `FAIL`, `run_status`/`normative_case_valid` invalides → rejet avant comparaison, `T_max` jamais dans le périmètre REQUIRED) ; validation de schéma et sérialisation canonique. Résultats observés par Claude (non exécutés par ChatGPT) : `tests/scripts/level1c_baseline_gate` = 52 passed ; suite connexe (`tests/experiments + tests/scripts/level1c_campaign + tests/scripts/level1c_baseline_gate + tests/scripts/level1c_calibration + tests/scripts/level1c_preflight + tests/scripts/level1b_analysis + tests/scripts/level1b_campaign + tests/level1`) = 1371 passed ; suite complète du dépôt = 1980 passed, ~65-70s.
+
+`NORMATIVE_PHASE_P_IMPLEMENTATION_READY=YES`, `BASELINE_NON_REGRESSION_GATE_IMPLEMENTATION_READY=YES`, `NORMATIVE_CAMPAIGN_IMPLEMENTATION_READY=NO` (aucune vraie gate exécutée, tracking inter-J0/phase R/campagne réelle restent des lots futurs distincts).
+
+Fichiers de ce lot : `scripts/level1c_baseline_gate/__init__.py`, `scripts/level1c_baseline_gate/gate.py`, `schemas/level1c/baseline-nonregression-v1.schema.json`, `tests/scripts/level1c_baseline_gate/conftest.py`, `tests/scripts/level1c_baseline_gate/test_level1c_baseline_gate_exclusion_proof.py`, `tests/scripts/level1c_baseline_gate/test_level1c_baseline_gate_comparisons.py`, `tests/scripts/level1c_baseline_gate/test_level1c_baseline_gate_artifact.py`, `tests/scripts/level1c_baseline_gate/test_level1c_baseline_gate_t_3_2_historical_mapping_proof.py`, `docs/governance/current-task.md`. Aucun fichier Level1C/Level1B existant modifié (manifeste, planning, runner, outputs, schémas déjà acceptés tous inchangés). Ce commit reste en attente d'audit, non présenté comme accepté.
 
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)
 
