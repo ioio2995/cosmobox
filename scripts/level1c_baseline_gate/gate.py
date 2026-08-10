@@ -45,6 +45,8 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import uuid
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -874,3 +876,61 @@ def validate_gate_artifact_document(document: dict) -> None:
     if errors:
         messages = "; ".join(f"{list(error.path)}: {error.message}" for error in errors)
         raise ValueError(f"document does not validate against the Level1C baseline non-regression gate schema: {messages}")
+
+
+# ---------------------------------------------------------------------------
+# Persistence (baseline-nonregression.json -- 1C-8j). No normative name for
+# this artifact existed before 1C-8i/1C-8j (audited, none found anywhere in
+# the frozen contract): this filename/location is an engineering decision,
+# never a scientific one, chosen to sit alongside tracking.jsonl/
+# response.jsonl at the same output_dir root -- a single combined JSON
+# object (never .jsonl), matching the artifact's own shape (one
+# BaselineNonRegressionArtifact per campaign, never one record per case
+# needing a line-delimited stream).
+# ---------------------------------------------------------------------------
+
+GATE_ARTIFACT_FILENAME = "baseline-nonregression.json"
+
+
+def _atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Same atomic-write convention as scripts.level1c_tracking.tracking/
+    scripts.level1c_response.response's own _atomic_write_bytes --
+    duplicated here rather than imported: a small, purely generic
+    OS-level utility with zero scientific content, and this is a
+    separate package."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with tmp_path.open("wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+    try:
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(directory_fd)
+    except OSError:
+        pass
+    finally:
+        os.close(directory_fd)
+
+
+def write_gate_artifact(output_dir: Path, artifact: BaselineNonRegressionArtifact) -> None:
+    """Writes `<output_dir>/baseline-nonregression.json` atomically:
+    serializes `artifact` via its own accepted to_json_dict/
+    canonical_json_bytes, schema-validates the document, and only then
+    atomically replaces the file. Never recomputes the gate -- `artifact`
+    is exactly the object run_baseline_nonregression_gate already
+    returned, never rebuilt here. Raises (never swallows) any schema
+    validation failure or I/O failure -- a caller must never treat a
+    failed write as if the gate artifact were durably persisted."""
+    document = to_json_dict(artifact)
+    validate_gate_artifact_document(document)
+    _atomic_write_bytes(Path(output_dir) / GATE_ARTIFACT_FILENAME, canonical_json_bytes(document))
