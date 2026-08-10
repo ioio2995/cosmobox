@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1c-campaign-manifest-v1.schema.json",
+  "title": "Cosmobox Level 1C normative J0 x S campaign manifest (machine-readable)",
+  "description": "experiments/level1c/preregistered-manifest-v1.json is the normative machine-readable transcription of the frozen Level1C J0 x S response campaign (docs/levels/level1c/identifiability-preregistration.md sections 15-20, lot 1C-8b). A dedicated schema, never a silent extension of schemas/level1/preregistered-manifest-v1.schema.json (Level1B, frozen, never modified to accept Level1C).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "campaign_id",
+    "schema_version",
+    "branch",
+    "n_flavors",
+    "external_charges_all_zero",
+    "scientific_seed",
+    "hamiltonian_cases",
+    "grid",
+    "sectors",
+    "target_groups",
+    "resource_guardrails",
+    "degeneracy_tolerance",
+    "pair_selection",
+    "path_selection",
+    "non_regression_calibration"
+  ],
+  "properties": {
+    "manifest_version": {"const": "level1c-campaign-manifest-v1"},
+    "campaign_id": {"const": "level1c-j0-response-v1"},
+    "schema_version": {"const": "level1c-result-record-v1"},
+    "branch": {"type": "string", "minLength": 1},
+    "n_flavors": {"const": 2},
+    "external_charges_all_zero": {"const": true},
+    "scientific_seed": {"type": "integer", "minimum": 0},
+    "hamiltonian_cases": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/hamiltonianCase"}
+    },
+    "grid": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {"$ref": "#/$defs/gridPoint"}
+    },
+    "sectors": {
+      "type": "array",
+      "items": {"const": "default"},
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "target_groups": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["triangle", "ring5"],
+      "properties": {
+        "triangle": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/level1cTargetSpec"}},
+        "ring5": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/level1cTargetSpec"}}
+      }
+    },
+    "resource_guardrails": {"$ref": "#/$defs/resourceGuardrails"},
+    "degeneracy_tolerance": {"const": 1e-10},
+    "pair_selection": {"const": "all_ordered_distinct_pairs"},
+    "path_selection": {"const": "all_minimal_paths"},
+    "non_regression_calibration": {"$ref": "#/$defs/nonRegressionCalibration"}
+  },
+  "$defs": {
+    "hamiltonianCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hamiltonian_case_id", "J_uniform", "J_override", "h_is_zero", "t", "g_E", "K"],
+      "properties": {
+        "hamiltonian_case_id": {"type": "string", "pattern": "^j0-[0-9]\\.[0-9]{2}$"},
+        "J_uniform": {"const": 1.0},
+        "J_override": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["node_index", "value"],
+          "properties": {
+            "node_index": {"const": 0},
+            "value": {"enum": [0.5, 0.75, 1.0, 1.25, 1.5]}
+          }
+        },
+        "h_is_zero": {"const": true},
+        "t": {"const": 1.0},
+        "g_E": {"const": 1.0},
+        "K": {"const": 1.0}
+      }
+    },
+    "gridPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry", "spin", "physical_dimension", "spectral_window", "hamiltonian_case_ids"],
+      "properties": {
+        "geometry": {"enum": ["triangle", "ring5"]},
+        "spin": {"enum": [2, 3]},
+        "physical_dimension": {"type": "integer", "minimum": 1},
+        "spectral_window": {"type": "integer", "minimum": 1},
+        "hamiltonian_case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {"type": "string", "pattern": "^j0-[0-9]\\.[0-9]{2}$"},
+          "description": "Exactly one J0 per grid point: production_window varies by J0 at fixed (geometry, spin) (section 19.8), so a single grid point can never share it across several hamiltonian_case_ids the way Level1B's reference/j_break did."
+        }
+      }
+    },
+    "targetGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "selection_kind",
+        "target_twice_T",
+        "selection_within_label",
+        "required_spectral_status",
+        "requires_inter_s_exact_match"
+      ],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "selection_kind": {"enum": ["fundamental", "first_excited", "flavor_label"]},
+        "target_twice_T": {"type": ["integer", "null"], "minimum": 0},
+        "selection_within_label": {"enum": ["lowest_representative_energy", null]},
+        "required_spectral_status": {"const": "complete_multiplet"},
+        "requires_inter_s_exact_match": {"type": "boolean"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"selection_kind": {"const": "flavor_label"}}, "required": ["selection_kind"]},
+          "then": {
+            "properties": {
+              "target_twice_T": {"type": "integer"},
+              "selection_within_label": {"const": "lowest_representative_energy"},
+              "requires_inter_s_exact_match": {"const": false}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"selection_kind": {"const": "fundamental"}}, "required": ["selection_kind"]},
+          "then": {
+            "properties": {
+              "target_twice_T": {"type": "null"},
+              "selection_within_label": {"const": null},
+              "requires_inter_s_exact_match": {"const": false}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"selection_kind": {"const": "first_excited"}}, "required": ["selection_kind"]},
+          "then": {
+            "properties": {
+              "target_twice_T": {"type": "null"},
+              "selection_within_label": {"const": null},
+              "requires_inter_s_exact_match": {"const": true}
+            }
+          }
+        }
+      ]
+    },
+    "level1cTargetSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "role"],
+      "properties": {
+        "target": {"$ref": "#/$defs/targetGroup"},
+        "role": {
+          "enum": ["REQUIRED", "CALIBRATION_ONLY"],
+          "description": "Orthogonal to target.required_spectral_status (1C-8a-fix): governs only whether this target's absence/non-conformity blocks campaign_status, never inferred from required_spectral_status."
+        }
+      }
+    },
+    "resourceGuardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_dense_dimension", "max_sparse_dimension"],
+      "properties": {
+        "max_dense_dimension": {"const": 2000},
+        "max_sparse_dimension": {"const": 200000}
+      }
+    },
+    "nonRegressionCalibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calibration_artifact_sha256", "code_commit", "contract_version", "ctt_abs_tol", "rho_abs_tol"],
+      "description": "The single, closed calibration decision (1C-7c4/1C-7c5, CALIBRATION_RUN_STATUS=CLOSED_ACCEPTED) consumed as frozen constants -- no field here is ever recomputed by a future campaign runner.",
+      "properties": {
+        "calibration_artifact_sha256": {"const": "05aa2e9d77c1314926350f8202e620b7537bdf9f6a7bab12a232151e9cf68da6"},
+        "code_commit": {"const": "1f06ef91c1157389df7d325cb825ce7508eff52f"},
+        "contract_version": {"const": "level1c-nonregression-calibration-v2"},
+        "ctt_abs_tol": {"const": 1e-15},
+        "rho_abs_tol": {"const": 1e-15}
+      }
+    }
+  }
+}

@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1c-result-record-v1.schema.json",
+  "title": "Cosmobox Level 1C result record (v1)",
+  "description": "Dedicated Level1C result-record schema (lot 1C-8b). A standalone extension of the shape frozen by schemas/level1/correlators-v2.schema.json (Level1B, never modified): adds group_start_index/group_end_index_exclusive to the spectral group identity (identifiability-preregistration.md section 20.6) and a new record_kind 'target_selection' persisting TargetSelectionRecord (section 20.8/1C-8a-fix) -- the exact structure absent from Level1B (D022) that made the historical T_max calibration hold-out unrecoverable. Never referenced by, and never referencing, the Level1B schema file.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "repository_commit",
+    "manifest_fingerprint",
+    "campaign_id",
+    "identity",
+    "provenance",
+    "record_kind",
+    "observable_kind",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "level1c-result-record-v1"},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifest_fingerprint": {"type": "string"},
+    "campaign_id": {"const": "level1c-j0-response-v1"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "record_kind": {
+      "enum": [
+        "raw_observable",
+        "normalized_observable",
+        "symmetry_label",
+        "target_selection"
+      ],
+      "description": "Restricted to what the frozen P-phase contract (section 20.6/20.7) actually requires: physical observables (C_TT_conn/rho_QQ), the group-level symmetry labels needed for tracking, and target-selection persistence. restricted_diagnostic/flavor_diagnostic/orbit_statistic/matching/robustness (Level1B-only concepts: G/flavor_singular_value_ratio DEFERRED, no gamma_O/inter-S matching in Level1C production) are deliberately absent -- never silently reused from correlators-v2."
+    },
+    "observable_kind": {
+      "enum": ["C_TT_conn", "rho_QQ", "flavor_casimir_label", "translation_character", "reflection_character", "target_selection"]
+    },
+    "payload": {}
+  },
+  "allOf": [
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "raw_observable"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {"const": "C_TT_conn"},
+          "payload": {"type": "number"}
+        }
+      }
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "normalized_observable"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {"const": "rho_QQ"},
+          "payload": {"$ref": "#/$defs/normalizedMoment"}
+        }
+      }
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "symmetry_label"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {"enum": ["flavor_casimir_label", "translation_character", "reflection_character"]},
+          "payload": {"$ref": "#/$defs/symmetryLabel"}
+        }
+      }
+    },
+    {
+      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "target_selection"}}},
+      "then": {
+        "properties": {
+          "observable_kind": {"const": "target_selection"},
+          "payload": {"$ref": "#/$defs/targetSelectionRecord"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "spectralStatus": {"enum": ["complete_multiplet", "partial_subspace"]},
+    "nullReason": {
+      "type": ["string", "null"],
+      "enum": ["normalization_denominator_below_floor", "zero_local_charge_variance", null]
+    },
+    "hamiltonianIdentity": {
+      "type": "object",
+      "required": ["J", "h_is_zero", "t", "g_E", "K"],
+      "properties": {
+        "J": {"type": "array", "items": {"type": "number"}, "minItems": 1},
+        "h_is_zero": {"const": true},
+        "t": {"type": "number"},
+        "g_E": {"type": "number"},
+        "K": {"type": "number"}
+      },
+      "additionalProperties": false
+    },
+    "spectralGroupIdentity": {
+      "type": "object",
+      "required": [
+        "status",
+        "multiplicity",
+        "twice_T",
+        "spectral_window_group_index",
+        "group_start_index",
+        "group_end_index_exclusive",
+        "representative_energy"
+      ],
+      "properties": {
+        "status": {"$ref": "#/$defs/spectralStatus"},
+        "multiplicity": {"type": "integer", "minimum": 1},
+        "twice_T": {"type": ["integer", "null"], "minimum": 0},
+        "spectral_window_group_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The group's own position in the case's full, unfiltered spectral-window sequence (D022) -- a single-case discriminant only, never an inter-J0/inter-S identity criterion."
+        },
+        "group_start_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Structural diagnostic required by section 20.6, absent from the Level1B schema -- never itself an identity component."
+        },
+        "group_end_index_exclusive": {"type": "integer", "minimum": 1},
+        "representative_energy": {
+          "type": "number",
+          "description": "Descriptive metadata only -- never an identity discriminant, never a tie-breaker (section 20.6/20.11)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "identity": {
+      "type": "object",
+      "required": ["geometry", "spin", "n_flavors", "hamiltonian", "sector", "spectral_group", "path", "flavor_component", "normalization"],
+      "properties": {
+        "geometry": {"enum": ["triangle", "ring5"]},
+        "spin": {"enum": [2, 3]},
+        "n_flavors": {"const": 2},
+        "hamiltonian": {"$ref": "#/$defs/hamiltonianIdentity"},
+        "sector": {"const": "default"},
+        "spectral_group": {"$ref": "#/$defs/spectralGroupIdentity"},
+        "path": {"type": ["array", "null"], "items": {"type": "integer", "minimum": 0}, "minItems": 1},
+        "flavor_component": {"type": ["string", "null"]},
+        "normalization": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["spectral_status", "source_type", "source_module", "scientific_seed", "solver_seed", "validation_rotation_seed"],
+      "properties": {
+        "spectral_status": {"$ref": "#/$defs/spectralStatus"},
+        "source_type": {"type": "string", "minLength": 1},
+        "source_module": {"type": "string", "minLength": 1},
+        "scientific_seed": {"type": "integer", "minimum": 0},
+        "solver_seed": {"type": "integer", "minimum": 0},
+        "validation_rotation_seed": {"type": ["integer", "null"], "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "normalizedMoment": {
+      "type": "object",
+      "required": ["value", "null_reason"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "null_reason": {"$ref": "#/$defs/nullReason"}
+      },
+      "additionalProperties": false,
+      "if": {"required": ["value"], "properties": {"value": {"type": "null"}}},
+      "then": {"required": ["null_reason"], "properties": {"null_reason": {"type": "string"}}},
+      "else": {"properties": {"null_reason": {"const": null}}}
+    },
+    "symmetryLabel": {
+      "type": "object",
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": {"enum": ["numeric", "not_applicable", "unavailable"]},
+        "value": {
+          "oneOf": [
+            {"type": "object", "required": ["real", "imag"], "properties": {"real": {"type": "number"}, "imag": {"type": "number"}}, "additionalProperties": false},
+            {"type": "null"}
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "if": {"required": ["kind"], "properties": {"kind": {"const": "numeric"}}},
+      "then": {"required": ["value"]},
+      "else": {"properties": {"value": {"type": "null"}}}
+    },
+    "targetSelectionRecord": {
+      "type": "object",
+      "required": [
+        "target_id",
+        "role",
+        "selection_status",
+        "spectral_window_group_index",
+        "selected_group_status",
+        "meets_normative_requirements"
+      ],
+      "additionalProperties": false,
+      "description": "TargetSelectionRecord (1C-8a section 11, 1C-8a-fix section 2): persists target_id -> spectral_window_group_index explicitly, the exact mapping Level1B never wrote to disk (D022) -- root cause of the abandoned T_max calibration hold-out (section 20.22 historical).",
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "role": {
+          "enum": ["REQUIRED", "CALIBRATION_ONLY"],
+          "description": "Transcribed from Level1CTargetSpec.role -- never inferred from required_spectral_status or from selected_group_status."
+        },
+        "selection_status": {
+          "enum": ["selected", "ambiguous", "not_in_window", "structurally_not_applicable"],
+          "description": "Exactly experiments.level1.target_selection's own closed taxonomy -- no new status introduced."
+        },
+        "spectral_window_group_index": {"type": ["integer", "null"], "minimum": 0},
+        "selected_group_status": {"enum": ["complete_multiplet", "partial_subspace", null]},
+        "meets_normative_requirements": {"type": ["boolean", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"selection_status": {"const": "selected"}}, "required": ["selection_status"]},
+          "then": {
+            "required": ["spectral_window_group_index", "selected_group_status", "meets_normative_requirements"],
+            "properties": {
+              "spectral_window_group_index": {"type": "integer"},
+              "selected_group_status": {"enum": ["complete_multiplet", "partial_subspace"]},
+              "meets_normative_requirements": {"type": "boolean"}
+            }
+          },
+          "else": {
+            "properties": {
+              "spectral_window_group_index": {"type": "null"},
+              "selected_group_status": {"type": "null"},
+              "meets_normative_requirements": {"type": "null"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}
