@@ -923,6 +923,20 @@ Fichiers de ce lot : `scripts/level1c_baseline_gate/gate.py` (ajout de `write_ga
 
 Ce commit reste en attente d'audit, non présenté comme accepté. Le pointeur « Dernier commit accepté » reste `b9b0a21262e26a945b974cfbdcdb1a1ffbc3867c` (non avancé). Attends l'audit de ChatGPT puis la décision de Lionel. Aucun lot suivant ne démarre.
 
+**Audit ChatGPT sur 1C-8j (commit `3cab331f9cc614c64dba512b6259895355f62384`) : cœur du launcher accepté sur le fond** (`LAUNCHER_CORE=OK`, `P_TO_GATE=OK`, `GATE_PERSISTENCE=OK`, `GATE_TO_T=OK`, `T_TO_R=OK`, `TOCTOU_POLICY=OK`, `PROVENANCE=OK`, `PHASE_G=NOT_OPENED`), acceptation définitive suspendue pour un seul défaut de contrat : `Level1CNormativeLaunchReport.__post_init__` n'imposait pas `STOP_BEFORE_GATE -> phase_p_report.global_success==false` ni `STOP_NORMATIVE_PIPELINE_BEFORE_T -> phase_p_report.global_success==true` — le launcher réel construisait déjà correctement ces états, seule l'étanchéité du contrat de la dataclass était en cause. Corrigé par `1C-8j-fix` ci-dessous.
+
+## Lot 1C-8j-fix — durcissement des invariants Level1CNormativeLaunchReport (ce commit)
+
+Ajoute exactement les deux contrôles manquants dans `Level1CNormativeLaunchReport.__post_init__` (`scripts/level1c_launcher/launch.py`) : `pipeline_status==STOP_BEFORE_GATE` exige désormais `phase_p_report.global_success==False` ; `pipeline_status==STOP_NORMATIVE_PIPELINE_BEFORE_T` exige désormais `phase_p_report.global_success==True`. Aucune autre logique modifiée (`gate_artifact`/`tracking_records`/`response_records`/`COMPLETED` inchangés), aucune modification de `launch_normative_campaign`, `prepare_normative_launch`, des helpers Git, de la politique TOCTOU, ou d'aucune autre phase.
+
+Tests (2 nouveaux dans `tests/scripts/level1c_launcher/test_level1c_launcher_report.py`) : `STOP_BEFORE_GATE` + `global_success=true` → `ValueError` ; `STOP_NORMATIVE_PIPELINE_BEFORE_T` + `global_success=false` → `ValueError`. Tests positifs existants inchangés (déjà conformes au contrat durci). Résultats observés par Claude (non exécutés par ChatGPT) : `tests/scripts/level1c_launcher` = 71 passed (69+2) ; suite Level1C réunie (`level1c_launcher + level1c_baseline_gate + level1c_campaign + level1c_tracking + level1c_response + experiments/level1c`) = 473 passed ; suite complète du dépôt = 2237 passed, ~66s. Aucune régression.
+
+`STOP_BEFORE_GATE_P_INVARIANT=ENFORCED`, `STOP_BEFORE_T_P_INVARIANT=ENFORCED`, `LAUNCHER_ORCHESTRATION_CHANGED=NO`, `SCIENTIFIC_BEHAVIOR_CHANGED=NO`, `REAL_NORMATIVE_CAMPAIGN_EXECUTED=NO`, `PHASE_G_OPENED=NO`.
+
+Fichiers de ce lot : `scripts/level1c_launcher/launch.py` (2 contrôles ajoutés uniquement), `tests/scripts/level1c_launcher/test_level1c_launcher_report.py` (2 tests ajoutés), `docs/governance/current-task.md`. Aucun autre fichier touché.
+
+Ce commit reste en attente d'audit, non présenté comme accepté. Le pointeur « Dernier commit accepté » reste `b9b0a21262e26a945b974cfbdcdb1a1ffbc3867c` (non avancé). Attends l'audit de ChatGPT puis la décision de Lionel. Aucun lot suivant ne démarre.
+
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)
 
 Entrée de lancement explicite (`prepare_normative_launch`/`launch_normative_campaign` dans `scripts/level1b_campaign/launch.py`, plus une CLI mince `scripts/run_level1b_campaign.py`) qui vérifie toutes les préconditions normatives de la campagne puis appelle `run_campaign` (lot 1B-8d, inchangé) exactement comme celui-ci est déjà défini. Aucune logique scientifique nouvelle ; aucune reconstruction du plan (`run_campaign` construit déjà `build_campaign_plan(manifest)` exactement une fois).

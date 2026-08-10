@@ -127,9 +127,13 @@ class Level1CNormativeLaunchReport:
             raise ValueError(f"pipeline_status must be one of {PIPELINE_STATUSES}, got {self.pipeline_status!r}")
 
         if self.pipeline_status == STOP_BEFORE_GATE:
+            if self.phase_p_report.global_success:
+                raise ValueError("phase_p_report.global_success must be False when pipeline_status == STOP_BEFORE_GATE")
             if self.gate_artifact is not None or self.tracking_records is not None or self.response_records is not None:
                 raise ValueError("gate_artifact/tracking_records/response_records must all be None when pipeline_status == STOP_BEFORE_GATE")
         elif self.pipeline_status == STOP_NORMATIVE_PIPELINE_BEFORE_T:
+            if not self.phase_p_report.global_success:
+                raise ValueError("phase_p_report.global_success must be True when pipeline_status == STOP_NORMATIVE_PIPELINE_BEFORE_T")
             if self.gate_artifact is None:
                 raise ValueError("gate_artifact must be set when pipeline_status == STOP_NORMATIVE_PIPELINE_BEFORE_T")
             if self.gate_artifact.gate_status != FAIL:

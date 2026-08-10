@@ -22,6 +22,17 @@ def test_stop_before_gate_valid() -> None:
     assert report.pipeline_status == STOP_BEFORE_GATE
 
 
+def test_stop_before_gate_rejects_p_global_success_true() -> None:
+    with pytest.raises(ValueError, match="global_success must be False"):
+        Level1CNormativeLaunchReport(
+            phase_p_report=empty_success_phase_p_report(),
+            gate_artifact=None,
+            tracking_records=None,
+            response_records=None,
+            pipeline_status=STOP_BEFORE_GATE,
+        )
+
+
 def test_stop_before_gate_rejects_present_gate_artifact() -> None:
     with pytest.raises(ValueError, match="must all be None"):
         Level1CNormativeLaunchReport(
@@ -42,6 +53,17 @@ def test_stop_normative_pipeline_before_t_valid() -> None:
         pipeline_status=STOP_NORMATIVE_PIPELINE_BEFORE_T,
     )
     assert report.pipeline_status == STOP_NORMATIVE_PIPELINE_BEFORE_T
+
+
+def test_stop_normative_pipeline_before_t_rejects_p_global_success_false() -> None:
+    with pytest.raises(ValueError, match="global_success must be True"):
+        Level1CNormativeLaunchReport(
+            phase_p_report=failed_phase_p_report(),
+            gate_artifact=_FakeGateArtifact(gate_status="FAIL"),
+            tracking_records=None,
+            response_records=None,
+            pipeline_status=STOP_NORMATIVE_PIPELINE_BEFORE_T,
+        )
 
 
 def test_stop_normative_pipeline_before_t_requires_gate_artifact() -> None:
