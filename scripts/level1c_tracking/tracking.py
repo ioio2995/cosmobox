@@ -69,6 +69,15 @@ in EMITTABLE_TRACKING_STATUSES."""
 
 EMITTABLE_TRACKING_STATUSES = (TRACKED_ONE_TO_ONE, AMBIGUOUS, NOT_AVAILABLE)
 
+
+class TrackingArtifactIntegrityError(RuntimeError):
+    """Raised by load_and_verify_tracking_records for any integrity,
+    provenance, or ordering failure of a persisted tracking.jsonl (1C-8f)
+    -- never a bare exception, and never silently repaired/reordered.
+    Callers (scripts.level1c_response) must treat this as a fatal
+    precondition failure for the whole PHASE_R run, never attempt a
+    partial recovery."""
+
 _GIT_SHA_LENGTH = 40
 _GIT_SHA_DIGITS = frozenset("0123456789abcdef")
 
@@ -629,3 +638,80 @@ def write_tracking_records(output_dir: Path, records: tuple[TrackingRecord, ...]
 
     payload = b"".join(canonical_json_bytes(document) for document in documents)
     _atomic_write_bytes(Path(output_dir) / "tracking.jsonl", payload)
+
+
+def load_and_verify_tracking_records(
+    output_dir: Path, level1c_manifest: Level1CManifest, *, repository_commit: str
+) -> tuple[dict, ...]:
+    """Reads and fully verifies `<output_dir>/tracking.jsonl` (1C-8f):
+    every line is valid JSON, every document validates against schema
+    level1c-tracking-record-v1, every document's own campaign_id/
+    manifest_fingerprint/repository_commit match the expected values
+    exactly, and the FULL SEQUENCE of (perturbed_case_id, baseline_
+    case_id, target_id) triples matches -- element for element, in
+    order -- the canonical sequence independently reconstructed from
+    build_level1c_campaign_plan(manifest) + build_tracking_edges +
+    REQUIRED_TARGET_IDS (never the order/content merely encountered in
+    the file itself). A single equality check against this
+    independently-derived expected sequence simultaneously catches any
+    missing, duplicate, extra, or reordered record -- there is no
+    separate "repair" or "reorder" path: any deviation raises
+    TrackingArtifactIntegrityError, the whole PHASE_R input is rejected."""
+    path = Path(output_dir) / "tracking.jsonl"
+    if not path.exists():
+        raise TrackingArtifactIntegrityError(f"missing tracking.jsonl under {output_dir}")
+
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise TrackingArtifactIntegrityError(f"tracking.jsonl could not be read: {exc}") from exc
+
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines = lines[:-1]
+
+    documents: list[dict] = []
+    for index, line in enumerate(lines):
+        if line == "":
+            raise TrackingArtifactIntegrityError(f"tracking.jsonl line {index} is empty")
+        try:
+            parsed = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise TrackingArtifactIntegrityError(f"tracking.jsonl line {index} is not valid JSON: {exc}") from exc
+        if not isinstance(parsed, dict):
+            raise TrackingArtifactIntegrityError(f"tracking.jsonl line {index} is not a JSON object, got {type(parsed)}")
+        try:
+            validate_tracking_record_document(parsed)
+        except ValueError as exc:
+            raise TrackingArtifactIntegrityError(f"tracking.jsonl line {index} failed schema validation: {exc}") from exc
+        for key, expected in (
+            ("campaign_id", level1c_manifest.campaign_id),
+            ("manifest_fingerprint", level1c_manifest.fingerprint),
+            ("repository_commit", repository_commit),
+        ):
+            if parsed[key] != expected:
+                raise TrackingArtifactIntegrityError(
+                    f"tracking.jsonl line {index} has {key} ({parsed[key]!r}) that does not match the expected "
+                    f"value ({expected!r})"
+                )
+        documents.append(parsed)
+
+    cases = build_level1c_campaign_plan(level1c_manifest)
+    cases_by_id = {case.case_id: case for case in cases}
+    edges = build_tracking_edges(cases)
+    expected_sequence = [
+        (perturbed_case_id, baseline_case_id, target_id)
+        for perturbed_case_id, baseline_case_id in edges
+        for target_id in REQUIRED_TARGET_IDS[cases_by_id[baseline_case_id].geometry]
+    ]
+    actual_sequence = [(document["perturbed_case_id"], document["baseline_case_id"], document["target_id"]) for document in documents]
+
+    if actual_sequence != expected_sequence:
+        raise TrackingArtifactIntegrityError(
+            f"tracking.jsonl does not match the canonical expected sequence of "
+            f"{len(expected_sequence)} (perturbed_case_id, baseline_case_id, target_id) triples derived from "
+            "build_level1c_campaign_plan/build_tracking_edges/REQUIRED_TARGET_IDS -- missing, duplicate, extra, "
+            "or reordered record(s); tracking.jsonl is never repaired or reordered silently"
+        )
+
+    return tuple(documents)
