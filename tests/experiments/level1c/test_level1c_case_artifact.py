@@ -396,3 +396,128 @@ def test_canonical_json_bytes_ends_with_single_trailing_newline() -> None:
 def test_canonical_json_bytes_is_deterministic() -> None:
     document = ca.to_json_dict(_success_artifact())
     assert ca.canonical_json_bytes(document) == ca.canonical_json_bytes(copy.deepcopy(document))
+
+
+# ---------------------------------------------------------------------------
+# required_targets_are_satisfied / Level1CCaseRunArtifact.required_targets_satisfied
+# (1C-8c "required-target case gate" -- pure derivation, never a new
+# run_status value)
+# ---------------------------------------------------------------------------
+
+
+def test_required_targets_satisfied_true_when_all_required_selected_and_conformant() -> None:
+    assert ca.required_targets_are_satisfied(_triangle_selections()) is True
+
+
+def test_required_targets_satisfied_false_when_a_required_target_is_ambiguous() -> None:
+    selections = (
+        _record("fundamental", "REQUIRED", selected=False, status="ambiguous"),
+        _record("first_excited", "REQUIRED", selected=True),
+        _record("T_max", "CALIBRATION_ONLY", selected=False),
+    )
+    assert ca.required_targets_are_satisfied(selections) is False
+
+
+def test_required_targets_satisfied_false_when_a_required_target_is_not_in_window() -> None:
+    selections = (
+        _record("fundamental", "REQUIRED", selected=True),
+        _record("first_excited", "REQUIRED", selected=False, status="not_in_window"),
+        _record("T_max", "CALIBRATION_ONLY", selected=False),
+    )
+    assert ca.required_targets_are_satisfied(selections) is False
+
+
+def test_required_targets_satisfied_false_when_required_selected_but_non_conformant() -> None:
+    non_conformant = TargetSelectionRecord(
+        target_id="first_excited",
+        role="REQUIRED",
+        selection_status="selected",
+        spectral_window_group_index=5,
+        selected_group_status="partial_subspace",
+        meets_normative_requirements=False,
+    )
+    selections = (_record("fundamental", "REQUIRED", selected=True), non_conformant, _record("T_max", "CALIBRATION_ONLY", selected=False))
+    assert ca.required_targets_are_satisfied(selections) is False
+
+
+def test_required_targets_satisfied_ignores_calibration_only_non_conformance() -> None:
+    """T_max selected-but-partial (non-conformant) never affects the
+    gate, since it is CALIBRATION_ONLY."""
+    t_max_partial = TargetSelectionRecord(
+        target_id="T_max",
+        role="CALIBRATION_ONLY",
+        selection_status="selected",
+        spectral_window_group_index=7,
+        selected_group_status="partial_subspace",
+        meets_normative_requirements=False,
+    )
+    selections = (
+        _record("fundamental", "REQUIRED", selected=True),
+        _record("first_excited", "REQUIRED", selected=True),
+        t_max_partial,
+    )
+    assert ca.required_targets_are_satisfied(selections) is True
+
+
+def test_case_run_artifact_property_matches_free_function_for_success() -> None:
+    artifact = _success_artifact()
+    assert artifact.required_targets_satisfied == ca.required_targets_are_satisfied(artifact.target_selections)
+    assert artifact.required_targets_satisfied is True
+
+
+def test_case_run_artifact_property_false_for_failed_run_regardless_of_content() -> None:
+    """A failed run always has empty target_selections (enforced by
+    __post_init__), so the free function would return True vacuously --
+    the property must never do that: run_status is checked first."""
+    artifact = _failed_artifact()
+    assert artifact.target_selections == ()
+    assert ca.required_targets_are_satisfied(artifact.target_selections) is True  # vacuous, documented
+    assert artifact.required_targets_satisfied is False  # the property never trusts the vacuous case
+
+
+def test_case_run_artifact_property_true_when_only_calibration_only_target_missing(manifest: m.Level1CManifest) -> None:
+    without_t_max = _triangle_selections()[:-1]  # drops T_max (CALIBRATION_ONLY) only
+    artifact = ca.Level1CCaseRunArtifact(
+        schema_version="level1c-case-run-v1",
+        campaign_id="level1c-j0-response-v1",
+        manifest_fingerprint=_MANIFEST_FINGERPRINT,
+        repository_commit=_REPO_COMMIT,
+        case_id="x",
+        geometry="triangle",
+        spin=2,
+        hamiltonian_case_id="j0-1.00",
+        sector_id="default",
+        spectral_window=9,
+        run_status="success",
+        target_selections=without_t_max,
+        records_sha256=_SHA256,
+        record_count=5,
+    )
+    # Both REQUIRED targets are still present and conformant -- the gate
+    # is still True even though T_max (CALIBRATION_ONLY) is absent.
+    assert artifact.required_targets_satisfied is True
+
+
+def test_case_run_artifact_property_false_when_required_target_ambiguous(manifest: m.Level1CManifest) -> None:
+    selections = (
+        _record("fundamental", "REQUIRED", selected=True),
+        _record("first_excited", "REQUIRED", selected=False, status="ambiguous"),
+        _record("T_max", "CALIBRATION_ONLY", selected=False),
+    )
+    artifact = ca.Level1CCaseRunArtifact(
+        schema_version="level1c-case-run-v1",
+        campaign_id="level1c-j0-response-v1",
+        manifest_fingerprint=_MANIFEST_FINGERPRINT,
+        repository_commit=_REPO_COMMIT,
+        case_id="x",
+        geometry="triangle",
+        spin=2,
+        hamiltonian_case_id="j0-1.00",
+        sector_id="default",
+        spectral_window=9,
+        run_status="success",
+        target_selections=selections,
+        records_sha256=_SHA256,
+        record_count=5,
+    )
+    assert artifact.required_targets_satisfied is False

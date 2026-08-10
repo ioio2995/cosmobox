@@ -16,6 +16,21 @@ verbatim as a naming/status convention) extended with `target_selections`.
 This module validates and serializes structure only: it never runs a
 scientific computation, never reads a real artifact, and never
 diagonalizes anything.
+
+required_targets_are_satisfied / Level1CCaseRunArtifact.
+required_targets_satisfied (1C-8c) resolve the "required-target case
+gate": whether a case's REQUIRED targets were all found and conformant
+is a fact already fully derivable from the persisted target_selections
+(role + selection_status + meets_normative_requirements, all already
+present) -- so it is exposed as a pure, tested query, never a new
+run_status value and never a new field on the schema/dataclass.
+run_status keeps meaning exactly what it means in Level1B (scripts/
+level1b_campaign/outputs.py): whether the computation executed without
+technical error (no exception, no resource guardrail exceeded) -- a
+case can be run_status=success while still failing this gate (e.g. a
+REQUIRED target selected on a partial_subspace group, or not found at
+all), exactly as Level1B never failed a run merely because a target
+was not found. CALIBRATION_ONLY targets never affect this gate.
 """
 
 from __future__ import annotations
@@ -128,6 +143,42 @@ class Level1CCaseRunArtifact:
                     f"target_selections must be empty for run_status {self.run_status!r} -- no selection is ever "
                     "attempted for a case that did not succeed, never a fabricated placeholder outcome"
                 )
+
+    @property
+    def required_targets_satisfied(self) -> bool:
+        """The required-target case gate (1C-8c): False outright for any
+        non-success run_status (no selection was ever attempted);
+        otherwise delegates to required_targets_are_satisfied. Never a
+        new run_status value -- see the module docstring."""
+        if self.run_status != SUCCESS:
+            return False
+        return required_targets_are_satisfied(self.target_selections)
+
+
+def required_targets_are_satisfied(target_selections: tuple[TargetSelectionRecord, ...]) -> bool:
+    """Whether every REQUIRED record actually PRESENT in
+    `target_selections` was found (selection_status == 'selected') and
+    satisfies its own normative requirement (meets_normative_
+    requirements is True). CALIBRATION_ONLY targets never affect this
+    result, whatever their outcome (T_max may be absent, ambiguous, or
+    selected-but-non-conformant without ever changing this gate).
+
+    This function does not itself check that `target_selections`
+    actually covers every target the manifest declares for the case's
+    geometry -- that completeness/order guarantee is
+    validate_target_selections_match_manifest's own job, always
+    enforced before a Level1CCaseRunArtifact is ever persisted
+    (scripts.level1c_campaign.outputs.write_case_success); a
+    REQUIRED target silently absent from an otherwise-untouched list
+    would not be caught here. Assumes an already-validated
+    target_selections sequence from a successful run -- an empty
+    sequence (as persisted for a failed/resource_guardrail_exceeded run)
+    returns True vacuously, which is why Level1CCaseRunArtifact.
+    required_targets_satisfied always checks run_status first; call this
+    function directly only when run_status == 'success' is already
+    known."""
+    required = [record for record in target_selections if record.role == "REQUIRED"]
+    return all(record.selection_status == "selected" and record.meets_normative_requirements is True for record in required)
 
 
 def validate_target_selections_match_manifest(
