@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from experiments.level1c.case_artifact import validate_case_run_document
+from experiments.level1c.case_artifact import required_targets_are_satisfied, validate_case_run_document
 from scripts.level1c_campaign import outputs as o
 
 REPO_COMMIT = "5159c2d68a060858cfd751e9b76365eecb2aba3e"
@@ -42,6 +42,43 @@ def test_run_json_target_selections_match_result(tmp_path, manifest, triangle_j0
     assert [entry["target_id"] for entry in run_document["target_selections"]] == [
         record.target_id for record in triangle_j0_1_00_result.target_selections
     ]
+
+
+def test_run_json_normative_case_valid_matches_required_targets_are_satisfied(
+    tmp_path, manifest, triangle_j0_1_00_case, triangle_j0_1_00_result
+) -> None:
+    o.write_case_success(tmp_path, manifest, triangle_j0_1_00_case, triangle_j0_1_00_result, repository_commit=REPO_COMMIT)
+    case_dir = tmp_path / "runs" / triangle_j0_1_00_case.case_id
+    run_document = json.loads((case_dir / "run.json").read_text())
+    assert run_document["normative_case_valid"] == required_targets_are_satisfied(triangle_j0_1_00_result.target_selections)
+    assert run_document["normative_case_valid"] is True  # both REQUIRED targets found and conformant in this real case
+
+
+def test_write_case_success_never_refuses_a_normatively_invalid_case(
+    tmp_path, manifest, triangle_j0_1_00_case, triangle_j0_1_00_result
+) -> None:
+    """A REQUIRED target ambiguous/not_in_window/non-conformant must
+    never turn into a write refusal or a different run_status
+    (RUN_STATUS_SEMANTICS=TECHNICAL_EXECUTION_STATUS, 1C-8c-fix): the
+    computation itself still succeeded technically, so run_status stays
+    'success' and the artifact is fully persisted for diagnosis, with
+    normative_case_valid=False."""
+    tampered_selections = tuple(
+        dataclasses.replace(record, selection_status="ambiguous", spectral_window_group_index=None, selected_group_status=None, meets_normative_requirements=None)
+        if record.target_id == "first_excited"
+        else record
+        for record in triangle_j0_1_00_result.target_selections
+    )
+    tampered_result = dataclasses.replace(triangle_j0_1_00_result, target_selections=tampered_selections)
+
+    o.write_case_success(tmp_path, manifest, triangle_j0_1_00_case, tampered_result, repository_commit=REPO_COMMIT)
+
+    case_dir = tmp_path / "runs" / triangle_j0_1_00_case.case_id
+    assert (case_dir / "records.jsonl").exists()
+    run_document = json.loads((case_dir / "run.json").read_text())
+    assert run_document["run_status"] == "success"
+    assert run_document["normative_case_valid"] is False
+    validate_case_run_document(run_document)
 
 
 def test_run_json_validates_against_case_run_schema(tmp_path, manifest, triangle_j0_1_00_case, triangle_j0_1_00_result) -> None:

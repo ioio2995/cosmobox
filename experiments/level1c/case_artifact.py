@@ -1,5 +1,5 @@
 """Level1C case run artifact: structure, validation, canonical
-serialization. Lot 1C-8b-fix.
+serialization. Lot 1C-8b-fix, extended by 1C-8c-fix.
 
 TARGET_SELECTION_PERSISTENCE = CASE_RUN_ARTIFACT_ONLY: a
 TargetSelectionRecord (experiments.level1c.target_selection) is a
@@ -17,20 +17,43 @@ This module validates and serializes structure only: it never runs a
 scientific computation, never reads a real artifact, and never
 diagonalizes anything.
 
-required_targets_are_satisfied / Level1CCaseRunArtifact.
-required_targets_satisfied (1C-8c) resolve the "required-target case
-gate": whether a case's REQUIRED targets were all found and conformant
-is a fact already fully derivable from the persisted target_selections
-(role + selection_status + meets_normative_requirements, all already
-present) -- so it is exposed as a pure, tested query, never a new
-run_status value and never a new field on the schema/dataclass.
-run_status keeps meaning exactly what it means in Level1B (scripts/
-level1b_campaign/outputs.py): whether the computation executed without
-technical error (no exception, no resource guardrail exceeded) -- a
-case can be run_status=success while still failing this gate (e.g. a
-REQUIRED target selected on a partial_subspace group, or not found at
-all), exactly as Level1B never failed a run merely because a target
-was not found. CALIBRATION_ONLY targets never affect this gate.
+RUN_STATUS_SEMANTICS = TECHNICAL_EXECUTION_STATUS (1C-8c-fix, ratified):
+run_status (success/failed/resource_guardrail_exceeded, reused verbatim
+from Level1B) describes ONLY whether the computation executed without
+technical error -- it is never the scientific/normative verdict of the
+case. That verdict is normative_case_valid, a separate, explicitly
+persisted field:
+
+  run_status == success
+    -> normative_case_valid = required_targets_are_satisfied(target_selections)
+       (True or False, a real evaluated verdict)
+  run_status != success
+    -> normative_case_valid = None (NOT_EVALUATED, never a synonym for
+       False: a technical failure was never scientifically evaluated,
+       so it must never be reported as if it had failed evaluation)
+
+A scientifically/normatively invalid case (e.g. a REQUIRED target
+ambiguous, not_in_window, structurally_not_applicable, or selected on a
+partial_subspace group) is NEVER converted into run_status=failed: that
+would confuse execution failure with a normative gate failure. Its
+artifact remains fully persisted and available for diagnosis
+(normative_case_valid=False), exactly like any other successful run.
+
+required_targets_are_satisfied is the pure function computing this
+gate from target_selections alone; Level1CCaseRunArtifact.__post_init__
+requires normative_case_valid to equal exactly what this function
+returns for a success run (a well-formed but wrong normative_case_valid
+is a provenance failure, same discipline as CampaignCaseSpec's own
+case_id self-verification) -- so the persisted field can never diverge
+from target_selections. CALIBRATION_ONLY targets never affect this
+gate: T_max may be absent, ambiguous, or selected-but-non-conformant
+without ever changing normative_case_valid.
+
+A future campaign-level aggregation (not implemented by this lot) will
+define CASE_TECHNICALLY_SUCCESSFUL = (run_status == success) and
+CASE_NORMATIVELY_VALID = (run_status == success AND
+normative_case_valid == true); NORMATIVE_CAMPAIGN_VALID will require
+every REQUIRED case to be CASE_NORMATIVELY_VALID.
 """
 
 from __future__ import annotations
@@ -73,11 +96,16 @@ class Level1CCaseRunArtifact:
     """One Level1C case's run outcome: identity/provenance fields
     mirroring Level1B's run.json, plus target_selections (the case-level
     target-selection outcomes, in manifest order -- never a set/dict
-    reconstruction). For a `success` run, target_selections must be
-    non-empty and records_sha256/record_count must be present; for
+    reconstruction) and normative_case_valid (1C-8c-fix). For a
+    `success` run, target_selections must be non-empty,
+    records_sha256/record_count must be present, and
+    normative_case_valid must be a bool equal to
+    required_targets_are_satisfied(target_selections); for
     `failed`/`resource_guardrail_exceeded`, no target selection was ever
-    attempted, so target_selections is empty and records_sha256/
-    record_count are null/0 -- never a fabricated placeholder outcome."""
+    attempted, so target_selections is empty, records_sha256/
+    record_count are null/0, and normative_case_valid is None
+    (NOT_EVALUATED, never False) -- never a fabricated placeholder
+    outcome or a vacuous verdict."""
 
     schema_version: str
     campaign_id: str
@@ -93,6 +121,7 @@ class Level1CCaseRunArtifact:
     target_selections: tuple[TargetSelectionRecord, ...]
     records_sha256: str | None
     record_count: int
+    normative_case_valid: bool | None
 
     def __post_init__(self) -> None:
         if self.schema_version != "level1c-case-run-v1":
@@ -133,6 +162,17 @@ class Level1CCaseRunArtifact:
                 raise ValueError(f"record_count must be a positive int for a successful run, got {self.record_count!r}")
             if not self.target_selections:
                 raise ValueError("target_selections must be non-empty for a successful run")
+            if not isinstance(self.normative_case_valid, bool):
+                raise ValueError(
+                    f"normative_case_valid must be a bool for a successful run, got {self.normative_case_valid!r}"
+                )
+            expected_normative_case_valid = required_targets_are_satisfied(self.target_selections)
+            if self.normative_case_valid != expected_normative_case_valid:
+                raise ValueError(
+                    f"normative_case_valid ({self.normative_case_valid!r}) does not match "
+                    f"required_targets_are_satisfied(target_selections) ({expected_normative_case_valid!r}) -- "
+                    "a well-formed but wrong normative_case_valid is a provenance failure"
+                )
         else:
             if self.records_sha256 is not None:
                 raise ValueError(f"records_sha256 must be None for run_status {self.run_status!r}, got {self.records_sha256!r}")
@@ -143,16 +183,22 @@ class Level1CCaseRunArtifact:
                     f"target_selections must be empty for run_status {self.run_status!r} -- no selection is ever "
                     "attempted for a case that did not succeed, never a fabricated placeholder outcome"
                 )
+            if self.normative_case_valid is not None:
+                raise ValueError(
+                    f"normative_case_valid must be None (NOT_EVALUATED) for run_status {self.run_status!r}, "
+                    f"got {self.normative_case_valid!r} -- a technical failure is never scientifically evaluated, "
+                    "so it must never be reported as if evaluation had failed"
+                )
 
     @property
     def required_targets_satisfied(self) -> bool:
-        """The required-target case gate (1C-8c): False outright for any
-        non-success run_status (no selection was ever attempted);
-        otherwise delegates to required_targets_are_satisfied. Never a
-        new run_status value -- see the module docstring."""
-        if self.run_status != SUCCESS:
-            return False
-        return required_targets_are_satisfied(self.target_selections)
+        """Convenience boolean view of normative_case_valid: False for a
+        non-success run (NOT_EVALUATED, never a vacuous True) or for a
+        normatively invalid success. The durable, persisted source of
+        truth is normative_case_valid itself (1C-8c-fix) -- this
+        property never recomputes anything independently, so it can
+        never diverge from it."""
+        return bool(self.normative_case_valid)
 
 
 def required_targets_are_satisfied(target_selections: tuple[TargetSelectionRecord, ...]) -> bool:
@@ -235,6 +281,7 @@ def to_json_dict(artifact: Level1CCaseRunArtifact) -> dict:
         "target_selections": [_target_selection_payload(record) for record in artifact.target_selections],
         "records_sha256": artifact.records_sha256,
         "record_count": artifact.record_count,
+        "normative_case_valid": artifact.normative_case_valid,
     }
 
 

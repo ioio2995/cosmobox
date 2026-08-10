@@ -37,6 +37,7 @@ from experiments.level1c.case_artifact import (
     RESOURCE_GUARDRAIL_EXCEEDED,
     Level1CCaseRunArtifact,
     canonical_json_bytes,
+    required_targets_are_satisfied,
     to_json_dict,
     validate_case_run_document,
     validate_target_selections_match_manifest,
@@ -103,7 +104,15 @@ def write_case_success(
     document is re-validated against result-record-v1, and
     target_selections is re-cross-checked against the manifest's own
     target list for this case's geometry -- the exact boundary where
-    results leave memory and become a durable, load-bearing artifact."""
+    results leave memory and become a durable, load-bearing artifact.
+
+    normative_case_valid (RUN_STATUS_SEMANTICS=TECHNICAL_EXECUTION_
+    STATUS, 1C-8c-fix) is always computed and persisted here, whatever
+    its value: a normatively invalid case (e.g. a REQUIRED target
+    ambiguous or selected on a partial_subspace group) is never refused
+    -- its artifact remains available for diagnosis, exactly like any
+    other successful run. This function never converts a normative gate
+    failure into a write refusal or a different run_status."""
     if not result.documents:
         raise ValueError("result.documents must be non-empty for a successful run")
     if result.case_id != case.case_id:
@@ -113,6 +122,7 @@ def write_case_success(
         validate_result_record(document)
 
     validate_target_selections_match_manifest(result.target_selections, manifest.target_groups[case.geometry])
+    normative_case_valid = required_targets_are_satisfied(result.target_selections)
 
     records_bytes = b"".join(_canonical_document_line_bytes(document) for document in result.documents)
     records_sha256 = hashlib.sha256(records_bytes).hexdigest()
@@ -132,6 +142,7 @@ def write_case_success(
         target_selections=result.target_selections,
         records_sha256=records_sha256,
         record_count=len(result.documents),
+        normative_case_valid=normative_case_valid,
     )
     run_document = to_json_dict(artifact)
     validate_case_run_document(run_document)
@@ -151,7 +162,9 @@ def write_case_failure(
 ) -> None:
     """Persist a failed or resource-guardrail-exceeded case: run.json
     only, never records.jsonl -- no synthetic record and no fabricated
-    target_selections are ever invented to fill one. If a records.jsonl
+    target_selections are ever invented to fill one, and
+    normative_case_valid is persisted as None (NOT_EVALUATED, never
+    False): a technical failure was never scientifically evaluated. If a records.jsonl
     from an earlier (successful) run of this case_id still exists on
     disk, it is removed first, so it can never be mistaken for this
     failed run's own results."""
@@ -178,6 +191,7 @@ def write_case_failure(
         target_selections=(),
         records_sha256=None,
         record_count=0,
+        normative_case_valid=None,
     )
     run_document = to_json_dict(artifact)
     validate_case_run_document(run_document)

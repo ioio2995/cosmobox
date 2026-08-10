@@ -51,7 +51,11 @@ def _ring5_selections() -> tuple[TargetSelectionRecord, ...]:
     )
 
 
-def _success_artifact(geometry: str = "triangle", selections=None) -> ca.Level1CCaseRunArtifact:
+def _success_artifact(geometry: str = "triangle", selections=None, normative_case_valid=None) -> ca.Level1CCaseRunArtifact:
+    resolved_selections = selections if selections is not None else _triangle_selections()
+    resolved_normative_case_valid = (
+        normative_case_valid if normative_case_valid is not None else ca.required_targets_are_satisfied(resolved_selections)
+    )
     return ca.Level1CCaseRunArtifact(
         schema_version="level1c-case-run-v1",
         campaign_id="level1c-j0-response-v1",
@@ -64,9 +68,10 @@ def _success_artifact(geometry: str = "triangle", selections=None) -> ca.Level1C
         sector_id="default",
         spectral_window=9,
         run_status="success",
-        target_selections=selections if selections is not None else _triangle_selections(),
+        target_selections=resolved_selections,
         records_sha256=_SHA256,
         record_count=10,
+        normative_case_valid=resolved_normative_case_valid,
     )
 
 
@@ -86,6 +91,7 @@ def _failed_artifact() -> ca.Level1CCaseRunArtifact:
         target_selections=(),
         records_sha256=None,
         record_count=0,
+        normative_case_valid=None,
     )
 
 
@@ -304,6 +310,7 @@ def test_success_requires_records_sha256() -> None:
             target_selections=_triangle_selections(),
             records_sha256=None,
             record_count=10,
+            normative_case_valid=True,
         )
 
 
@@ -324,6 +331,7 @@ def test_failure_forbids_target_selections() -> None:
             target_selections=_triangle_selections(),
             records_sha256=None,
             record_count=0,
+            normative_case_valid=None,
         )
 
 
@@ -344,6 +352,7 @@ def test_failure_forbids_records_sha256() -> None:
             target_selections=(),
             records_sha256=_SHA256,
             record_count=0,
+            normative_case_valid=None,
         )
 
 
@@ -492,6 +501,7 @@ def test_case_run_artifact_property_true_when_only_calibration_only_target_missi
         target_selections=without_t_max,
         records_sha256=_SHA256,
         record_count=5,
+        normative_case_valid=True,
     )
     # Both REQUIRED targets are still present and conformant -- the gate
     # is still True even though T_max (CALIBRATION_ONLY) is absent.
@@ -519,5 +529,148 @@ def test_case_run_artifact_property_false_when_required_target_ambiguous(manifes
         target_selections=selections,
         records_sha256=_SHA256,
         record_count=5,
+        normative_case_valid=False,
     )
     assert artifact.required_targets_satisfied is False
+
+
+# ---------------------------------------------------------------------------
+# normative_case_valid (1C-8c-fix): RUN_STATUS_SEMANTICS=
+# TECHNICAL_EXECUTION_STATUS is separate from NORMATIVE_CASE_VALID.
+# ---------------------------------------------------------------------------
+
+
+def test_success_all_required_valid_gives_normative_case_valid_true() -> None:
+    artifact = _success_artifact()
+    assert artifact.normative_case_valid is True
+
+
+def test_success_required_ambiguous_gives_normative_case_valid_false() -> None:
+    selections = (
+        _record("fundamental", "REQUIRED", selected=True),
+        _record("first_excited", "REQUIRED", selected=False, status="ambiguous"),
+        _record("T_max", "CALIBRATION_ONLY", selected=False),
+    )
+    artifact = _success_artifact(selections=selections)
+    assert artifact.normative_case_valid is False
+
+
+def test_success_required_not_in_window_gives_normative_case_valid_false() -> None:
+    selections = (
+        _record("fundamental", "REQUIRED", selected=False, status="not_in_window"),
+        _record("first_excited", "REQUIRED", selected=True),
+        _record("T_max", "CALIBRATION_ONLY", selected=False),
+    )
+    artifact = _success_artifact(selections=selections)
+    assert artifact.normative_case_valid is False
+
+
+def test_success_required_selected_partial_gives_normative_case_valid_false() -> None:
+    non_conformant = TargetSelectionRecord(
+        target_id="fundamental",
+        role="REQUIRED",
+        selection_status="selected",
+        spectral_window_group_index=3,
+        selected_group_status="partial_subspace",
+        meets_normative_requirements=False,
+    )
+    selections = (non_conformant, _record("first_excited", "REQUIRED", selected=True), _record("T_max", "CALIBRATION_ONLY", selected=False))
+    artifact = _success_artifact(selections=selections)
+    assert artifact.normative_case_valid is False
+
+
+def test_success_t_max_ambiguous_still_gives_normative_case_valid_true_if_required_ok() -> None:
+    selections = (
+        _record("fundamental", "REQUIRED", selected=True),
+        _record("first_excited", "REQUIRED", selected=True),
+        _record("T_max", "CALIBRATION_ONLY", selected=False, status="ambiguous"),
+    )
+    artifact = _success_artifact(selections=selections)
+    assert artifact.normative_case_valid is True
+
+
+def test_success_t_max_selected_partial_still_gives_normative_case_valid_true_if_required_ok() -> None:
+    t_max_partial = TargetSelectionRecord(
+        target_id="T_max",
+        role="CALIBRATION_ONLY",
+        selection_status="selected",
+        spectral_window_group_index=9,
+        selected_group_status="partial_subspace",
+        meets_normative_requirements=False,
+    )
+    selections = (_record("fundamental", "REQUIRED", selected=True), _record("first_excited", "REQUIRED", selected=True), t_max_partial)
+    artifact = _success_artifact(selections=selections)
+    assert artifact.normative_case_valid is True
+
+
+def test_failed_gives_normative_case_valid_none() -> None:
+    artifact = _failed_artifact()
+    assert artifact.normative_case_valid is None
+
+
+def test_resource_guardrail_exceeded_gives_normative_case_valid_none() -> None:
+    artifact = ca.Level1CCaseRunArtifact(
+        schema_version="level1c-case-run-v1",
+        campaign_id="level1c-j0-response-v1",
+        manifest_fingerprint=_MANIFEST_FINGERPRINT,
+        repository_commit=_REPO_COMMIT,
+        case_id="x",
+        geometry="triangle",
+        spin=2,
+        hamiltonian_case_id="j0-1.00",
+        sector_id="default",
+        spectral_window=9,
+        run_status="resource_guardrail_exceeded",
+        target_selections=(),
+        records_sha256=None,
+        record_count=0,
+        normative_case_valid=None,
+    )
+    assert artifact.normative_case_valid is None
+
+
+def test_success_with_incoherent_normative_case_valid_is_rejected() -> None:
+    """target_selections says the gate is True (all REQUIRED
+    conformant), but normative_case_valid claims False -- must be
+    rejected, never silently persisted."""
+    with pytest.raises(ValueError, match="does not match required_targets_are_satisfied"):
+        _success_artifact(normative_case_valid=False)
+
+
+def test_success_with_incoherent_normative_case_valid_true_is_rejected() -> None:
+    selections = (
+        _record("fundamental", "REQUIRED", selected=True),
+        _record("first_excited", "REQUIRED", selected=False, status="ambiguous"),
+        _record("T_max", "CALIBRATION_ONLY", selected=False),
+    )
+    with pytest.raises(ValueError, match="does not match required_targets_are_satisfied"):
+        _success_artifact(selections=selections, normative_case_valid=True)
+
+
+def test_success_requires_normative_case_valid_to_be_a_bool_not_none() -> None:
+    with pytest.raises(ValueError, match="normative_case_valid must be a bool"):
+        ca.Level1CCaseRunArtifact(
+            schema_version="level1c-case-run-v1",
+            campaign_id="level1c-j0-response-v1",
+            manifest_fingerprint=_MANIFEST_FINGERPRINT,
+            repository_commit=_REPO_COMMIT,
+            case_id="x",
+            geometry="triangle",
+            spin=2,
+            hamiltonian_case_id="j0-1.00",
+            sector_id="default",
+            spectral_window=9,
+            run_status="success",
+            target_selections=_triangle_selections(),
+            records_sha256=_SHA256,
+            record_count=10,
+            normative_case_valid=None,
+        )
+
+
+def test_run_json_includes_normative_case_valid() -> None:
+    document = ca.to_json_dict(_success_artifact())
+    assert document["normative_case_valid"] is True
+
+    document_failed = ca.to_json_dict(_failed_artifact())
+    assert document_failed["normative_case_valid"] is None
