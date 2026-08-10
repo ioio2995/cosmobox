@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cosmobox.local/schemas/level1c-result-record-v1.schema.json",
   "title": "Cosmobox Level 1C result record (v1)",
-  "description": "Dedicated Level1C result-record schema (lot 1C-8b). A standalone extension of the shape frozen by schemas/level1/correlators-v2.schema.json (Level1B, never modified): adds group_start_index/group_end_index_exclusive to the spectral group identity (identifiability-preregistration.md section 20.6) and a new record_kind 'target_selection' persisting TargetSelectionRecord (section 20.8/1C-8a-fix) -- the exact structure absent from Level1B (D022) that made the historical T_max calibration hold-out unrecoverable. Never referenced by, and never referencing, the Level1B schema file.",
+  "description": "Dedicated Level1C result-record schema (lot 1C-8b, corrected by 1C-8b-fix). A standalone extension of the shape frozen by schemas/level1/correlators-v2.schema.json (Level1B, never modified): adds group_start_index/group_end_index_exclusive to the spectral group identity (identifiability-preregistration.md section 20.6). Reserved exclusively for documents genuinely attached to a physical spectral group (raw_observable, normalized_observable, symmetry_label) -- target-selection outcomes (including ambiguous/not_in_window/structurally_not_applicable, which have no selected group at all) are a case-level concept, never a ResultRecord, and are persisted instead in the case run artifact (schemas/level1c/case-run-v1.schema.json, TARGET_SELECTION_PERSISTENCE=CASE_RUN_ARTIFACT_ONLY, 1C-8b-fix) -- never here, and never via a nullable/fake spectral_group. Never referenced by, and never referencing, the Level1B schema file.",
   "type": "object",
   "required": [
     "schema_version",
@@ -27,13 +27,12 @@
       "enum": [
         "raw_observable",
         "normalized_observable",
-        "symmetry_label",
-        "target_selection"
+        "symmetry_label"
       ],
-      "description": "Restricted to what the frozen P-phase contract (section 20.6/20.7) actually requires: physical observables (C_TT_conn/rho_QQ), the group-level symmetry labels needed for tracking, and target-selection persistence. restricted_diagnostic/flavor_diagnostic/orbit_statistic/matching/robustness (Level1B-only concepts: G/flavor_singular_value_ratio DEFERRED, no gamma_O/inter-S matching in Level1C production) are deliberately absent -- never silently reused from correlators-v2."
+      "description": "Restricted to what the frozen P-phase contract (section 20.6/20.7) actually requires for a document genuinely attached to a physical spectral group: physical observables (C_TT_conn/rho_QQ) and the group-level symmetry labels needed for tracking. restricted_diagnostic/flavor_diagnostic/orbit_statistic/matching/robustness (Level1B-only concepts: G/flavor_singular_value_ratio DEFERRED, no gamma_O/inter-S matching in Level1C production) are deliberately absent -- never silently reused from correlators-v2. target_selection is deliberately absent too (1C-8b-fix): a target-selection outcome is a case-level concept that may have no selected group at all, never a ResultRecord tied to identity.spectral_group -- see schemas/level1c/case-run-v1.schema.json."
     },
     "observable_kind": {
-      "enum": ["C_TT_conn", "rho_QQ", "flavor_casimir_label", "translation_character", "reflection_character", "target_selection"]
+      "enum": ["C_TT_conn", "rho_QQ", "flavor_casimir_label", "translation_character", "reflection_character"]
     },
     "payload": {}
   },
@@ -62,15 +61,6 @@
         "properties": {
           "observable_kind": {"enum": ["flavor_casimir_label", "translation_character", "reflection_character"]},
           "payload": {"$ref": "#/$defs/symmetryLabel"}
-        }
-      }
-    },
-    {
-      "if": {"required": ["record_kind"], "properties": {"record_kind": {"const": "target_selection"}}},
-      "then": {
-        "properties": {
-          "observable_kind": {"const": "target_selection"},
-          "payload": {"$ref": "#/$defs/targetSelectionRecord"}
         }
       }
     }
@@ -183,53 +173,6 @@
       "if": {"required": ["kind"], "properties": {"kind": {"const": "numeric"}}},
       "then": {"required": ["value"]},
       "else": {"properties": {"value": {"type": "null"}}}
-    },
-    "targetSelectionRecord": {
-      "type": "object",
-      "required": [
-        "target_id",
-        "role",
-        "selection_status",
-        "spectral_window_group_index",
-        "selected_group_status",
-        "meets_normative_requirements"
-      ],
-      "additionalProperties": false,
-      "description": "TargetSelectionRecord (1C-8a section 11, 1C-8a-fix section 2): persists target_id -> spectral_window_group_index explicitly, the exact mapping Level1B never wrote to disk (D022) -- root cause of the abandoned T_max calibration hold-out (section 20.22 historical).",
-      "properties": {
-        "target_id": {"type": "string", "minLength": 1},
-        "role": {
-          "enum": ["REQUIRED", "CALIBRATION_ONLY"],
-          "description": "Transcribed from Level1CTargetSpec.role -- never inferred from required_spectral_status or from selected_group_status."
-        },
-        "selection_status": {
-          "enum": ["selected", "ambiguous", "not_in_window", "structurally_not_applicable"],
-          "description": "Exactly experiments.level1.target_selection's own closed taxonomy -- no new status introduced."
-        },
-        "spectral_window_group_index": {"type": ["integer", "null"], "minimum": 0},
-        "selected_group_status": {"enum": ["complete_multiplet", "partial_subspace", null]},
-        "meets_normative_requirements": {"type": ["boolean", "null"]}
-      },
-      "allOf": [
-        {
-          "if": {"properties": {"selection_status": {"const": "selected"}}, "required": ["selection_status"]},
-          "then": {
-            "required": ["spectral_window_group_index", "selected_group_status", "meets_normative_requirements"],
-            "properties": {
-              "spectral_window_group_index": {"type": "integer"},
-              "selected_group_status": {"enum": ["complete_multiplet", "partial_subspace"]},
-              "meets_normative_requirements": {"type": "boolean"}
-            }
-          },
-          "else": {
-            "properties": {
-              "spectral_window_group_index": {"type": "null"},
-              "selected_group_status": {"type": "null"},
-              "meets_normative_requirements": {"type": "null"}
-            }
-          }
-        }
-      ]
     }
   }
 }

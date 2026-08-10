@@ -59,23 +59,6 @@ def _ctt_document() -> dict:
     }
 
 
-def _target_selection_document(**payload_overrides) -> dict:
-    document = _ctt_document()
-    document["record_kind"] = "target_selection"
-    document["observable_kind"] = "target_selection"
-    payload = {
-        "target_id": "T_max",
-        "role": "CALIBRATION_ONLY",
-        "selection_status": "selected",
-        "spectral_window_group_index": 3,
-        "selected_group_status": "partial_subspace",
-        "meets_normative_requirements": False,
-    }
-    payload.update(payload_overrides)
-    document["payload"] = payload
-    return document
-
-
 # ---------------------------------------------------------------------------
 # Valid documents
 # ---------------------------------------------------------------------------
@@ -108,20 +91,6 @@ def test_valid_symmetry_label_document_is_accepted() -> None:
     document["identity"] = dict(document["identity"])
     document["identity"]["path"] = None
     document["payload"] = {"kind": "numeric", "value": {"real": 1.0, "imag": 0.0}}
-    validate_result_record(document)
-
-
-def test_valid_target_selection_document_selected_is_accepted() -> None:
-    validate_result_record(_target_selection_document())
-
-
-def test_valid_target_selection_document_not_selected_is_accepted() -> None:
-    document = _target_selection_document(
-        selection_status="not_in_window",
-        spectral_window_group_index=None,
-        selected_group_status=None,
-        meets_normative_requirements=None,
-    )
     validate_result_record(document)
 
 
@@ -187,24 +156,45 @@ def test_rejects_level1b_only_record_kind() -> None:
         validate_result_record(document)
 
 
-def test_target_selection_selected_requires_group_fields() -> None:
-    document = _target_selection_document(
-        selection_status="selected",
-        spectral_window_group_index=None,
-        selected_group_status=None,
-        meets_normative_requirements=None,
-    )
+# ---------------------------------------------------------------------------
+# target_selection is deliberately never accepted here (1C-8b-fix):
+# a target-selection outcome is a case-level concept (possibly with no
+# selected group at all), never a ResultRecord tied to a real
+# identity.spectral_group. It belongs exclusively to
+# schemas/level1c/case-run-v1.schema.json (see test_level1c_case_artifact.py).
+# ---------------------------------------------------------------------------
+
+
+def test_target_selection_record_kind_is_rejected_even_with_a_real_spectral_group() -> None:
+    """Even when identity.spectral_group is a perfectly well-formed real
+    group (as if a fake one had been fabricated to carry a resolved
+    selection), record_kind='target_selection' must still be rejected:
+    the record_kind itself no longer exists in this schema, regardless
+    of how identity is populated."""
+    document = _ctt_document()
+    document["record_kind"] = "target_selection"
+    document["observable_kind"] = "target_selection"
+    document["payload"] = {
+        "target_id": "T_max",
+        "role": "CALIBRATION_ONLY",
+        "selection_status": "selected",
+        "spectral_window_group_index": 3,
+        "selected_group_status": "partial_subspace",
+        "meets_normative_requirements": False,
+    }
     with pytest.raises(ValueError):
         validate_result_record(document)
 
 
-def test_target_selection_rejects_unknown_role() -> None:
-    document = _target_selection_document(role="OPTIONAL")
+def test_target_selection_observable_kind_is_rejected() -> None:
+    document = _ctt_document()
+    document["observable_kind"] = "target_selection"
     with pytest.raises(ValueError):
         validate_result_record(document)
 
 
-def test_target_selection_rejects_unknown_selection_status() -> None:
-    document = _target_selection_document(selection_status="found")
-    with pytest.raises(ValueError):
-        validate_result_record(document)
+def test_schema_has_no_target_selection_record_definition() -> None:
+    schema = _load_schema()
+    assert "targetSelectionRecord" not in schema.get("$defs", {})
+    assert "target_selection" not in schema["properties"]["record_kind"]["enum"]
+    assert "target_selection" not in schema["properties"]["observable_kind"]["enum"]
