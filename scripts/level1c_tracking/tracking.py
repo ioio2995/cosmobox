@@ -8,15 +8,21 @@ PERTURBED_NORMATIVE_CASE_VALIDITY_ROLE = IRRELEVANT_TO_STRUCTURAL_TRACKING:
 a perturbed case's normative_case_valid is never consulted here -- only
 run_status=='success' gates whether its records can be used at all.
 
-REFLECTION_RESTRICTION_VALID_PERSISTENCE = PROVABLE_EQUIVALENT_TO_NUMERIC_KIND:
+REFLECTION_RESTRICTION_VALID_PERSISTENCE = PROVABLE_BY_NUMERIC_LABEL_AS_SUFFICIENT_WITNESS:
 cosmobox.level1.matching.compute_restricted_symmetry_label returns
 kind==NUMERIC if and only if the commutator-defect (when applicable),
-stability-defect, and unitarity-defect are all within tolerance -- the
-last two being exactly section 18.13's frozen definition of
-reflection_restriction_valid ("stabilite + unitarite"). No separate
-reflection_restriction_valid field is persisted or checked anywhere in
-this module: `reflection_label.kind == NUMERIC` is used directly, and is
-already a proven witness of that property.
+stability-defect, and unitarity-defect are all within tolerance.
+reflection_restriction_valid (section 18.13, "stabilite + unitarite") is
+only the LAST TWO of those three conditions -- so NUMERIC is a
+SUFFICIENT witness that reflection_restriction_valid is true (NUMERIC
+implies stability-defect and unitarity-defect were both within
+tolerance, since NUMERIC requires all three), never a claim of
+equivalence: an operator can in principle be stable/unitary yet still be
+reported NOT_APPLICABLE because the commutator check alone failed, so
+reflection_restriction_valid==true does not imply kind==NUMERIC. No
+separate reflection_restriction_valid field is persisted or checked
+anywhere in this module: `reflection_label.kind == NUMERIC` is used
+directly as this one-directional, already-proven witness.
 """
 
 from __future__ import annotations
