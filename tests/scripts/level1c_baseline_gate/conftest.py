@@ -61,6 +61,31 @@ def level1c_manifest() -> level1c_manifest_module.Level1CManifest:
     return level1c_manifest_module.load_manifest()
 
 
+def real_level1c_baseline_case_id(level1c_manifest, geometry: str, spin: int) -> str:
+    """The exact, real case_id build_level1c_campaign_plan(manifest)
+    produces for the J0=1 baseline of (geometry, spin) -- never a
+    hand-picked fake id: load_level1c_baseline_case (1C-8d-fix) requires
+    every baseline case_id to resolve to a real planned case."""
+    from experiments.level1c.manifest import J0_BASELINE, hamiltonian_case_id_for_j0
+    from experiments.level1c.planning import build_level1c_campaign_plan
+
+    baseline_hamiltonian_case_id = hamiltonian_case_id_for_j0(J0_BASELINE)
+    return next(
+        case.case_id
+        for case in build_level1c_campaign_plan(level1c_manifest)
+        if case.geometry == geometry and case.spin == spin and case.hamiltonian_case_id == baseline_hamiltonian_case_id
+    )
+
+
+@pytest.fixture(scope="session")
+def level1c_case_ids(level1c_manifest) -> dict[tuple[str, int], str]:
+    return {
+        (geometry, spin): real_level1c_baseline_case_id(level1c_manifest, geometry, spin)
+        for geometry in ("triangle", "ring5")
+        for spin in (2, 3)
+    }
+
+
 def _target_selection_record(target_id: str, role: str, group_index: int, twice_T: int) -> TargetSelectionRecord:
     return TargetSelectionRecord(
         target_id=target_id,

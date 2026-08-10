@@ -1,5 +1,6 @@
 """Baseline non-regression gate: comparison logic, historical group
-identity proof, and artifact schema. Lot 1C-8d.
+identity proof, and artifact schema. Lot 1C-8d, integrity-hardened by
+1C-8d-fix.
 
 This module performs no diagonalization anywhere. It reads already-
 persisted Level1C case artifacts (runs/<case_id>/{run.json,
@@ -9,10 +10,34 @@ regenerated here) and already-persisted Level1B historical artifacts
 the same accepted primitive scripts.level1c_calibration.
 tmax_nonregression already reuses for its own historical corpus
 access).
+
+HISTORICAL_RECORDS_INTEGRITY = VERIFIED_BY_EXISTING_INDEXER (1C-8d-fix
+audit, section 7): build_campaign_artifact_index already routes through
+scripts.level1b_analysis.loader.load_validated_cases, which itself
+requires scripts.level1b_campaign.outputs.validate_existing_case_run's
+own is_valid check for every planned case before ever calling
+load_case_records -- that check already verifies records.jsonl's
+SHA-256 against run.json's own records_sha256 (on the exact persisted
+bytes), record_count, and per-document campaign_id/manifest_
+fingerprint/repository_commit/case_id consistency. No historical-side
+integrity check is duplicated here.
+
+load_level1c_baseline_case below is this module's OWN, symmetric
+integrity gate for the Level1C side (no equivalent existed before
+1C-8d-fix): SHA-256 verified on the exact persisted bytes of
+records.jsonl (never reconstructed from parsed JSON), record_count
+verified, run.json's own case_id cross-checked, every record's
+campaign_id/manifest_fingerprint/repository_commit cross-checked
+against run.json's own, and every record's scientific identity
+(geometry/spin/sector/Hamiltonian) cross-checked against the exact
+CampaignCaseSpec build_level1c_campaign_plan(manifest) produces for
+that case_id -- never a new identity rule, the same plan the manifest
+itself already defines.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from dataclasses import dataclass
@@ -37,6 +62,7 @@ from scripts.level1b_analysis.indexing import (
     build_campaign_artifact_index,
 )
 from scripts.level1b_analysis.loader import CampaignLoadError
+from scripts.level1c_campaign.outputs import load_case_records
 from scripts.level1c_calibration.tmax_nonregression import (
     extract_historical_ctt_pairs,
     extract_historical_rho_pairs,
@@ -462,12 +488,91 @@ def build_case_comparison_result(
 # ---------------------------------------------------------------------------
 
 
-def load_level1c_baseline_case(output_dir: Path, case_id: str) -> tuple[dict, tuple[dict, ...]]:
+def _case_hamiltonian_identity_tuple(case) -> tuple:
+    """Generic, non-holdout-specific tuple representation of a
+    CampaignCaseSpec's own Hamiltonian, for comparison against a
+    document's identity.hamiltonian -- written locally rather than
+    importing scripts.level1b_analysis.indexing's private equivalent
+    across packages (same precedent as 1C-8c's runner.py)."""
+    parameters = case.hamiltonian_parameters
+    h_is_zero = all(bool((matrix == 0).all()) for matrix in parameters.h)
+    return (
+        tuple(float(value) for value in parameters.J),
+        h_is_zero,
+        float(parameters.t),
+        float(parameters.g_E),
+        float(parameters.K),
+    )
+
+
+def _document_hamiltonian_identity_tuple(hamiltonian: Mapping) -> tuple:
+    return (
+        tuple(float(value) for value in hamiltonian["J"]),
+        hamiltonian["h_is_zero"],
+        float(hamiltonian["t"]),
+        float(hamiltonian["g_E"]),
+        float(hamiltonian["K"]),
+    )
+
+
+def _expected_campaign_case_spec(level1c_manifest: Level1CManifest, case_id: str):
+    """The exact CampaignCaseSpec build_level1c_campaign_plan(manifest)
+    itself produces for `case_id` -- never a heuristic reconstruction.
+    Raises BaselineGateInputError if case_id is not one of the
+    manifest's own planned cases: a baseline's case_id must always
+    resolve to a real planned case, exactly as scripts.level1b_campaign.
+    runner._verify_case_belongs_to_manifest already requires for
+    Level1B/Level1C production."""
+    for case in build_level1c_campaign_plan(level1c_manifest):
+        if case.case_id == case_id:
+            return case
+    raise BaselineGateInputError(f"case_id {case_id!r} is not present in build_level1c_campaign_plan(level1c_manifest)")
+
+
+def _require_record_matches_expected_case(record: Mapping, expected_case, *, case_id: str, line_index: int) -> None:
+    identity = record["identity"]
+    if identity["geometry"] != expected_case.geometry:
+        raise BaselineGateInputError(
+            f"records.jsonl line {line_index} for case {case_id!r}: identity.geometry "
+            f"({identity['geometry']!r}) does not match the expected case's geometry ({expected_case.geometry!r})"
+        )
+    if identity["spin"] != expected_case.spin:
+        raise BaselineGateInputError(
+            f"records.jsonl line {line_index} for case {case_id!r}: identity.spin ({identity['spin']!r}) "
+            f"does not match the expected case's spin ({expected_case.spin!r})"
+        )
+    if identity["sector"] != expected_case.sector_id:
+        raise BaselineGateInputError(
+            f"records.jsonl line {line_index} for case {case_id!r}: identity.sector ({identity['sector']!r}) "
+            f"does not match the expected case's sector_id ({expected_case.sector_id!r})"
+        )
+    if _document_hamiltonian_identity_tuple(identity["hamiltonian"]) != _case_hamiltonian_identity_tuple(expected_case):
+        raise BaselineGateInputError(
+            f"records.jsonl line {line_index} for case {case_id!r}: identity.hamiltonian does not match the "
+            "expected case's own hamiltonian_parameters"
+        )
+
+
+def load_level1c_baseline_case(
+    output_dir: Path, case_id: str, *, level1c_manifest: Level1CManifest
+) -> tuple[dict, tuple[dict, ...]]:
     """Reads runs/<case_id>/{run.json,records.jsonl} from an already-
     produced Level1C case output directory. Raises BaselineGateInputError
     (never a bare exception) if the case is missing, invalid, not a
-    technical success, or not normatively valid -- callers must never
-    attempt a partial comparison in that case."""
+    technical success, not normatively valid, or its records.jsonl does
+    not byte-exactly match run.json's own records_sha256/record_count --
+    callers must never attempt a partial or integrity-broken comparison.
+
+    The SHA-256 is always computed on the exact persisted bytes of
+    records.jsonl, never reconstructed from parsed JSON documents: a
+    file modified after production (structurally valid JSON, but
+    different bytes) is caught here, before any comparison ever reads
+    its content as ground truth. Internal blank lines are never
+    silently dropped (reuses scripts.level1c_campaign.outputs.
+    load_case_records's own canonical parsing, which already implements
+    exactly this policy) -- only a single, conventional trailing
+    newline is tolerated.
+    """
     case_dir = Path(output_dir) / "runs" / case_id
     run_path = case_dir / "run.json"
     if not run_path.exists():
@@ -480,6 +585,10 @@ def load_level1c_baseline_case(output_dir: Path, case_id: str) -> tuple[dict, tu
 
     validate_case_run_document(run_document)
 
+    if run_document["case_id"] != case_id:
+        raise BaselineGateInputError(
+            f"run.json case_id ({run_document['case_id']!r}) does not match the requested case_id ({case_id!r})"
+        )
     if run_document["run_status"] != "success":
         raise BaselineGateInputError(f"case {case_id!r} run_status is {run_document['run_status']!r}, not 'success'")
     if run_document["normative_case_valid"] is not True:
@@ -493,19 +602,43 @@ def load_level1c_baseline_case(output_dir: Path, case_id: str) -> tuple[dict, tu
         raise BaselineGateInputError(f"missing records.jsonl for case {case_id!r} under {output_dir}")
 
     try:
-        text = records_path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
+        records_bytes = records_path.read_bytes()
+    except OSError as exc:
         raise BaselineGateInputError(f"records.jsonl for case {case_id!r} could not be read: {exc}") from exc
 
-    lines = [line for line in text.split("\n") if line]
-    records: list[dict] = []
-    for index, line in enumerate(lines):
+    actual_sha256 = hashlib.sha256(records_bytes).hexdigest()
+    if actual_sha256 != run_document["records_sha256"]:
+        raise BaselineGateInputError(
+            f"records.jsonl for case {case_id!r} SHA-256 ({actual_sha256}) does not match run.json "
+            f"records_sha256 ({run_document['records_sha256']!r}) -- integrity check failed on the exact "
+            "persisted bytes, never reconstructed from parsed JSON"
+        )
+
+    try:
+        records = load_case_records(case_dir)
+    except ValueError as exc:
+        raise BaselineGateInputError(f"records.jsonl for case {case_id!r} could not be loaded: {exc}") from exc
+
+    if len(records) != run_document["record_count"]:
+        raise BaselineGateInputError(
+            f"records.jsonl for case {case_id!r} has {len(records)} document(s), run.json record_count is "
+            f"{run_document['record_count']!r}"
+        )
+
+    expected_case = _expected_campaign_case_spec(level1c_manifest, case_id)
+
+    for index, record in enumerate(records):
         try:
-            parsed = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise BaselineGateInputError(f"records.jsonl line {index} for case {case_id!r} is not valid JSON: {exc}") from exc
-        validate_result_record(parsed)
-        records.append(parsed)
+            validate_result_record(record)
+        except ValueError as exc:
+            raise BaselineGateInputError(f"records.jsonl line {index} for case {case_id!r} failed schema validation: {exc}") from exc
+        for key in ("campaign_id", "manifest_fingerprint", "repository_commit"):
+            if record[key] != run_document[key]:
+                raise BaselineGateInputError(
+                    f"records.jsonl line {index} for case {case_id!r} has {key} ({record[key]!r}) that does not "
+                    f"match run.json's own {key} ({run_document[key]!r})"
+                )
+        _require_record_matches_expected_case(record, expected_case, case_id=case_id, line_index=index)
 
     return run_document, tuple(records)
 
@@ -602,7 +735,7 @@ def compare_baseline_case(
     attempted and reported (section 1/3: absence/invalidity of a single
     baseline never aborts the others)."""
     try:
-        run_document, records = load_level1c_baseline_case(level1c_output_dir, level1c_case_id)
+        run_document, records = load_level1c_baseline_case(level1c_output_dir, level1c_case_id, level1c_manifest=level1c_manifest)
     except BaselineGateInputError as exc:
         return build_case_comparison_result(geometry, spin, level1c_case_id, historical_case_id, (), (f"LEVEL1C_BASELINE_UNAVAILABLE: {exc}",))
 

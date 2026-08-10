@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import copy
-import dataclasses
+import json
 
 import pytest
 from jsonschema import Draft202012Validator
@@ -12,6 +11,7 @@ from scripts.level1c_baseline_gate.gate import (
     PASS,
     REQUIRED_TARGET_IDS,
     BaselineGateInputError,
+    build_case_comparison_result,
     canonical_json_bytes,
     compare_baseline_case,
     load_level1c_baseline_case,
@@ -20,25 +20,13 @@ from scripts.level1c_baseline_gate.gate import (
     validate_gate_artifact_document,
 )
 
-from conftest import real_historical_group_data, write_fake_level1c_baseline_case
+from conftest import real_historical_group_data, real_level1c_baseline_case_id, write_fake_level1c_baseline_case
 
 REPO_COMMIT = "79c0b8b8a5f2208acb6c4b8776ef6323ad8bbd98"
 
 
 def _geometry_targets(geometry: str) -> tuple[str, ...]:
     return REQUIRED_TARGET_IDS[geometry]
-
-
-def _real_level1c_baseline_case_id(level1c_manifest, geometry: str, spin: int) -> str:
-    from experiments.level1c.manifest import J0_BASELINE, hamiltonian_case_id_for_j0
-    from experiments.level1c.planning import build_level1c_campaign_plan
-
-    baseline_hamiltonian_case_id = hamiltonian_case_id_for_j0(J0_BASELINE)
-    return next(
-        case.case_id
-        for case in build_level1c_campaign_plan(level1c_manifest)
-        if case.geometry == geometry and case.spin == spin and case.hamiltonian_case_id == baseline_hamiltonian_case_id
-    )
 
 
 def _matching_level1c_baseline(output_dir, historical_index, historical_case_id, level1c_manifest, geometry, spin, level1c_case_id) -> None:
@@ -80,9 +68,9 @@ def test_missing_level1c_baseline_fails(tmp_path, historical_index, historical_m
     assert any("LEVEL1C_BASELINE_UNAVAILABLE" in reason for reason in result.failure_reasons)
 
 
-def test_level1c_provenance_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest) -> None:
+def test_level1c_provenance_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
     historical_case_id = historical_case_ids[("ring5", 2)]
-    level1c_case_id = "ring5-S2-j0-1.00-default-FAKE"
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
     _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
 
     result = compare_baseline_case(
@@ -95,14 +83,12 @@ def test_level1c_provenance_mismatch_fails(tmp_path, historical_index, historica
     assert "LEVEL1C_REPOSITORY_COMMIT_MISMATCH" in result.failure_reasons
 
 
-def test_run_status_not_success_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest) -> None:
+def test_run_status_not_success_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
     historical_case_id = historical_case_ids[("ring5", 2)]
-    level1c_case_id = "ring5-S2-j0-1.00-default-FAKE"
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
     _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
 
     run_path = tmp_path / "runs" / level1c_case_id / "run.json"
-    import json
-
     document = json.loads(run_path.read_text())
     document["run_status"] = "failed"
     document["records_sha256"] = None
@@ -112,33 +98,24 @@ def test_run_status_not_success_fails(tmp_path, historical_index, historical_man
     run_path.write_text(json.dumps(document))
 
     with pytest.raises(BaselineGateInputError, match="run_status"):
-        load_level1c_baseline_case(tmp_path, level1c_case_id)
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
 
 
-def test_normative_case_valid_not_true_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest) -> None:
+def test_normative_case_valid_not_true_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
     historical_case_id = historical_case_ids[("ring5", 2)]
-    level1c_case_id = "ring5-S2-j0-1.00-default-FAKE"
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
     _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
 
     run_path = tmp_path / "runs" / level1c_case_id / "run.json"
-    import json
-
     document = json.loads(run_path.read_text())
     document["normative_case_valid"] = False
     run_path.write_text(json.dumps(document))
 
     with pytest.raises(BaselineGateInputError, match="normative_case_valid"):
-        load_level1c_baseline_case(tmp_path, level1c_case_id)
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
 
 
-def test_historical_campaign_provenance_mismatch_fails(level1c_manifest) -> None:
-    from experiments.level1.manifest import Manifest as Level1BManifest
-
-    # Build a gate run with a bogus historical manifest fingerprint by
-    # monkeypatching would require real IO; instead directly exercise
-    # the artifact-level aggregation with a synthetic mismatch reason.
-    from scripts.level1c_baseline_gate.gate import build_case_comparison_result
-
+def test_historical_campaign_provenance_mismatch_fails() -> None:
     result = build_case_comparison_result("ring5", 2, "level1c-x", "historical-x", (), ("HISTORICAL_CAMPAIGN_PROVENANCE_MISMATCH",))
     assert result.case_status == FAIL
     assert result.failure_reasons == ("HISTORICAL_CAMPAIGN_PROVENANCE_MISMATCH",)
@@ -150,14 +127,212 @@ def test_t_max_never_in_required_target_ids() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Level1C artifact integrity (1C-8d-fix): SHA-256, record_count, blank
+# lines, run.json case_id, per-record provenance/scientific identity.
+# ---------------------------------------------------------------------------
+
+
+def test_valid_records_hash_and_count_are_accepted(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+
+    run_document, records = load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+    assert len(records) == run_document["record_count"]
+
+
+def test_records_jsonl_byte_modification_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+
+    records_path = tmp_path / "runs" / level1c_case_id / "records.jsonl"
+    data = bytearray(records_path.read_bytes())
+    # Flip one ASCII digit somewhere in the middle of the file -- keeps
+    # the file byte-length identical and (very likely) still valid
+    # JSONL, but the SHA-256 no longer matches run.json's own value.
+    for index in range(len(data)):
+        if chr(data[index]).isdigit():
+            data[index] = ord("9") if chr(data[index]) != "9" else ord("8")
+            break
+    records_path.write_bytes(bytes(data))
+
+    with pytest.raises(BaselineGateInputError, match="SHA-256"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_wrong_records_sha256_in_run_json_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+
+    run_path = tmp_path / "runs" / level1c_case_id / "run.json"
+    document = json.loads(run_path.read_text())
+    document["records_sha256"] = "a" * 64
+    run_path.write_text(json.dumps(document))
+
+    with pytest.raises(BaselineGateInputError, match="SHA-256"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_wrong_record_count_in_run_json_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+
+    run_path = tmp_path / "runs" / level1c_case_id / "run.json"
+    document = json.loads(run_path.read_text())
+    document["record_count"] = document["record_count"] + 1
+    run_path.write_text(json.dumps(document))
+
+    with pytest.raises(BaselineGateInputError, match="record_count"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_internal_blank_line_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    import hashlib
+
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+
+    records_path = tmp_path / "runs" / level1c_case_id / "records.jsonl"
+    original = records_path.read_bytes()
+    tampered = original[:-1] + b"\n" + original[-1:]  # inject an internal blank line before the final line
+    records_path.write_bytes(tampered)
+
+    # Recompute records_sha256/record_count to match the tampered file
+    # exactly, isolating the blank-line policy from the hash/count checks.
+    run_path = tmp_path / "runs" / level1c_case_id / "run.json"
+    document = json.loads(run_path.read_text())
+    document["records_sha256"] = hashlib.sha256(tampered).hexdigest()
+    run_path.write_text(json.dumps(document))
+
+    with pytest.raises(BaselineGateInputError, match="could not be loaded"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_run_json_case_id_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+
+    run_path = tmp_path / "runs" / level1c_case_id / "run.json"
+    document = json.loads(run_path.read_text())
+    document["case_id"] = "some-other-case-id"
+    run_path.write_text(json.dumps(document))
+
+    with pytest.raises(BaselineGateInputError, match="case_id"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def _tamper_first_record(tmp_path, level1c_case_id: str, key: str, value) -> None:
+    import hashlib
+
+    records_path = tmp_path / "runs" / level1c_case_id / "records.jsonl"
+    lines = records_path.read_bytes().decode("utf-8").split("\n")
+    assert lines and lines[-1] == ""
+    content_lines = lines[:-1]
+    first = json.loads(content_lines[0])
+    if key in ("geometry", "spin", "sector"):
+        first["identity"][key] = value
+    elif key == "hamiltonian_J0":
+        first["identity"]["hamiltonian"] = dict(first["identity"]["hamiltonian"])
+        first["identity"]["hamiltonian"]["J"] = list(first["identity"]["hamiltonian"]["J"])
+        first["identity"]["hamiltonian"]["J"][0] = value
+    else:
+        first[key] = value
+    content_lines[0] = json.dumps(first, sort_keys=True, separators=(",", ":"))
+    tampered_bytes = ("\n".join(content_lines) + "\n").encode("utf-8")
+    records_path.write_bytes(tampered_bytes)
+
+    run_path = tmp_path / "runs" / level1c_case_id / "run.json"
+    document = json.loads(run_path.read_text())
+    document["records_sha256"] = hashlib.sha256(tampered_bytes).hexdigest()
+    run_path.write_text(json.dumps(document))
+
+
+def test_record_campaign_id_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+    _tamper_first_record(tmp_path, level1c_case_id, "campaign_id", "some-other-campaign")
+
+    with pytest.raises(BaselineGateInputError, match="campaign_id"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_record_manifest_fingerprint_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+    _tamper_first_record(tmp_path, level1c_case_id, "manifest_fingerprint", "0" * 64)
+
+    with pytest.raises(BaselineGateInputError, match="manifest_fingerprint"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_record_repository_commit_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+    _tamper_first_record(tmp_path, level1c_case_id, "repository_commit", "1" * 40)
+
+    with pytest.raises(BaselineGateInputError, match="repository_commit"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_record_geometry_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+    _tamper_first_record(tmp_path, level1c_case_id, "geometry", "triangle")
+
+    with pytest.raises(BaselineGateInputError, match="geometry"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_record_spin_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+    _tamper_first_record(tmp_path, level1c_case_id, "spin", 3)
+
+    with pytest.raises(BaselineGateInputError, match="spin"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_record_hamiltonian_mismatch_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    level1c_case_id = level1c_case_ids[("ring5", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, level1c_case_id)
+    _tamper_first_record(tmp_path, level1c_case_id, "hamiltonian_J0", 0.5)
+
+    with pytest.raises(BaselineGateInputError, match="hamiltonian"):
+        load_level1c_baseline_case(tmp_path, level1c_case_id, level1c_manifest=level1c_manifest)
+
+
+def test_case_id_not_in_manifest_plan_fails(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest) -> None:
+    """A baseline whose case_id does not resolve to any real planned
+    case must never be silently accepted, even if run.json/records.jsonl
+    are otherwise internally consistent."""
+    historical_case_id = historical_case_ids[("ring5", 2)]
+    fake_case_id = "ring5-S2-j0-1.00-default-NOTINPLAN"
+    _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, "ring5", 2, fake_case_id)
+
+    with pytest.raises(BaselineGateInputError, match="not present in build_level1c_campaign_plan"):
+        load_level1c_baseline_case(tmp_path, fake_case_id, level1c_manifest=level1c_manifest)
+
+
+# ---------------------------------------------------------------------------
 # Full 4/4 exact-match gate: PASS
 # ---------------------------------------------------------------------------
 
 
-def test_full_gate_all_4_baselines_exact_match_passes(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest) -> None:
+def test_full_gate_all_4_baselines_exact_match_passes(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
     results = []
     for (geometry, spin), historical_case_id in historical_case_ids.items():
-        level1c_case_id = f"{geometry}-S{spin}-j0-1.00-default-FAKE"
+        level1c_case_id = level1c_case_ids[(geometry, spin)]
         _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, geometry, spin, level1c_case_id)
         results.append(
             compare_baseline_case(
@@ -175,7 +350,7 @@ def test_full_gate_all_4_baselines_exact_match_passes(tmp_path, historical_index
 
 
 def test_full_orchestration_run_baseline_nonregression_gate_passes(
-    tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, monkeypatch
+    tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids, monkeypatch
 ) -> None:
     """Exercises run_baseline_nonregression_gate itself (not just
     compare_baseline_case), using the manifest's own real, deterministic
@@ -184,7 +359,7 @@ def test_full_orchestration_run_baseline_nonregression_gate_passes(
     already-loaded real historical_index fixture (avoiding a second,
     redundant real-archive load per test)."""
     for (geometry, spin), historical_case_id in historical_case_ids.items():
-        level1c_case_id = _real_level1c_baseline_case_id(level1c_manifest, geometry, spin)
+        level1c_case_id = level1c_case_ids[(geometry, spin)]
         _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, geometry, spin, level1c_case_id)
 
     monkeypatch.setattr(
@@ -201,17 +376,17 @@ def test_full_orchestration_run_baseline_nonregression_gate_passes(
     validate_gate_artifact_document(to_json_dict(artifact))
 
 
-def test_full_gate_one_baseline_fails_others_still_evaluated(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest) -> None:
+def test_full_gate_one_baseline_fails_others_still_evaluated(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
     """A single missing/invalid baseline must never abort the other
     three -- all four are always attempted and reported (section 3)."""
     triangle_s2_id = historical_case_ids[("triangle", 2)]
-    fake_case_id = "triangle-S2-j0-1.00-default-FAKE"
-    _matching_level1c_baseline(tmp_path, historical_index, triangle_s2_id, level1c_manifest, "triangle", 2, fake_case_id)
+    real_case_id = level1c_case_ids[("triangle", 2)]
+    _matching_level1c_baseline(tmp_path, historical_index, triangle_s2_id, level1c_manifest, "triangle", 2, real_case_id)
     # triangle S3, ring5 S2, ring5 S3 are intentionally never written -> missing.
 
     results = {}
     results[("triangle", 2)] = compare_baseline_case(
-        "triangle", 2, level1c_manifest, tmp_path, fake_case_id,
+        "triangle", 2, level1c_manifest, tmp_path, real_case_id,
         historical_index, historical_manifest, triangle_s2_id,
         repository_commit=REPO_COMMIT, ctt_abs_tol=1e-15, rho_abs_tol=1e-15,
     )
@@ -234,12 +409,12 @@ def test_full_gate_one_baseline_fails_others_still_evaluated(tmp_path, historica
 # ---------------------------------------------------------------------------
 
 
-def test_gate_artifact_round_trips_through_schema(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest) -> None:
+def test_gate_artifact_round_trips_through_schema(tmp_path, historical_index, historical_manifest, historical_case_ids, level1c_manifest, level1c_case_ids) -> None:
     from scripts.level1c_baseline_gate.gate import _finalize_artifact
 
     results = []
     for (geometry, spin), historical_case_id in historical_case_ids.items():
-        level1c_case_id = f"{geometry}-S{spin}-j0-1.00-default-FAKE"
+        level1c_case_id = level1c_case_ids[(geometry, spin)]
         _matching_level1c_baseline(tmp_path, historical_index, historical_case_id, level1c_manifest, geometry, spin, level1c_case_id)
         results.append(
             compare_baseline_case(
