@@ -1,27 +1,23 @@
 """Unit tests for cosmobox.level2.adapter (lot L2-D2-LEVEL2-ADAPTER).
 
-Every test uses hand-built synthetic objects (a hand-assembled Level0Report,
-diagonal operators, standard-basis eigenvector columns) -- never a real
-diagonalization, and never one of the six frozen Level2 fixtures (triangle,
-ring4, ring5 x S=2, S=3). The single exception is test_build_case_operators_*,
-which exercises the adapter's per-site operator wiring against
-cosmobox.level0.lattice's "chain3" geometry: this is not a Level2 fixture
-(Level2's frozen fixture set is exactly {triangle, ring4, ring5}), and no
-Hamiltonian is built and no diagonalization runs -- only the already-tested
-Level1 basis/operator construction is exercised, to check the adapter wires
-it correctly.
+Every test uses hand-built synthetic objects only: a hand-assembled
+Level0Report, diagonal operators, standard-basis eigenvector columns, and
+(for build_case_operators) a minimal synthetic lattice-like object exposing
+only `.nodes`, with the two Level1 builders it calls replaced by
+monkeypatched fakes. No real lattice, basis, or diagonalization is built
+anywhere in this file, and no catalog geometry (Level2's six frozen cases
+or otherwise) is used.
 """
 
 from __future__ import annotations
+
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 import scipy.sparse as sp
 
-from cosmobox.level0.basis import build_basis
 from cosmobox.level0.degeneracy import analyze_spectral_degeneracies
-from cosmobox.level0.hamiltonian import build_key_index
-from cosmobox.level0.lattice import build_lattice
 from cosmobox.level0.params import HamiltonianParameters
 from cosmobox.level0.reports import (
     EigenpairDiagnostic,
@@ -32,13 +28,12 @@ from cosmobox.level0.reports import (
     TermStatistics,
 )
 from cosmobox.level1.local_observables import (
-    build_local_charge_operator,
-    build_local_flavor_generators,
     charge_correlator_connected_group,
     flavor_correlator_connected_group,
     normalized_charge_correlator,
 )
 from cosmobox.level1.restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE, SpectralGroupState
+from cosmobox.level2 import adapter as level2_adapter
 from cosmobox.level2 import metrics, profiles
 from cosmobox.level2.adapter import (
     CompleteMultiplet,
@@ -305,24 +300,45 @@ def test_assemble_rho_qq_rejects_partial_subspace():
 # ---------------------------------------------------------------------------
 
 
-def test_build_case_operators_matches_direct_calls_on_a_non_level2_geometry():
-    lattice = build_lattice("chain3")
-    spin = 1
+def test_build_case_operators_wires_one_call_per_site_in_order(monkeypatch):
+    # Synthetic, minimal lattice-like object exposing only what
+    # build_case_operators reads: `.nodes`. Not build_lattice's Lattice,
+    # not any catalog geometry.
+    lattice = SimpleNamespace(nodes=(10, 20, 30))
     n_flavors = 2
-    basis = build_basis(lattice, n_flavors, spin)
-    key_index = build_key_index(basis.keys)
+    spin = 3
+    keys = "synthetic-keys"
+    key_index = {"synthetic": "key-index"}
 
-    charge_operators, flavor_generators = build_case_operators(lattice, n_flavors, spin, basis.keys, key_index)
+    charge_calls: list[tuple] = []
+    flavor_calls: list[tuple] = []
 
-    assert len(charge_operators) == len(lattice.nodes)
-    assert len(flavor_generators) == len(lattice.nodes)
-    for position, node in enumerate(lattice.nodes):
-        expected_charge = build_local_charge_operator(lattice, n_flavors, spin, basis.keys, key_index, node)
-        assert (charge_operators[position] != expected_charge).nnz == 0
+    def fake_build_local_charge_operator(lattice_arg, n_flavors_arg, spin_arg, keys_arg, key_index_arg, node):
+        charge_calls.append((lattice_arg, n_flavors_arg, spin_arg, keys_arg, key_index_arg, node))
+        return f"charge-operator-{node}"
 
-        expected_flavor = build_local_flavor_generators(lattice, n_flavors, spin, basis.keys, key_index, node)
-        for component in ("x", "y", "z"):
-            assert (flavor_generators[position][component] != expected_flavor[component]).nnz == 0
+    def fake_build_local_flavor_generators(lattice_arg, n_flavors_arg, spin_arg, keys_arg, key_index_arg, node):
+        flavor_calls.append((lattice_arg, n_flavors_arg, spin_arg, keys_arg, key_index_arg, node))
+        return {"x": f"flavor-x-{node}", "y": f"flavor-y-{node}", "z": f"flavor-z-{node}"}
+
+    monkeypatch.setattr(level2_adapter, "build_local_charge_operator", fake_build_local_charge_operator)
+    monkeypatch.setattr(level2_adapter, "build_local_flavor_generators", fake_build_local_flavor_generators)
+
+    charge_operators, flavor_generators = build_case_operators(lattice, n_flavors, spin, keys, key_index)
+
+    # exactly one call per site, in lattice.nodes order -- never rebuilt,
+    # never called for anything spectral-group-related (build_case_operators
+    # takes no group_state at all)
+    expected_call_args = [(lattice, n_flavors, spin, keys, key_index, node) for node in lattice.nodes]
+    assert charge_calls == expected_call_args
+    assert flavor_calls == expected_call_args
+
+    # the returned tuples are exactly the mocked builders' return values,
+    # in the same site order
+    assert charge_operators == tuple(f"charge-operator-{node}" for node in lattice.nodes)
+    assert flavor_generators == tuple(
+        {"x": f"flavor-x-{node}", "y": f"flavor-y-{node}", "z": f"flavor-z-{node}"} for node in lattice.nodes
+    )
 
 
 # ---------------------------------------------------------------------------
