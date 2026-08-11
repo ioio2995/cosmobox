@@ -56,10 +56,11 @@ Statut : **clos**.
 ## Niveau 2
 
 - [`levels/level2/conceptual-framing.md`](levels/level2/conceptual-framing.md) — cadrage scientifique initial de l'axe régime énergétique/spectral.
+- [`levels/level2/spectral-capability-audit.md`](levels/level2/spectral-capability-audit.md) — audit L2-A des capacités spectrales existantes et proposition de périmètre plein spectre.
 
-Statut : **L2-A — cadrage conceptuel en cours**.
+Statut : **L2-A — audit scientifique en cours**.
 
-Aucune implémentation, aucun manifeste et aucune campagne Level 2 ne sont encore ouverts.
+Aucune campagne normative Level 2 n'est encore ouverte. La prochaine étape proposée est un préflight de ressources plein spectre, sans analyse physique des corrélations.
 
 ## Archives
 
