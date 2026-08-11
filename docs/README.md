@@ -39,9 +39,18 @@ Jalon de clôture : **lot 1B-9g**, clôture scientifique documentaire de Level 1
 ## Niveau 1C
 
 - [`levels/level1c/conceptual-framing.md`](levels/level1c/conceptual-framing.md) — cadrage conceptuel, non normatif.
-- [`levels/level1c/identifiability-preregistration.md`](levels/level1c/identifiability-preregistration.md) — pré-enregistrement conceptuel de la stratégie d'identifiabilité géométrique, non normatif.
+- [`levels/level1c/identifiability-preregistration.md`](levels/level1c/identifiability-preregistration.md) — pré-enregistrement normatif de la campagne `J0×S` et du pipeline `P → gate → T → R`.
+- [`levels/level1c/level1c-conclusion.md`](levels/level1c/level1c-conclusion.md) — conclusion scientifique de clôture (verdict `INCONCLUSIVE`, échec d'identifiabilité de branche inter-J0).
 
-Statut : **pré-enregistrement conceptuel en cours** (lot 1C-1, après acceptation définitive de 1C-0). Aucune implémentation scientifique, aucune campagne, aucune formule de distance autorisée à ce stade.
+Statut : **clos**.
+
+Jalon de clôture : **lot 1C-8m**, à l'issue de l'unique exécution normative réelle acceptée (lot 1C-8l) — voir [`levels/level1c/level1c-conclusion.md`](levels/level1c/level1c-conclusion.md).
+
+## Synthèse Level 1
+
+- [`levels/level1/level1-synthesis-and-closure.md`](levels/level1/level1-synthesis-and-closure.md) — articulation Level 1B/Level 1C et clôture globale de Level 1.
+
+Statut : **clos**.
 
 ## Compatibilité des anciens chemins
 

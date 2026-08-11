@@ -29,10 +29,10 @@ Nouveau profil de coût (`--durations=30` après correction) : plus aucun test d
 ## Dernier commit accepté
 
 ```text
-b9b0a21262e26a945b974cfbdcdb1a1ffbc3867c
+7d9ab03b1c6a386b9897a71ac89b558457d4ce80
 ```
 
-Mis à jour par `1C-8j` : `1C-8h` + `1C-8h-fix` sont désormais `ACCEPTÉS DÉFINITIVEMENT ENSEMBLE`. `1C-8i` (audit read-only du launcher normatif global) a produit un rapport d'audit accepté, sans aucun commit — le pointeur n'a donc pas bougé entre-temps. Voir « Lot 1C-8j » ci-dessous pour l'implémentation du launcher normatif lui-même (ce commit), toujours `pending`, non avancé au-delà de `b9b0a212...`.
+Mis à jour par `1C-8m` : `1C-8j` + `1C-8j-fix` sont désormais `ACCEPTÉS DÉFINITIVEMENT ENSEMBLE`, et `1C-8k` (gel méthodologique `PHYSICAL_RESPONSE_THRESHOLD=NOT_APPLICABLE`, documentaire) est lui-même accepté. `1C-8l` (exécution normative réelle unique, `pipeline_status=COMPLETED`) a été auditée et acceptée comme exécution valide, **sans aucun commit associé** — le pointeur n'a donc pas bougé entre `1C-8k` et `1C-8l`. Voir « Lot 1C-8m » ci-dessous pour la clôture scientifique Level1C/Level1 (ce commit), toujours `pending`, non avancé au-delà de `7d9ab03b...`.
 
 Corrigé par `1C-8e-fix` : ce pointeur était resté stale à `79c0b8b8a5f2208acb6c4b8776ef6323ad8bbd98` (précédant `1C-8d`) alors que `1C-8d` + `1C-8d-fix` sont `ACCEPTÉS DÉFINITIVEMENT ENSEMBLE` depuis l'audit de 1C-8e. `a7de0a4163a1f1ceeeab22a0a090a8c29b98c4bc` (1C-8e) n'est PAS encore accepté définitivement — voir « Lot 1C-8e » et « Lot 1C-8e-fix » ci-dessous : le code scientifique est acceptable mais l'audit reste suspendu pour `REFLECTION_VALIDITY_EQUIVALENCE_WORDING` + `STALE_CURRENT_ACCEPTED_HEAD`, corrigés par `1C-8e-fix`, lui-même `pending ChatGPT audit`.
 
@@ -948,6 +948,28 @@ Abandonne, après réexamen scientifique, la notion de seuil physique scalaire b
 Fichiers de ce lot : `docs/levels/level1c/identifiability-preregistration.md` (§16.23, §20.27, §20.31), `docs/governance/current-task.md`. Aucun fichier de code touché — `scripts/level1c_response/*`, `scripts/level1c_tracking/*`, `scripts/level1c_launcher/*`, `scripts/level1c_baseline_gate/*` tous inchangés.
 
 Ce commit reste en attente d'audit, non présenté comme accepté. Le pointeur « Dernier commit accepté » reste `b9b0a21262e26a945b974cfbdcdb1a1ffbc3867c` (non avancé). Aucune campagne normative réelle lancée, aucune `PHASE_G` ouverte, aucun lot suivant démarré. Attends l'audit de ChatGPT puis la décision de Lionel.
+
+**Acceptation ultérieure** : `1C-8k` est accepté.
+
+## Lot 1C-8l — exécution normative réelle Level1C (acceptée, aucun commit)
+
+Exécution unique (`NORMATIVE_EXECUTION_ATTEMPTS=1`) de la campagne normative réelle via le launcher existant (`python -m scripts.run_level1c_campaign --output-dir results/level1c/campaign --historical-output-dir /workspaces/level1b_campaign_output`), sans aucune modification de code (`CODE_FREEZE` respecté). Préconditions vérifiées avant lancement : `HEAD=7d9ab03b1c6a386b9897a71ac89b558457d4ce80`, branche `research/level1-correlators`, tree clean — conformes. Résultat : `pipeline_status=COMPLETED`, `PHASE_P` 20/20 `success` (`global_success=true`), `BASELINE_NON_REGRESSION_GATE=PASS` (`e_ctt=e_rho=0.0`, 4/4 baselines), `PHASE_T` 40 records (`TRACKED_ONE_TO_ONE=0`, `NOT_AVAILABLE=32` [`CLASS_POOL_EMPTY`], `AMBIGUOUS=8` [`CLASS_POOL_NOT_UNIQUE`, exclusivement `first_excited`]), `PHASE_R` 40 records (`RESPONSE_AVAILABLE=0`, `RESPONSE_NOT_AVAILABLE=40`, raison unique `TRACKING_STATUS_NOT_TRACKED_ONE_TO_ONE`). Provenance unique vérifiée à travers les 20 `run.json`/l'artefact de gate/les 80 records T+R : `campaign_id=level1c-j0-response-v1`, `repository_commit=7d9ab03b1c6a386b9897a71ac89b558457d4ce80`, `manifest_fingerprint=31e4c94f1758b426ef3ac05ecbc287ad7291d0b34b9a0c1329f5b746e22944e5`. Artefacts non versionnés sous `results/level1c/campaign/` (ignoré par Git) : `baseline-nonregression.json` (SHA-256 `5032429ce20bb0ef0cc7d583a82a13b1576593fec366593e0b9d0f449c40b82c`), `tracking.jsonl` (SHA-256 `60dd9336f559712be501c26f5c9d5e2a75a8a8fd77b8d812e77d7056d2105ce7`), `response.jsonl` (SHA-256 `9d8ab45b3cbef0d131bddf28bc658c95b2533ff839a260836cb004c29e180be5`). Post-exécution : HEAD/branche/propreté inchangés, `PHASE_G` jamais ouverte, aucune interprétation physique produite par Claude. **`LOT_COMMIT = NONE`** (documentation de clôture différée à `1C-8m`, sur décision explicite).
+
+## Lot 1C-8m — clôture scientifique Level1C et Level1 (ce commit, documentaire uniquement)
+
+Clôt scientifiquement Level1C puis Level1 à partir exclusivement des résultats déjà acceptés de `1C-8l`, sans recalcul, sans relance, sans réparation, sans extrapolation.
+
+Nouveau `docs/levels/level1c/level1c-conclusion.md` : `LEVEL1C_PHYSICAL_VERDICT=INCONCLUSIVE`, raison `INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE` ; interprétation gelée de `NOT_AVAILABLE` (`absence in production_window != physical discontinuity`, jamais une disparition physique de branche) et de `AMBIGUOUS` (plusieurs groupes satisfont les critères structurels autorisés, jamais un départage post-hoc par énergie/rang/index) ; `H0`–`H4 = NOT_EVALUABLE` (jamais « H0 supported »/« réponse absente ») ; `PHASE_G = NOT_OPENED` pour raison `NO_EVALUABLE_PHASE_R_RESPONSE` (jamais « géométrie réfutée » — préconditions non satisfaites) ; séparation stricte « ce que Level1C établit » (méthodologique : pipeline exécutable, baselines conformes, identifiabilité de branche en échec) / « ce que Level1C n'établit pas » (liste explicite : réponse locale/distribuée, (non-)localité, distance/métrique/dimension/topologie/courbure/gravité, convergence `S→∞`, discontinuité physique) ; provenance et hashes complets repris de `1C-8l`.
+
+Nouveau `docs/levels/level1/level1-synthesis-and-closure.md` : `LEVEL1=CLOSED`, articulation stricte `LEVEL1B=successful robustness result` / `LEVEL1C=inconclusive physical-response result (branch identifiability failure)` ; rappel non recalculé du résultat consolidé Level1B (7 appariements exacts, 712/684/28, 684 `robust`/0/0) avec la précision impérative `S=2 vs S=3 robustness != proof of convergence as S→∞` ; formulation de conclusion globale exacte du mandat reprise verbatim ; section `METHODOLOGICAL_LESSON` (robustesse d'une observable ≠ identifiabilité de son évolution) ; section `NEXT_SCIENTIFIC_AXIS` figeant uniquement l'orientation « régime énergétique/spectral », sans aucune conception de Level2 (aucun nouveau Hamiltonien/manifeste/grille de température/fenêtre microcanonique/graphe dynamique/temps émergent/gravité).
+
+`docs/README.md` mis à jour minimalement : section Niveau 1C passée à **clos** avec lien vers `level1c-conclusion.md`, nouvelle section « Synthèse Level 1 » avec lien vers `level1-synthesis-and-closure.md`.
+
+`LEVEL1C_NORMATIVE_EXECUTION=ACCEPTED`, `LEVEL1C_PHYSICAL_VERDICT=INCONCLUSIVE`, `LEVEL1C_STOP_REASON=INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE`, `TRACKED_ONE_TO_ONE=0/40`, `NOT_AVAILABLE=32/40`, `AMBIGUOUS=8/40`, `RESPONSE_AVAILABLE=0/40`, `H0_H4=NOT_EVALUABLE`, `PHASE_G_OPENED=NO`, `LEVEL1=CLOSED`, `NEXT_SCIENTIFIC_AXIS=ENERGY_SPECTRAL_REGIME`, `CODE_CHANGED=NO`, `REAL_CAMPAIGN_REEXECUTED=NO`, `ARTIFACTS_MODIFIED=NO`.
+
+Fichiers de ce lot : `docs/levels/level1c/level1c-conclusion.md` (nouveau), `docs/levels/level1/level1-synthesis-and-closure.md` (nouveau), `docs/README.md` (index, minimal), `docs/governance/current-task.md`. Aucun autre fichier — aucun code, aucun test, aucun artefact `results/` touché.
+
+Ce commit reste en attente d'audit, non présenté comme accepté. Le pointeur « Dernier commit accepté » reste `7d9ab03b1c6a386b9897a71ac89b558457d4ce80` (non avancé). **STOP après ce commit** : aucune relance, aucune branche Level2, aucun nouveau manifeste, aucun code proposé. Attends l'audit de ChatGPT puis la décision de Lionel.
 
 ## Référence : lanceur normatif 1B-8e (accepté, non modifié depuis)
 
