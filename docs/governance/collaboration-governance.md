@@ -46,7 +46,32 @@ Auditeur externe exceptionnel, uniquement sur demande de Lionel pour un gel maje
 
 Un push ou des tests réussis ne valent pas acceptation scientifique.
 
-## 3. Format d’une mission Claude Code
+## 3. Continuité entre lots et messages de validation
+
+Une validation positive ne génère pas, à elle seule, un message autonome destiné à Claude Code lorsqu’aucune action immédiate n’est requise de sa part.
+
+Après la revue positive d’un commit distant :
+
+- ChatGPT rapporte le verdict à Lionel ;
+- Lionel accepte ou non le lot et décide de l’ouverture éventuelle du lot suivant ;
+- si un lot suivant est ouvert, la validation du lot précédent est rappelée en tête du nouveau mandat comme **prérequis de continuité** ;
+- ce rappel contient au minimum le lot accepté, les SHA de référence utiles, le verdict d’audit et le fait que le lot précédent ne doit pas être rouvert sans défaut bloquant nouvellement identifié.
+
+Ainsi, un `PASS` est normalement transporté par le mandat suivant plutôt que par un échange Claude Code sans action utile.
+
+En revanche, un message autonome à Claude Code reste requis lorsqu’il entraîne une action ou modifie l’état de travail, notamment en cas de :
+
+- `FAIL` ;
+- `STOP` ;
+- correctif demandé ;
+- demande d’audit complémentaire ;
+- remise en conformité ;
+- synchronisation ou opération Git explicitement autorisée ;
+- absence de lot suivant mais nécessité de transmettre une instruction particulière.
+
+L’absence de message autonome après un `PASS` ne vaut jamais autorisation implicite de poursuivre. Claude Code n’ouvre aucun lot suivant sans mandat explicite.
+
+## 4. Format d’une mission Claude Code
 
 ```text
 Contexte
@@ -76,7 +101,7 @@ Une mission ne recopie pas les règles générales déjà définies dans cette c
 
 En cas de contradiction entre un mandat courant et cette gouvernance gelée, Claude Code s’arrête et signale la contradiction. Un mandat ne modifie pas implicitement la gouvernance.
 
-## 4. Rapport d’audit
+## 5. Rapport d’audit
 
 ```text
 1. Compréhension du lot
@@ -90,7 +115,7 @@ En cas de contradiction entre un mandat courant et cette gouvernance gelée, Cla
 9. Actions non réalisées
 ```
 
-## 5. Rapport de livraison
+## 6. Rapport de livraison
 
 ```text
 1. Résumé
@@ -105,7 +130,7 @@ En cas de contradiction entre un mandat courant et cette gouvernance gelée, Cla
 10. Actions restantes
 ```
 
-## 6. Autorisation Git par défaut
+## 7. Autorisation Git par défaut
 
 Pour une implémentation ou un correctif autorisé sur une branche désignée :
 
@@ -124,7 +149,7 @@ Cette autorisation ne couvre jamais :
 
 En cas de divergence distante non triviale ou de périmètre réel différent, Claude Code s’arrête avant publication.
 
-## 7. Ambiguïtés
+## 8. Ambiguïtés
 
 - **Scientifique** : Claude Code s’arrête ; ChatGPT propose ; Lionel tranche.
 - **Ingénierie** : Claude Code décide et documente dans les limites du contrat.
@@ -132,7 +157,7 @@ En cas de divergence distante non triviale ou de périmètre réel différent, C
 - **Périmètre** : hors-périmètre jusqu’à autorisation.
 - **Contradiction documentaire** : aucune décision locale dans le code ; correction selon la gouvernance documentaire.
 
-## 8. Rappel de remise en conformité
+## 9. Rappel de remise en conformité
 
 ```text
 Applique `docs/governance/collaboration-governance.md` et reprends au dernier jalon validé.
@@ -140,7 +165,7 @@ Applique `docs/governance/collaboration-governance.md` et reprends au dernier ja
 
 Après ce rappel, le participant identifie la règle violée, le dernier jalon réel, ce qui a été fait et la reprise minimale autorisée.
 
-## 9. Langue de collaboration
+## 10. Langue de collaboration
 
 Les rapports, audits, demandes d’arbitrage, comptes rendus et réponses de collaboration destinés à Lionel ou à ChatGPT sont rédigés en français.
 
@@ -155,7 +180,7 @@ Peuvent rester en anglais lorsqu’il est naturel ou conventionnel de le faire :
 
 Cette règle porte sur la communication de collaboration et ne modifie pas les conventions internes du code ou des formats techniques.
 
-## 10. Mémoire de session
+## 11. Mémoire de session
 
 À chaque jalon important, conserver :
 
@@ -173,6 +198,6 @@ questions ouvertes
 
 Le dépôt est la mémoire durable. Une décision devant survivre à la session doit être inscrite dans la documentation.
 
-## 11. Évolution
+## 12. Évolution
 
 Toute modification de cette charte exige une décision explicite, la mise à jour des documents qui la référencent si leur sens est affecté, la vérification du diff réel et la validation de Lionel.
