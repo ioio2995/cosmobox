@@ -53,6 +53,14 @@ Jalon de clôture : **lot 1C-8m**, à l'issue de l'unique exécution normative r
 
 Statut : **clos**.
 
+## Niveau 2
+
+- [`levels/level2/conceptual-framing.md`](levels/level2/conceptual-framing.md) — cadrage scientifique initial de l'axe régime énergétique/spectral.
+
+Statut : **L2-A — cadrage conceptuel en cours**.
+
+Aucune implémentation, aucun manifeste et aucune campagne Level 2 ne sont encore ouverts.
+
 ## Archives
 
 - [`archive/current-task-through-level1.md`](archive/current-task-through-level1.md) — point d'entrée vers le snapshot Git intégral de l'historique de gouvernance jusqu'à la clôture de Level 1.
