@@ -156,6 +156,28 @@ NEW_SCIENTIFIC_METRIC = NO
 NEW_NUMERICAL_TOLERANCE = NO
 ```
 
+## Arbitrage L2-D3 — métriques de contrôle
+
+L'audit L2-D3 a identifié une ambiguïté de périmètre concernant les descripteurs inter-S de forme pour les métriques de contrôle. Pour le premier test normatif, l'interprétation conservatrice suivante est gelée :
+
+```text
+PRIMARY_INTER_S_SHAPE_DESCRIPTORS:
+  M_TT  -> C_X_23, D_X_23
+  R_eff -> C_X_23, D_X_23 si le profil est évaluable partout
+
+CONTROL_INTER_S_SHAPE_DESCRIPTORS:
+  A_QQ -> NOT_COMPUTED
+  M_QQ -> NOT_COMPUTED
+
+CONTROL_ANALYSIS:
+  LOW/MID/HIGH = COMPUTED
+  DELTA_HL/DELTA_ML/DELTA_HM = COMPUTED_DESCRIPTIVELY
+  PRIMARY_TAXONOMY = NOT_APPLICABLE
+  L2_C1_GUARDS = NOT_APPLICABLE
+```
+
+`A_QQ` et `M_QQ` restent donc des contrôles descriptifs. Aucun `C_X_23`, `D_X_23`, classement inter-S primaire ou garde numérique n'est introduit pour ces métriques dans ce premier test. Cette décision ne modifie pas les définitions pré-enregistrées ; elle borne leur usage normatif au périmètre explicitement prévu pour les métriques primaires.
+
 ## Taxonomie de conclusion primaire
 
 Pour chaque géométrie et chaque métrique primaire :
@@ -172,11 +194,11 @@ NOT_EVALUABLE
 ## Étape suivante
 
 ```text
-NEXT_STEP = L2_D3_ANALYTIC_ORCHESTRATION_AUDIT
+NEXT_STEP = L2_D3_ANALYTIC_ORCHESTRATION_IMPLEMENTATION
 OPEN_METHODOLOGICAL_ITEM = NONE
 ```
 
-L2-D1 et L2-D2 sont clos. L'étape suivante doit auditer l'orchestration analytique minimale au-dessus des profils par multiplet acceptés : agrégation LOW/MID/HIGH, contrastes, profils inter-S et taxonomie, toujours sans campagne Level2 réelle, sans sérialisation et sans runner.
+L2-D1 et L2-D2 sont clos. L'audit L2-D3 est accepté avec l'arbitrage ci-dessus. L'étape suivante peut implémenter l'orchestration analytique minimale sur données synthétiques uniquement : agrégation LOW/MID/HIGH et contrastes pour les quatre métriques ; C_X_23/D_X_23 et taxonomie uniquement pour M_TT et R_eff selon leur disponibilité.
 
 Aucune exécution normative réelle n'est autorisée avant audit, implémentation, revue et acceptation explicite de la chaîne Level2 complète nécessaire à la campagne.
 
