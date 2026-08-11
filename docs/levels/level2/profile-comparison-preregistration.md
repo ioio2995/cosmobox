@@ -1,10 +1,10 @@
 # Pré-enregistrement scientifique — Level 2C : comparaison des profils spectraux
 
-Statut : **pré-enregistrement scientifique, avant implémentation et avant inspection des observables plein spectre**
+Statut : **pré-enregistrement scientifique gelé avant implémentation et avant inspection des observables plein spectre**
 
 Branche : `research/level2-energy-regime`
 
-Ce document complète `conceptual-framing.md`, `spectral-capability-audit.md` et `spectral-regime-design.md`.
+Ce document complète `conceptual-framing.md`, `spectral-capability-audit.md`, `spectral-regime-design.md` et `numerical-guard-protocol.md`.
 
 Il fixe la manière de comparer les profils spectraux entre `S=2` et `S=3` sans appariement multiplet-par-multiplet et sans introduire un seuil physique arbitraire.
 
@@ -12,17 +12,16 @@ Il fixe la manière de comparer les profils spectraux entre `S=2` et `S=3` sans 
 
 Level 2 doit déterminer si l'organisation relationnelle dépend de la position dans le spectre et si cette dépendance est compatible entre les deux troncatures principales `S=2` et `S=3`.
 
-Le problème méthodologique est le suivant :
+La compatibilité inter-S ne doit pas dépendre :
 
 ```text
-une compatibilité inter-S ne doit pas dépendre
 - d'un matching multiplet-par-multiplet ;
 - d'une tolérance physique choisie arbitrairement ;
 - d'un score binaire fabriqué après observation ;
 - d'un ajustement de courbe ou d'un lissage adaptatif.
 ```
 
-Level 2C adopte donc une stratégie différente : **la robustesse inter-S est décrite par des observables continues de concordance de profils et par des signes de contrastes pré-enregistrés ; elle n'est pas réduite à un seuil scalaire PASS/FAIL.**
+La robustesse inter-S est donc décrite par des observables continues de concordance de profils et par des signes de contrastes pré-enregistrés ; elle n'est pas réduite à un seuil scalaire PASS/FAIL.
 
 ## 2. Données d'entrée gelées
 
@@ -40,7 +39,7 @@ A_QQ(g)
 M_QQ(g) lorsque disponible
 ```
 
-Les définitions de ces quantités sont celles de `spectral-regime-design.md` et ne sont pas modifiées ici.
+Les définitions de ces quantités sont celles de `spectral-regime-design.md`.
 
 Aucune autre métrique primaire ne peut être ajoutée après inspection de la campagne normative.
 
@@ -58,17 +57,11 @@ Pour une métrique scalaire `X_g`, on définit la fonction spectrale en escalier
 X_S(q)=X_g \quad \text{pour } q\in I_g.
 \]
 
-Cette représentation porte naturellement le poids de multiplicité et permet de comparer `S=2` à `S=3` sur le même domaine abstrait :
-
-\[
-q\in[0,1].
-\]
+Cette représentation porte naturellement le poids de multiplicité et permet de comparer `S=2` à `S=3` sur le même domaine abstrait `q in [0,1]`.
 
 Aucun multiplet `S=2` n'est associé à un multiplet `S=3`.
 
 ## 4. Résumés LOW / MID / HIGH
-
-Les trois régimes secondaires restent :
 
 ```text
 LOW  = q in [0, 1/3)
@@ -110,14 +103,42 @@ Les deux autres sont descriptifs et servent à distinguer une évolution monoton
 
 Aucun contraste n'est transformé en taille d'effet binaire.
 
-## 6. Concordance de direction inter-S
+## 6. Gardes numériques gelées
 
-Pour une géométrie donnée et une métrique donnée, le premier contrôle inter-S est le signe du contraste principal :
+Le lot `L2-C1-NUMERICAL-ZERO-GUARD-CALIBRATION` a exécuté le protocole de `numerical-guard-protocol.md` sans exposer de valeur physique absolue.
+
+Résultat :
 
 ```text
-sign(Delta_X_HL at S=2)
-sign(Delta_X_HL at S=3)
+NUMERICAL_GUARD_M_TT  = 1e-16
+NUMERICAL_GUARD_R_EFF = 1e-15
+
+NUMERICAL_GUARD_ROLE = REPRODUCIBILITY_ONLY
+PHYSICAL_EFFECT_THRESHOLD = NOT_APPLICABLE
+SIGNIFICANCE_THRESHOLD = NOT_APPLICABLE
 ```
+
+Ces valeurs ne peuvent pas être modifiées après observation de la campagne normative.
+
+## 7. Concordance de direction inter-S
+
+Pour une géométrie et une métrique données, le premier contrôle inter-S est le signe du contraste principal.
+
+Pour `M_TT` :
+
+```text
+abs(Delta_HL) <= 1e-16
+    -> NUMERICALLY_UNRESOLVED
+```
+
+Pour `R_eff` :
+
+```text
+abs(Delta_HL) <= 1e-15
+    -> NUMERICALLY_UNRESOLVED
+```
+
+Au-delà de la garde correspondante, le signe mathématique du contraste est disponible.
 
 Les catégories descriptives autorisées sont :
 
@@ -133,38 +154,7 @@ NOT_EVALUABLE
 
 Aucune magnitude minimale physique n'est imposée.
 
-Un contraste compatible avec zéro au niveau du contrôle numérique n'est jamais déclaré physiquement nul : il reçoit `NUMERICALLY_UNRESOLVED`.
-
-## 7. Rôle exclusif de la tolérance numérique
-
-La tolérance utilisée pour décider si une quantité est numériquement distinguable de zéro doit provenir exclusivement d'un contrôle de reproductibilité/erreur numérique établi avant campagne.
-
-Elle ne constitue jamais :
-
-```text
-- un seuil de réponse physique ;
-- une taille minimale d'effet ;
-- un seuil de significance ;
-- un critère de succès scientifique.
-```
-
-La logique est :
-
-```text
-|Delta| <= numerical_guard
-    -> NUMERICALLY_UNRESOLVED
-
-|Delta| > numerical_guard
-    -> signe descriptif disponible
-```
-
-Le `numerical_guard` devra être dérivé ou justifié dans un lot technique séparé avant l'exécution normative. Il ne peut pas être choisi après observation des profils.
-
 ## 8. Concordance de forme continue
-
-Le signe de `Delta_HL` ne suffit pas à décrire la forme du profil. Level 2C fixe donc deux diagnostics continus supplémentaires, sans seuil de décision.
-
-### 8.1 Corrélation fonctionnelle centrée
 
 Pour une métrique `X` évaluable sur tout `[0,1]`, on définit :
 
@@ -172,7 +162,7 @@ Pour une métrique `X` évaluable sur tout `[0,1]`, on définit :
 \mu_S = \int_0^1 X_S(q)\,dq,
 \]
 
-puis :
+puis la corrélation fonctionnelle centrée :
 
 \[
 C_X^{23} =
@@ -185,18 +175,6 @@ C_X^{23} =
 \]
 
 Si l'une des deux fonctions est constante au niveau numérique, `C_X^{23}` est `NOT_AVAILABLE` avec une raison explicite.
-
-Interprétation :
-
-```text
-C proche de +1 : formes centrées similaires
-C proche de 0  : faible concordance linéaire de forme
-C proche de -1 : formes centrées inversées
-```
-
-Aucune frontière numérique entre ces descriptions n'est normative.
-
-### 8.2 Distance de profil normalisée
 
 On définit également :
 
@@ -214,19 +192,19 @@ D_X^{23}=
 
 Si le dénominateur est nul au niveau numérique, `D_X^{23}` est `NOT_AVAILABLE`.
 
-`D_X^{23}` est un descripteur continu de différence entre profils. Il n'existe aucun `D_max` normatif.
+`C_X^{23}` et `D_X^{23}` sont des descripteurs continus ; aucun seuil de décision n'est associé à leurs valeurs.
 
 ## 9. Tendance monotone intra-S
 
-Le coefficient de Spearman préfiguré en Level 2B est conservé :
+Le coefficient de Spearman descriptif :
 
 \[
-\rho_S(q,X).
+\rho_S(q,X)
 \]
 
-Il est calculé sur les groupes spectraux avec poids de multiplicité pris en compte par la représentation cumulative ; l'implémentation exacte doit être définie sans réplication massive des états, mais être mathématiquement équivalente à un classement pondéré par `d_g`.
+est conservé.
 
-Le coefficient est descriptif :
+Il doit être calculé avec pondération de multiplicité mathématiquement équivalente à la population cumulative, sans nécessité de réplication massive explicite des états.
 
 ```text
 pas de p-value
@@ -234,7 +212,7 @@ pas de seuil de significance
 pas de classification automatique
 ```
 
-La concordance de signe de `rho_S` entre S=2 et S=3 est publiée comme information secondaire, jamais comme verdict unique.
+La concordance de signe de `rho_S` entre `S=2` et `S=3` est secondaire et n'est jamais un verdict unique.
 
 ## 10. Métriques partiellement disponibles
 
@@ -255,13 +233,11 @@ Pour toute métrique partielle :
 
 Pour le premier test, `C_X^23` et `D_X^23` sont normatifs uniquement pour `M_TT` et, si disponible partout, `R_eff`.
 
-Pour `A_QQ` et `M_QQ`, les analyses inter-S de forme restent secondaires jusqu'à vérification de leur couverture réelle.
+Pour `A_QQ` et `M_QQ`, les analyses inter-S de forme restent secondaires.
 
 ## 11. Hiérarchie des conclusions autorisées
 
-Level 2C n'utilise pas de score composite.
-
-Pour une géométrie et une métrique primaire données, les conclusions descriptives autorisées sont structurées ainsi :
+Pour une géométrie et une métrique primaire données :
 
 ```text
 A. NO_RESOLVED_SPECTRAL_CONTRAST
@@ -279,7 +255,7 @@ D. NOT_EVALUABLE
    couverture ou invariant numérique insuffisant.
 ```
 
-`C` ne signifie pas convergence `S -> infinity`. Il signifie seulement que la direction du contraste spectral est reproduite entre les deux troncatures testées.
+`SAME_INTER_S_DIRECTION` ne signifie pas convergence `S -> infinity`. Il signifie seulement que la direction du contraste spectral est reproduite entre les deux troncatures testées.
 
 ## 12. Niveau de généralité entre géométries
 
@@ -288,23 +264,16 @@ Chaque géométrie reçoit d'abord son propre résultat.
 Les formulations autorisées sont :
 
 ```text
-GEOMETRY_SPECIFIC:
-la dépendance spectrale est observée dans telle géométrie.
-
-CROSS_GEOMETRY_RECURRENT:
-la même direction de contraste est observée dans plusieurs géométries.
-
-CROSS_GEOMETRY_COMMON:
-la même direction de contraste est observée dans les trois géométries.
+GEOMETRY_SPECIFIC
+CROSS_GEOMETRY_RECURRENT
+CROSS_GEOMETRY_COMMON
 ```
 
 Aucun seuil `2 sur 3 = succès` n'est introduit.
 
-Une récurrence sur deux géométries est décrite comme telle ; elle n'est pas automatiquement promue en propriété générique.
-
 ## 13. Critère scientifique principal du premier test
 
-Le premier test Level 2 répond à la question :
+Question :
 
 > Existe-t-il une dépendance spectrale résolue de la structure relationnelle primaire (`C_TT_conn`) dont la direction se reproduit entre `S=2` et `S=3` pour au moins une réalisation microscopique ?
 
@@ -315,7 +284,7 @@ M_TT
 R_eff
 ```
 
-Un résultat positif minimal est donc l'existence d'au moins une géométrie pour laquelle `M_TT` ou `R_eff` possède un contraste `HIGH-LOW` numériquement résolu et de même signe entre S=2 et S=3.
+Un résultat positif minimal est l'existence d'au moins une géométrie pour laquelle `M_TT` ou `R_eff` possède un contraste `HIGH-LOW` numériquement résolu et de même signe entre `S=2` et `S=3`.
 
 Cette condition n'est pas une preuve de géométrie émergente ; elle établit seulement une dépendance spectrale reproduite sous le contrôle de troncature disponible.
 
@@ -331,7 +300,7 @@ Résultat inconclusif autorisé :
 
 Un résultat négatif ou inconclusif ne déclenche aucune nouvelle métrique post-hoc dans la même campagne.
 
-## 15. Contrôle `rho_QQ`
+## 15. Contrôle rho_QQ
 
 `rho_QQ` ne peut pas sauver un résultat primaire négatif.
 
@@ -356,7 +325,7 @@ PHASE_GRAVITY = CLOSED
 
 Aucun fit métrique, aucune dimension effective et aucune courbure ne sont ouverts dans la première campagne Level 2.
 
-## 17. Ce que ce document gèle
+## 17. Contrat scientifique gelé
 
 ```text
 PROFILE_DOMAIN = q in [0,1]
@@ -371,24 +340,18 @@ P_VALUE = NOT_APPLICABLE
 COMPOSITE_SCORE = FORBIDDEN
 INTER_S_SHAPE_DESCRIPTORS = C_X_23, D_X_23
 PRIMARY_POSITIVE_PATTERN = SAME_INTER_S_DIRECTION on M_TT and/or R_eff
+NUMERICAL_GUARD_M_TT = 1e-16
+NUMERICAL_GUARD_R_EFF = 1e-15
 ```
 
-## 18. Ce qui reste à résoudre avant implémentation
-
-Un seul point méthodologique reste ouvert :
+## 18. Statut
 
 ```text
-NUMERICAL_GUARD_FOR_ZERO_CONTRAST
+L2_C_PREREGISTRATION = FROZEN
+NUMERICAL_GUARD_CALIBRATION = PASS
+OPEN_METHODOLOGICAL_ITEM = NONE
+LEVEL2_IMPLEMENTATION = NOT_STARTED
+LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 ```
 
-Il doit être établi par un contrôle strictement numérique, indépendant des amplitudes physiques de la campagne, avant toute exécution normative.
-
-Ce guard n'aura qu'un rôle de résolution numérique autour de zéro ; il ne deviendra jamais un seuil de taille d'effet physique.
-
-## 19. Étape suivante
-
-La prochaine action autorisée est un audit technique/read-only visant à répondre :
-
-> Quelle garde numérique peut être justifiée pour les contrastes agrégés Level 2 à partir de la reproductibilité du pipeline plein spectre, sans utiliser les amplitudes physiques de la future campagne ?
-
-Aucune implémentation de campagne normative n'est encore autorisée par ce document.
+L'étape suivante autorisée est l'implémentation minimale du contrat gelé. L'exécution normative reste interdite jusqu'à audit et acceptation explicite de cette implémentation.
