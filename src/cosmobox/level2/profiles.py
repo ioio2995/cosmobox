@@ -289,10 +289,15 @@ def profile_mean(pieces: Sequence[ProfilePiece]) -> float:
     return sum(piece.length * piece.value for piece in ordered)
 
 
-def _is_numerically_zero(value: float, tolerance: float | None) -> bool:
-    if tolerance is None:
-        return value == 0.0
-    return math.sqrt(value) <= tolerance
+def _is_structurally_constant(pieces: Sequence[ProfilePiece]) -> bool:
+    """True iff every piece carries exactly the same value. Mathematically
+    equivalent, in exact arithmetic, to a zero functional variance -- but
+    tested directly on the raw piece values instead of through a weighted
+    sum of squared deviations, which can fail to land on exactly 0.0 purely
+    from floating-point summation order even when every value is bit-for-
+    bit identical. No tolerance of any kind is involved."""
+    first_value = pieces[0].value
+    return all(piece.value == first_value for piece in pieces)
 
 
 # ---------------------------------------------------------------------------
@@ -303,27 +308,26 @@ def _is_numerically_zero(value: float, tolerance: float | None) -> bool:
 def cross_profile_correlation(
     pieces_a: Sequence[ProfilePiece],
     pieces_b: Sequence[ProfilePiece],
-    *,
-    zero_variance_tolerance: float | None = None,
 ) -> Available:
     """C_X^23: centered functional correlation between two profiles fully
     evaluable on [0,1], integrated over their exact common partition.
-    NOT_AVAILABLE (CONSTANT_PROFILE) if either profile's functional
-    variance is numerically zero. `zero_variance_tolerance` is the
-    relevant frozen metric guard (compared against the standard deviation,
-    i.e. sqrt(variance)) when X is a primary metric with a guard (M_TT,
-    R_eff); pass None (default, exact-zero test) for a metric with no
-    guard -- never an invented tolerance."""
+    NOT_AVAILABLE (CONSTANT_PROFILE) if profile A or profile B is
+    structurally constant (see _is_structurally_constant) -- the exact,
+    tolerance-free reading of "numerically zero" functional variance from
+    profile-comparison-preregistration.md SS8. The L2-C1 numerical guards
+    (NUMERICAL_GUARD_M_TT, NUMERICAL_GUARD_R_EFF) are never used here: they
+    are frozen exclusively for resolving the sign of Delta_HL
+    (classify_contrast), per numerical-guard-protocol.md SS10."""
     ordered_a = _validate_full_coverage(pieces_a)
     ordered_b = _validate_full_coverage(pieces_b)
+
+    if _is_structurally_constant(ordered_a) or _is_structurally_constant(ordered_b):
+        return Available(None, CONSTANT_PROFILE)
 
     mu_a = sum(piece.length * piece.value for piece in ordered_a)
     mu_b = sum(piece.length * piece.value for piece in ordered_b)
     var_a = sum(piece.length * (piece.value - mu_a) ** 2 for piece in ordered_a)
     var_b = sum(piece.length * (piece.value - mu_b) ** 2 for piece in ordered_b)
-
-    if _is_numerically_zero(var_a, zero_variance_tolerance) or _is_numerically_zero(var_b, zero_variance_tolerance):
-        return Available(None, CONSTANT_PROFILE)
 
     breakpoints = common_breakpoints(ordered_a, ordered_b)
     covariance = 0.0
@@ -340,24 +344,25 @@ def cross_profile_correlation(
 def cross_profile_distance(
     pieces_a: Sequence[ProfilePiece],
     pieces_b: Sequence[ProfilePiece],
-    *,
-    zero_variance_tolerance: float | None = None,
 ) -> Available:
     """D_X^23: normalized functional distance between two profiles fully
-    evaluable on [0,1]. NOT_AVAILABLE (ZERO_PROFILE_VARIANCE) if the
-    pooled-variance denominator is numerically zero. No D_max is ever
-    introduced. See cross_profile_correlation for `zero_variance_tolerance`."""
+    evaluable on [0,1]. NOT_AVAILABLE (ZERO_PROFILE_VARIANCE) iff the
+    pooled-variance denominator is exactly zero, which holds iff BOTH
+    profile A and profile B are structurally constant (a sum of two
+    non-negative terms is zero iff each term is zero) -- see
+    _is_structurally_constant. No D_max is ever introduced. The L2-C1
+    numerical guards are never used here; see cross_profile_correlation."""
     ordered_a = _validate_full_coverage(pieces_a)
     ordered_b = _validate_full_coverage(pieces_b)
+
+    if _is_structurally_constant(ordered_a) and _is_structurally_constant(ordered_b):
+        return Available(None, ZERO_PROFILE_VARIANCE)
 
     mu_a = sum(piece.length * piece.value for piece in ordered_a)
     mu_b = sum(piece.length * piece.value for piece in ordered_b)
     var_a = sum(piece.length * (piece.value - mu_a) ** 2 for piece in ordered_a)
     var_b = sum(piece.length * (piece.value - mu_b) ** 2 for piece in ordered_b)
     pooled_variance = 0.5 * (var_a + var_b)
-
-    if _is_numerically_zero(pooled_variance, zero_variance_tolerance):
-        return Available(None, ZERO_PROFILE_VARIANCE)
 
     breakpoints = common_breakpoints(ordered_a, ordered_b)
     squared_diff_integral = 0.0

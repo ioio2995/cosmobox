@@ -240,19 +240,22 @@ def test_cross_profile_correlation_constant_profile_is_not_available():
     assert result.reason == CONSTANT_PROFILE
 
 
-def test_cross_profile_correlation_uses_guard_tolerance_when_supplied():
-    # a profile whose variance is nonzero (representable, not swallowed by
-    # floating-point rounding) but whose standard deviation sits below a
-    # supplied guard must be treated as constant only once that guard is
-    # passed -- never by inventing an implicit tolerance.
-    tiny = 1e-9
-    noisy = [ProfilePiece(0.0, 0.5, 5.0), ProfilePiece(0.5, 1.0, 5.0 + tiny)]
-    result_no_guard = cross_profile_correlation(noisy, _IDENTICAL_B)
-    assert result_no_guard.reason is None  # exact-zero test: nonzero variance is not exactly 0
-
-    result_with_guard = cross_profile_correlation(noisy, _IDENTICAL_B, zero_variance_tolerance=tiny)
-    assert result_with_guard.value is None
-    assert result_with_guard.reason == CONSTANT_PROFILE
+def test_cross_profile_correlation_structural_constancy_is_robust_to_summation_order():
+    # Many pieces sharing the exact same value: a naive weighted sum of
+    # squared deviations could fail to land on exactly 0.0 due to
+    # floating-point summation order, but the structural check (equality of
+    # raw piece values) must still detect CONSTANT_PROFILE reliably.
+    lengths = [0.05, 0.15, 0.3, 0.5]
+    boundaries = [0.0]
+    for length in lengths:
+        boundaries.append(boundaries[-1] + length)
+    boundaries[-1] = 1.0
+    constant_many_pieces = [
+        ProfilePiece(start, end, 7.0) for start, end in zip(boundaries, boundaries[1:])
+    ]
+    result = cross_profile_correlation(constant_many_pieces, _IDENTICAL_B)
+    assert result.value is None
+    assert result.reason == CONSTANT_PROFILE
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +273,16 @@ def test_cross_profile_distance_zero_denominator_is_not_available():
     result = cross_profile_distance(_CONSTANT_A, constant_b)
     assert result.value is None
     assert result.reason == ZERO_PROFILE_VARIANCE
+
+
+def test_cross_profile_distance_single_constant_profile_is_not_zero_variance():
+    # pooled_variance == 0 iff BOTH profiles are constant (sum of two
+    # non-negative terms is zero iff each term is zero) -- a single
+    # constant profile paired with a non-constant one must NOT trigger
+    # ZERO_PROFILE_VARIANCE.
+    result = cross_profile_distance(_CONSTANT_A, _IDENTICAL_B)
+    assert result.reason is None
+    assert result.value is not None
 
 
 def test_cross_profile_distance_no_d_max_field_introduced():
