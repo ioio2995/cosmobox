@@ -1068,6 +1068,8 @@ Entrée aveugle : matrice relationnelle admissible, sans identité du site pertu
 PHYSICAL_RESPONSE_THRESHOLD = OPEN
 ```
 
+**[HISTORIQUE — statut à la date de 1C-6a, superseded par §20.27]** `PHYSICAL_RESPONSE_THRESHOLD` n'est plus `OPEN` : la notion même de seuil physique scalaire est abandonnée pour Level 1C (1C-8k, gelé). Voir §20.27 pour la décision courante et sa justification complète.
+
 ```text
 NUMERICAL_EQUALITY_TOLERANCE != PHYSICAL_RESPONSE_THRESHOLD
 ```
@@ -2605,13 +2607,29 @@ Si FAIL : NON_REGRESSION_TOLERANCE_STATUS reste NEEDS_CALIBRATION,
   invalide.
 ```
 
-### 20.27 `PHYSICAL_RESPONSE_THRESHOLD`
+### 20.27 `PHYSICAL_RESPONSE_THRESHOLD` — abandon méthodologique (1C-8k, gelé)
+
+**[GELÉ, supersède toute occurrence antérieure de `PHYSICAL_RESPONSE_THRESHOLD = OPEN` dans ce document, y compris §16.23]**
 
 ```text
-PHYSICAL_RESPONSE_THRESHOLD = OPEN (inchangé)
+PHYSICAL_RESPONSE_THRESHOLD = NOT_APPLICABLE
 ```
 
-Ne bloque ni `PHASE_P` ni `PHASE_T` — bloque uniquement le verdict physique final en `PHASE_R`.
+Après réexamen scientifique, la notion même d'un seuil physique scalaire binaire est **abandonnée** pour Level 1C — jamais résolue par un choix de valeur, jamais différée davantage : elle est retirée du contrat comme catégorie de décision. Raison méthodologique : Level 1C est une simulation quantique finie déterministe ; la tolérance numérique de reproductibilité ne constitue pas une échelle de signification physique ; aucune échelle physique indépendante ne justifie actuellement un seuil arbitraire sur `|Delta_C_TT|`.
+
+**Distinction gelée, non négociable :**
+
+```text
+NUMERICAL_REPRODUCIBILITY != PHYSICAL_RESPONSE_MAGNITUDE
+```
+
+`NON_REGRESSION_CTT_ABS_TOL`/`NON_REGRESSION_RHO_ABS_TOL` (§20.21/20.22, calibrées à `1e-15`/`1e-15`, 1C-7c4/1C-7c5) restent exclusivement des **garde-fous numériques de reproductibilité de pipeline** (§20.20, déjà gelé : « empirical reproducibility guard ... NOT a physical-response threshold »). Elles ne deviennent jamais un `PHYSICAL_RESPONSE_THRESHOLD`, ni directement, ni par multiplication arbitraire, ni par toute autre dérivation.
+
+`Delta_C_TT(i,j) = C_TT_conn_perturbed(i,j) - C_TT_conn_baseline(i,j)` (§20.17) reste une **grandeur continue descriptive**. Aucune valeur de `Delta_C_TT` n'est jamais transformée en verdict physique par franchissement d'un seuil scalaire, une binarisation d'amplitude, une normalisation physique inventée, un score composite, une p-value, ou un « significance level » — aucun de ces mécanismes n'existe, et aucun n'est autorisé par ce document.
+
+**Politique d'interprétation future (nommage uniquement, aucune automatisation gelée ici) :** l'interprétation scientifique ultérieure de la structure relationnelle de la réponse pourra distinguer conceptuellement `H0` (absence de réponse numériquement résolue/informative), `H1` (réponse confinée aux relations incidentes au défaut), `H2` (réponse également présente sur des relations non incidentes), `H3` (organisation compatible entre plusieurs groupes spectraux), `H4` (robustesse inter-S, transversale à `H1`/`H2`/`H3`). Ces labels ne sont **pas** définis opérationnellement par ce document, ne constituent **pas** un moteur de classification, et **PHASE_R n'en calcule, ne stocke, ni n'automatise aucun** — un futur lot de conception distinct devra geler leur définition opérationnelle exacte avant toute implémentation.
+
+Conséquence sur l'architecture déjà gelée : ne bloque ni `PHASE_P`, ni `PHASE_T`, ni `PHASE_R` — `PHASE_R` ne calcule et ne calculera jamais de verdict physique final, non pas faute d'un seuil encore à choisir, mais parce que cette catégorie de décision n'appartient plus au contrat Level 1C.
 
 ### 20.28 Readiness après 1C-7c
 
@@ -2799,8 +2817,10 @@ CALIBRATION_RUN_READY            = NOT_APPLICABLE_CLOSED
 **`PHYSICAL_RESPONSE_THRESHOLD`** :
 
 ```text
-PHYSICAL_RESPONSE_THRESHOLD = OPEN (inchangé, aucun seuil choisi ici)
+PHYSICAL_RESPONSE_THRESHOLD = NOT_APPLICABLE (1C-8k, gelé -- voir §20.27)
 ```
+
+**[HISTORIQUE — statut à la date de 1C-7c4/1C-7c5]** Ce paragraphe disait `OPEN (inchangé, aucun seuil choisi ici)` avant 1C-8k. La notion de seuil physique scalaire est désormais abandonnée pour Level 1C (§20.27) — non pas résolue par un choix de valeur ici, mais retirée du contrat comme catégorie de décision.
 
 **Readiness mise à jour** (les deux tolérances requises étant désormais déterminées et documentées, et aucune autre dépendance contractuelle explicite ne restant ouverte en §20.29 hormis l'implémentation de campagne elle-même) :
 
