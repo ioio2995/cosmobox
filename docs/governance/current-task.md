@@ -8,9 +8,7 @@ Ce document contient uniquement l'état actif du projet. L'historique complet de
 BASE_BRANCH = main
 BASE_COMMIT = 24e457b182c7fec41f3cb93f3101f02fef1f65cb
 ACTIVE_BRANCH = research/level2-energy-regime
-CURRENT_ACCEPTED_HEAD = 24e457b182c7fec41f3cb93f3101f02fef1f65cb
-LEVEL2_FRAMING_CANDIDATE = 39a7f3ca5a28850ed96e436251c9c094b4f16a76
-LEVEL2_SPECTRAL_AUDIT_CANDIDATE = 372bfe5884e67c0f31ca9387601b3378605b30bf
+LEVEL2_L2B_DESIGN_CANDIDATE = bb16f57838cdddfb4eca94b8a78cce5a7ccebe1b
 ```
 
 ## État scientifique
@@ -20,7 +18,7 @@ LEVEL0  = CLOSED
 LEVEL1B = CLOSED
 LEVEL1C = CLOSED
 LEVEL1  = CLOSED
-LEVEL2  = L2_A_SPECTRAL_CAPABILITY_AUDIT
+LEVEL2  = L2_B_SPECTRAL_REGIME_DESIGN
 
 LAST_CLOSED_LEVEL = LEVEL1
 
@@ -37,61 +35,88 @@ LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 
 - `docs/levels/level2/conceptual-framing.md`
 - `docs/levels/level2/spectral-capability-audit.md`
+- `docs/levels/level2/spectral-regime-design.md`
 
-Objet : déterminer si l'organisation des observables relationnelles invariantes de jauge dépend du régime énergétique/spectral, avant toute nouvelle tentative de reconstruction géométrique.
+## Résultat L2-A1 — préflight plein spectre
 
-## Résultat L2-A de l'audit spectral
-
-L'audit read-only du solveur et du manifeste Level 1B établit, pour `triangle`, `ring4`, `ring5` et `S in {1,2,3}` :
+Le préflight technique non interprétatif a confirmé les six cas proposés :
 
 ```text
-MAX_PHYSICAL_DIMENSION = 1504
-DENSE_SOLVER_THRESHOLD = 2000
-FULL_SPECTRUM_FOR_LEVEL2_CORE_CASES = AVAILABLE
+triangle S=2 : 88/88 eigenpairs, 22 groupes complets
+triangle S=3 : 128/128 eigenpairs, 32 groupes complets
+ring4    S=2 : 292/292 eigenpairs, 106 groupes complets
+ring4    S=3 : 432/432 eigenpairs, 158 groupes complets
+ring5    S=2 : 1000/1000 eigenpairs, 226 groupes complets
+ring5    S=3 : 1504/1504 eigenpairs, 342 groupes complets
+
+ALL_6_CASES_FULL_SPECTRUM_AVAILABLE = YES
+PARTIAL_SUBSPACES = 0
 NEW_SPECTRAL_APPROXIMATION_REQUIRED = NO
-E_MAX_EXACTLY_AVAILABLE = YES
 ```
 
-Le chemin dense actuel exécute déjà une eigendecomposition complète via `numpy.linalg.eigh` puis tronque seulement la restitution à `n_eigenvalues`. Pour les cas centraux proposés de Level 2, conserver tout le spectre ne nécessite donc pas un nouveau solveur ni une approximation du milieu/haut du spectre.
+Aucune observable physique Level 2 n'a été calculée ou inspectée pendant ce préflight.
 
-L'infrastructure Level 1 sait déjà calculer `C_TT_conn` et `rho_QQ` sur un `SpectralGroupState`, mais le runner Level 1B ne les produit que pour des groupes sélectionnés par `target_groups`. Level 2 devra utiliser comme unité scientifique les multiplets complets du spectre complet, sans branche cible et sans tracking inter-Hamiltonien.
+## Design L2-B
 
-## Périmètre scientifique proposé pour la première campagne
+Unité scientifique :
 
 ```text
-Hamiltonien : reference uniquement
-n_flavors   : 2
-charges ext : 0
-geometries  : triangle, ring4, ring5
-spin        : S=2, S=3
-spectre     : complet
+complete spectral multiplet over the full spectrum
+```
 
+Coordonnées descriptives :
+
+```text
+epsilon = normalized exact energy position
+q       = cumulative state-population coordinate, multiplicity-aware
+```
+
+Observable primaire et contrôle :
+
+```text
 PRIMARY = C_TT_conn
 CONTROL = rho_QQ
-BRANCH_TRACKING_REQUIRED = NO
-PHASE_G = OUT_OF_SCOPE
 ```
 
-Les métriques structurelles proposées dans l'audit restent candidates et ne sont pas encore gelées.
+Diagnostics candidats conçus avant toute observation plein spectre :
+
+```text
+M_TT   = off-diagonal RMS strength of C_TT_conn
+R_eff  = normalized entropy effective rank of C_TT_conn
+A_QQ   = fraction of numeric rho_QQ ordered pairs
+M_QQ   = RMS of numeric rho_QQ pairs only
+```
+
+Description primaire : profils continus en `q` et `epsilon`.
+
+Synthèse secondaire :
+
+```text
+LOW  = first third of cumulative state population
+MID  = middle third
+HIGH = final third
+```
+
+Les résumés par régime sont pondérés par le nombre d'états représentés par chaque multiplet. Aucun matching multiplet-par-multiplet entre S=2 et S=3 n'est requis.
 
 ## Prochaine étape
 
 ```text
-NEXT_STEP = FULL_SPECTRUM_RESOURCE_PREFLIGHT
+NEXT_STEP = L2_C_PREREGISTRATION_DESIGN
 ```
 
-Le préflight doit rester non interprétatif et ne produire aucun verdict physique. Il doit mesurer uniquement, pour les six cas principaux proposés : dimension, méthode solveur, coût de calcul, nombre d'eigenpaires, nombre de groupes spectraux, statut complet/partiel, distribution des multiplicités, `E_min` et `E_max`.
+L2-C doit figer avant toute production physique plein spectre :
 
-Aucune valeur de `C_TT_conn` ou `rho_QQ` ne doit être analysée physiquement pendant ce préflight.
+```text
+- les six cas ;
+- les métriques ;
+- les règles de nullité ;
+- les résumés de régimes ;
+- la comparaison inter-S des profils ;
+- la taxonomie de verdict scientifique.
+```
 
-Après ce préflight, ChatGPT rédigera L2-B et décidera si les métriques candidates et le découpage spectral peuvent être gelés.
-
-## Références scientifiques de clôture
-
-- `docs/levels/level1/level1-synthesis-and-closure.md`
-- `docs/levels/level1c/level1c-conclusion.md`
-- `docs/levels/level1/level1b-conclusion.md`
-- `experiments/LEVEL0-synthesis-and-closure.md`
+La seule question scientifique encore ouverte avant pré-enregistrement est la règle normative de comparaison inter-S et de décision globale.
 
 ## Rôles de collaboration
 
@@ -106,8 +131,6 @@ Lionel:
 intuition / direction / final decision
 ```
 
-La documentation scientifique de Level 2 est placée sous la responsabilité de ChatGPT. Aucune campagne normative Level 2 ne démarre avant acceptation explicite de son pré-enregistrement scientifique.
-
 ## Règles de progression
 
 ```text
@@ -115,9 +138,9 @@ La documentation scientifique de Level 2 est placée sous la responsabilité de 
 - Aucun résultat de Level 1C ne doit être réparé post-hoc : Level 1 est clos.
 - Un défaut logiciel ne bloque que s'il peut altérer le résultat physique,
   sa provenance ou son interprétation.
-- Une métrique Level 2 ne sera gelée que si sa signification physique ou
-  structurelle est explicite et si son comportement nul est interprétable.
 - Aucun seuil binaire de réponse physique ne doit être réintroduit.
+- Aucun observable physique plein spectre ne doit être inspecté avant gel du pré-enregistrement L2-C.
+- Aucune nouvelle métrique ne sera ajoutée après ouverture de la campagne pour améliorer le résultat.
 ```
 
 ## Archive
