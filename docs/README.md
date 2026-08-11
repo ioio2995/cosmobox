@@ -6,6 +6,7 @@ Ce fichier est le point d’entrée documentaire du dépôt.
 
 - [`governance/documentation-governance.md`](governance/documentation-governance.md) — architecture documentaire, sources de vérité, statuts et règles de migration.
 - [`governance/collaboration-governance.md`](governance/collaboration-governance.md) — rôles, cycle des lots, format des échanges et règles de livraison Git.
+- [`governance/current-task.md`](governance/current-task.md) — état actif et contrat de continuité courant.
 
 ## Modèle physique
 
@@ -51,6 +52,10 @@ Jalon de clôture : **lot 1C-8m**, à l'issue de l'unique exécution normative r
 - [`levels/level1/level1-synthesis-and-closure.md`](levels/level1/level1-synthesis-and-closure.md) — articulation Level 1B/Level 1C et clôture globale de Level 1.
 
 Statut : **clos**.
+
+## Archives
+
+- [`archive/current-task-through-level1.md`](archive/current-task-through-level1.md) — point d'entrée vers le snapshot Git intégral de l'historique de gouvernance jusqu'à la clôture de Level 1.
 
 ## Compatibilité des anciens chemins
 
