@@ -13,6 +13,8 @@ LEVEL2_L2C_PREREGISTRATION_CANDIDATE = 3169671bdfe1daaafdeb985aa175f35c49950576
 LEVEL2_NUMERICAL_GUARD_PROTOCOL_CANDIDATE = f2a08b73e7109aa8ae8c8d3c30365b64f91f21d6
 LEVEL2_NUMERICAL_GUARD_RESULT_CANDIDATE = bb52e968d4a5d465a3db0b194aadc53e9295a442
 LEVEL2_FROZEN_PREREGISTRATION = 2d4c859db7939da51ee7d919889a18f4c7e229ed
+LEVEL2_D1_IMPLEMENTATION = 27807985f18d1f97b0eb065b7fb436d6253ab3cd
+LEVEL2_D1_CORRECTIVE_COMMIT = ef8495f9539fef7e4c614d96907ba1224809b0d4
 ```
 
 ## État scientifique
@@ -22,9 +24,10 @@ LEVEL0  = CLOSED
 LEVEL1B = CLOSED
 LEVEL1C = CLOSED
 LEVEL1  = CLOSED
-LEVEL2  = L2_D_IMPLEMENTATION_READY
+LEVEL2  = L2_D1_ACCEPTED
 
 LAST_CLOSED_LEVEL = LEVEL1
+LAST_ACCEPTED_LOT = L2-D1-METRICS-AND-PROFILE-PRIMITIVES
 
 LEVEL1C_PHYSICAL_VERDICT = INCONCLUSIVE
 LEVEL1C_STOP_REASON      = INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE
@@ -32,7 +35,8 @@ PHASE_G_OPENED           = NO
 
 LEVEL2_PRIMARY_AXIS = ENERGY_SPECTRAL_REGIME
 LEVEL2_C_PREREGISTRATION = FROZEN
-LEVEL2_IMPLEMENTATION = NOT_STARTED
+LEVEL2_D1_PRIMITIVES = ACCEPTED
+LEVEL2_IMPLEMENTATION = IN_PROGRESS
 LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 ```
 
@@ -104,6 +108,28 @@ NUMERICAL_GUARD_R_EFF = 1e-15
 
 Les gardes ont un rôle exclusivement numérique de résolution du signe autour de zéro. Elles ne sont pas des seuils physiques et ne peuvent pas être élargies post-hoc pendant la campagne.
 
+## Résultat L2-D1 — primitives Level2
+
+```text
+LOT = L2-D1-METRICS-AND-PROFILE-PRIMITIVES
+STATUS = ACCEPTED
+IMPLEMENTATION_COMMIT = 27807985f18d1f97b0eb065b7fb436d6253ab3cd
+CORRECTIVE_COMMIT = ef8495f9539fef7e4c614d96907ba1224809b0d4
+
+PRIMARY_METRICS = IMPLEMENTED_AND_TESTED
+CONTROL_METRICS = IMPLEMENTED_AND_TESTED
+REGIME_AGGREGATION = IMPLEMENTED_AND_TESTED
+CONTRASTS = IMPLEMENTED_AND_TESTED
+INTER_S_PROFILE_DESCRIPTORS = IMPLEMENTED_AND_TESTED
+INTER_S_TAXONOMY = IMPLEMENTED_AND_TESTED
+
+L2_C1_GUARD_SCOPE = DELTA_HL_ONLY
+NEW_NUMERICAL_TOLERANCE = NO
+REAL_LEVEL2_DIAGONALIZATION = NO
+NORMATIVE_CAMPAIGN_EXECUTED = NO
+WEIGHTED_SPEARMAN_IMPLEMENTED = NO
+```
+
 ## Taxonomie de conclusion primaire
 
 Pour chaque géométrie et chaque métrique primaire :
@@ -120,11 +146,13 @@ NOT_EVALUABLE
 ## Étape suivante
 
 ```text
-NEXT_STEP = L2_D_MINIMAL_IMPLEMENTATION
+NEXT_STEP = L2_D2_INTEGRATION_AUDIT
 OPEN_METHODOLOGICAL_ITEM = NONE
 ```
 
-L'implémentation doit produire exactement le contrat pré-enregistré et rien de plus. Aucune exécution normative réelle n'est autorisée avant audit et acceptation explicite du code.
+L2-D1 est clos. L'étape suivante doit auditer l'intégration minimale des primitives Level2 dans l'infrastructure spectrale existante avant toute nouvelle implémentation.
+
+Aucune exécution normative réelle n'est autorisée avant audit, implémentation, revue et acceptation explicite de la chaîne Level2 complète nécessaire à la campagne.
 
 ## Rôles de collaboration
 
