@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1-preregistered-manifest-v1.schema.json",
+  "title": "Cosmobox Level 1B preregistered campaign manifest (machine-readable)",
+  "description": "experiments/level1/preregistered-manifest-v1.json is the normative machine-readable transcription of the Level 1B campaign (D019/D020-adjacent, lot 1B-8/1B-8-corrective). experiments/level1/preregistered-manifest.md is a human-readable explanatory document only, never itself executed or validated against -- any divergence between the two blocks execution and must be resolved by correcting the JSON (and, if needed, the Markdown) before a campaign may run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "campaign_id",
+    "schema_version",
+    "branch",
+    "n_flavors",
+    "external_charges_all_zero",
+    "scientific_seed",
+    "hamiltonian_cases",
+    "grid",
+    "sectors",
+    "target_groups",
+    "productions",
+    "robustness",
+    "resource_guardrails",
+    "degeneracy_tolerance",
+    "pair_selection",
+    "path_selection"
+  ],
+  "properties": {
+    "manifest_version": {"const": "level1b-reference-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "schema_version": {"const": "level1-correlators-v2"},
+    "branch": {"type": "string", "minLength": 1},
+    "n_flavors": {"const": 2},
+    "external_charges_all_zero": {"const": true},
+    "scientific_seed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Root seed for the campaign. Included in manifest_fingerprint (the whole validated document is fingerprinted). Per-case scientific/solver seeds are derived from this root, each case's own canonical case_id, and a seed role, via SHA-256 -- never Python's hash()."
+    },
+    "hamiltonian_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/hamiltonianCase"}
+    },
+    "grid": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/gridPoint"}
+    },
+    "sectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "target_groups": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {"$ref": "#/$defs/targetGroup"}
+      }
+    },
+    "productions": {"$ref": "#/$defs/productions"},
+    "robustness": {"$ref": "#/$defs/robustness"},
+    "resource_guardrails": {"$ref": "#/$defs/resourceGuardrails"},
+    "degeneracy_tolerance": {"type": "number", "exclusiveMinimum": 0},
+    "pair_selection": {"enum": ["all_ordered_distinct_pairs"]},
+    "path_selection": {
+      "enum": ["all_minimal_paths"],
+      "description": "Every minimal path between an ordered pair is enumerated and its individual per-path observable values are kept -- never aggregated into a new path-level statistic until one is frozen. Distinct from orbit_statistics, which aggregates across an automorphism orbit, not across path length/count."
+    }
+  },
+  "$defs": {
+    "hamiltonianCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hamiltonian_case_id", "J_uniform", "J_override", "h_is_zero", "t", "g_E", "K"],
+      "properties": {
+        "hamiltonian_case_id": {"type": "string", "minLength": 1},
+        "J_uniform": {"type": "number"},
+        "J_override": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["node_index", "value"],
+              "properties": {
+                "node_index": {"type": "integer", "minimum": 0},
+                "value": {"type": "number"}
+              }
+            }
+          ]
+        },
+        "h_is_zero": {"const": true},
+        "t": {"type": "number"},
+        "g_E": {"type": "number"},
+        "K": {"type": "number"}
+      }
+    },
+    "gridPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry", "spin", "physical_dimension", "spectral_window", "hamiltonian_case_ids"],
+      "properties": {
+        "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+        "spin": {"type": "integer", "minimum": 1},
+        "physical_dimension": {"type": "integer", "minimum": 1},
+        "spectral_window": {"type": "integer", "minimum": 1},
+        "hamiltonian_case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "targetGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "selection_kind",
+        "target_twice_T",
+        "selection_within_label",
+        "required_spectral_status",
+        "requires_inter_s_exact_match"
+      ],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "selection_kind": {"enum": ["fundamental", "first_excited", "flavor_label", "structurally_not_applicable"]},
+        "target_twice_T": {"type": ["integer", "null"], "minimum": 0},
+        "selection_within_label": {"enum": ["lowest_representative_energy", null]},
+        "required_spectral_status": {
+          "enum": ["complete_multiplet", null],
+          "description": "The spectral status a selected group must have to satisfy this target's normative requirement (single-case concept). Never checked against inter-S matching here."
+        },
+        "requires_inter_s_exact_match": {
+          "type": "boolean",
+          "description": "Whether this target additionally requires matching.EXACT_LABEL_MATCH at the inter-S comparison step. A single-case selection never claims this itself -- it belongs to the inter-S step only."
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"selection_kind": {"const": "flavor_label"}}, "required": ["selection_kind"]},
+          "then": {
+            "required": ["target_twice_T", "selection_within_label", "required_spectral_status", "requires_inter_s_exact_match"],
+            "properties": {
+              "target_twice_T": {"type": "integer"},
+              "selection_within_label": {"const": "lowest_representative_energy"},
+              "required_spectral_status": {"const": "complete_multiplet"},
+              "requires_inter_s_exact_match": {"const": false}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"selection_kind": {"const": "fundamental"}}, "required": ["selection_kind"]},
+          "then": {
+            "properties": {
+              "target_twice_T": {"type": "null"},
+              "selection_within_label": {"const": null},
+              "required_spectral_status": {"const": "complete_multiplet"},
+              "requires_inter_s_exact_match": {"const": false}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"selection_kind": {"const": "first_excited"}}, "required": ["selection_kind"]},
+          "then": {
+            "properties": {
+              "target_twice_T": {"type": "null"},
+              "selection_within_label": {"const": null},
+              "required_spectral_status": {"const": "complete_multiplet"},
+              "requires_inter_s_exact_match": {"const": true}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"selection_kind": {"const": "structurally_not_applicable"}}, "required": ["selection_kind"]},
+          "then": {
+            "properties": {
+              "required_spectral_status": {"type": "null"},
+              "requires_inter_s_exact_match": {"const": false}
+            }
+          }
+        }
+      ]
+    },
+    "productions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "single_case_observables",
+        "single_case_diagnostics",
+        "path_statistics",
+        "orbit_statistics",
+        "inter_s_observables"
+      ],
+      "properties": {
+        "single_case_observables": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1},
+          "description": "Observables well-defined from a single diagonalized case (a SpectralGroupState, complete or partial). Never includes an inter-S quantity."
+        },
+        "single_case_diagnostics": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1},
+          "description": "Restricted-operator diagnostics (Hermitian/non-Hermitian) of the dressed matter operator O_ij, single-case."
+        },
+        "path_statistics": {
+          "type": "array",
+          "minItems": 0,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1},
+          "description": "Aggregate path-level statistics -- currently always empty: path_selection == all_minimal_paths keeps every individual per-path observable value, and no aggregate path statistic is frozen yet. Never populated with an invented quantity; add an entry here only once a formula is actually frozen."
+        },
+        "orbit_statistics": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"enum": ["orbit_mean", "orbit_max_pairwise_spread", "orbit_covariance_defect"]},
+          "description": "Exactly OrbitStatistics' own three fields -- never a partial or renamed subset."
+        },
+        "inter_s_observables": {"$ref": "#/$defs/interSObservables"}
+      }
+    },
+    "interSObservables": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "robustness_verdicts_included", "unproduced"],
+      "properties": {
+        "primary": {"const": "gamma_O"},
+        "secondary": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence"]}
+        },
+        "robustness_verdicts_included": {
+          "const": true,
+          "description": "The robust/non_robust/indeterminate verdict is produced at the inter-S step alongside gamma_O, never by a single-case runner."
+        },
+        "unproduced": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["G_occ", "path_phase_coherence"]},
+          "description": "Pre-registered inter-S observables with no physical producer implemented yet. A single-case runner must never claim to compute these."
+        }
+      }
+    },
+    "robustness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "absolute_tolerance", "relative_tolerance", "normalization_floor"],
+      "properties": {
+        "primary": {"const": "gamma_O"},
+        "secondary": {
+          "type": "array",
+          "items": {"enum": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence"]},
+          "uniqueItems": true,
+          "description": "The full D013-frozen secondary robustness list. path_phase_coherence is pre-registered here exactly as the human manifest always specified it, even though it currently has no producer (see productions.inter_s_observables.unproduced) -- pre-registration and current producibility are independent facts."
+        },
+        "absolute_tolerance": {"const": 0.05},
+        "relative_tolerance": {"const": 0.15},
+        "normalization_floor": {"const": 1e-12}
+      }
+    },
+    "resourceGuardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_dense_dimension", "max_sparse_dimension"],
+      "properties": {
+        "max_dense_dimension": {"const": 2000},
+        "max_sparse_dimension": {"const": 200000}
+      }
+    }
+  }
+}

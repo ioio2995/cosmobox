@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1c-tracking-record-v1.schema.json",
+  "title": "Cosmobox Level 1C inter-J0 tracking record (v1)",
+  "description": "One inter-J0 tracking outcome for one (REQUIRED target, baseline->perturbed edge) pair (lot 1C-8e, PHASE_T, positioned after BASELINE_NON_REGRESSION_GATE: identifiability-preregistration.md section 20.19). CLASS_POOL identity is geometry/sector/complete_multiplet/resolved twice_T/matching NUMERIC reflection character only (section 20.12) -- translation character is diagnostic-only and never part of identity (TRANSLATION_ACROSS_J0_ROLE=NOT_AN_IDENTITY_REQUIREMENT), and representative_energy/spectral rank/spectral_window_group_index are never discriminants. Never concludes RESPONSE_AVAILABLE or computes Delta_C_TT -- that belongs to PHASE_R.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "repository_commit",
+    "manifest_fingerprint",
+    "geometry",
+    "spin",
+    "baseline_case_id",
+    "perturbed_case_id",
+    "baseline_hamiltonian_case_id",
+    "perturbed_hamiltonian_case_id",
+    "target_id",
+    "baseline_group_index",
+    "baseline_multiplicity",
+    "baseline_twice_T",
+    "baseline_reflection_label",
+    "status",
+    "candidate_group_index",
+    "candidate_multiplicity",
+    "candidate_twice_T",
+    "candidate_reflection_label",
+    "class_pool_size",
+    "failure_reasons"
+  ],
+  "properties": {
+    "schema_version": {"const": "level1c-tracking-record-v1"},
+    "campaign_id": {"const": "level1c-j0-response-v1"},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifest_fingerprint": {"type": "string", "minLength": 1},
+    "geometry": {"enum": ["triangle", "ring5"]},
+    "spin": {"enum": [2, 3]},
+    "baseline_case_id": {"type": "string", "minLength": 1},
+    "perturbed_case_id": {"type": "string", "minLength": 1},
+    "baseline_hamiltonian_case_id": {"type": "string", "minLength": 1},
+    "perturbed_hamiltonian_case_id": {"type": "string", "minLength": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "baseline_group_index": {"type": ["integer", "null"], "minimum": 0},
+    "baseline_multiplicity": {"type": ["integer", "null"], "minimum": 1},
+    "baseline_twice_T": {"type": ["integer", "null"], "minimum": 0},
+    "baseline_reflection_label": {"oneOf": [{"$ref": "#/$defs/symmetryLabel"}, {"type": "null"}]},
+    "status": {
+      "enum": ["TRACKED_ONE_TO_ONE", "AMBIGUOUS", "NOT_AVAILABLE"],
+      "description": "Only the three v1-emittable outcomes (TRACKING_TAXONOMY v1). TRACKED_SPLIT_BRANCH/DISCONTINUOUS are reserved for a future version and are never produced by this schema's producer."
+    },
+    "candidate_group_index": {"type": ["integer", "null"], "minimum": 0},
+    "candidate_multiplicity": {"type": ["integer", "null"], "minimum": 1},
+    "candidate_twice_T": {"type": ["integer", "null"], "minimum": 0},
+    "candidate_reflection_label": {"oneOf": [{"$ref": "#/$defs/symmetryLabel"}, {"type": "null"}]},
+    "class_pool_size": {"type": ["integer", "null"], "minimum": 0},
+    "failure_reasons": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  },
+  "if": {"required": ["status"], "properties": {"status": {"const": "TRACKED_ONE_TO_ONE"}}},
+  "then": {
+    "properties": {
+      "failure_reasons": {"maxItems": 0},
+      "candidate_group_index": {"type": "integer"},
+      "candidate_multiplicity": {"type": "integer"},
+      "candidate_twice_T": {"type": "integer"},
+      "candidate_reflection_label": {"$ref": "#/$defs/symmetryLabel"},
+      "class_pool_size": {"const": 1}
+    }
+  },
+  "else": {
+    "properties": {
+      "candidate_group_index": {"type": "null"},
+      "candidate_multiplicity": {"type": "null"},
+      "candidate_twice_T": {"type": "null"},
+      "candidate_reflection_label": {"type": "null"}
+    }
+  },
+  "$defs": {
+    "symmetryLabel": {
+      "type": "object",
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": {"enum": ["numeric", "not_applicable", "unavailable"]},
+        "value": {
+          "oneOf": [
+            {"type": "object", "required": ["real", "imag"], "properties": {"real": {"type": "number"}, "imag": {"type": "number"}}, "additionalProperties": false},
+            {"type": "null"}
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "if": {"required": ["kind"], "properties": {"kind": {"const": "numeric"}}},
+      "then": {"required": ["value"]},
+      "else": {"properties": {"value": {"type": "null"}}}
+    }
+  }
+}

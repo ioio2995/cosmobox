@@ -1,0 +1,180 @@
+{
+  "manifest_version": "level1b-reference-v1",
+  "campaign_id": "level1b-reference-v1",
+  "schema_version": "level1-correlators-v2",
+  "branch": "research/level1-correlators",
+  "n_flavors": 2,
+  "external_charges_all_zero": true,
+  "scientific_seed": 0,
+  "hamiltonian_cases": [
+    {
+      "hamiltonian_case_id": "reference",
+      "J_uniform": 1.0,
+      "J_override": null,
+      "h_is_zero": true,
+      "t": 1.0,
+      "g_E": 1.0,
+      "K": 1.0
+    },
+    {
+      "hamiltonian_case_id": "j_break",
+      "J_uniform": 1.0,
+      "J_override": {"node_index": 0, "value": 1.5},
+      "h_is_zero": true,
+      "t": 1.0,
+      "g_E": 1.0,
+      "K": 1.0
+    }
+  ],
+  "grid": [
+    {"geometry": "triangle", "spin": 1, "physical_dimension": 48, "spectral_window": 16, "hamiltonian_case_ids": ["reference"]},
+    {"geometry": "triangle", "spin": 2, "physical_dimension": 88, "spectral_window": 16, "hamiltonian_case_ids": ["reference", "j_break"]},
+    {"geometry": "triangle", "spin": 3, "physical_dimension": 128, "spectral_window": 16, "hamiltonian_case_ids": ["reference"]},
+    {"geometry": "ring4", "spin": 1, "physical_dimension": 152, "spectral_window": 20, "hamiltonian_case_ids": ["reference"]},
+    {"geometry": "ring4", "spin": 2, "physical_dimension": 292, "spectral_window": 20, "hamiltonian_case_ids": ["reference"]},
+    {"geometry": "ring4", "spin": 3, "physical_dimension": 432, "spectral_window": 20, "hamiltonian_case_ids": ["reference"]},
+    {"geometry": "ring5", "spin": 1, "physical_dimension": 496, "spectral_window": 24, "hamiltonian_case_ids": ["reference"]},
+    {"geometry": "ring5", "spin": 2, "physical_dimension": 1000, "spectral_window": 24, "hamiltonian_case_ids": ["reference", "j_break"]},
+    {"geometry": "ring5", "spin": 3, "physical_dimension": 1504, "spectral_window": 24, "hamiltonian_case_ids": ["reference"]}
+  ],
+  "sectors": ["default"],
+  "target_groups": {
+    "triangle": [
+      {
+        "target_id": "fundamental",
+        "selection_kind": "fundamental",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "first_excited",
+        "selection_kind": "first_excited",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": true
+      },
+      {
+        "target_id": "T_max",
+        "selection_kind": "flavor_label",
+        "target_twice_T": 3,
+        "selection_within_label": "lowest_representative_energy",
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      }
+    ],
+    "ring4": [
+      {
+        "target_id": "fundamental",
+        "selection_kind": "fundamental",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "first_excited",
+        "selection_kind": "first_excited",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": true
+      },
+      {
+        "target_id": "T_max",
+        "selection_kind": "flavor_label",
+        "target_twice_T": 4,
+        "selection_within_label": "lowest_representative_energy",
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "T_3_2",
+        "selection_kind": "structurally_not_applicable",
+        "target_twice_T": 3,
+        "selection_within_label": null,
+        "required_spectral_status": null,
+        "requires_inter_s_exact_match": false
+      }
+    ],
+    "ring5": [
+      {
+        "target_id": "fundamental",
+        "selection_kind": "fundamental",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "first_excited",
+        "selection_kind": "first_excited",
+        "target_twice_T": null,
+        "selection_within_label": null,
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": true
+      },
+      {
+        "target_id": "T_max",
+        "selection_kind": "flavor_label",
+        "target_twice_T": 5,
+        "selection_within_label": "lowest_representative_energy",
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      },
+      {
+        "target_id": "T_3_2",
+        "selection_kind": "flavor_label",
+        "target_twice_T": 3,
+        "selection_within_label": "lowest_representative_energy",
+        "required_spectral_status": "complete_multiplet",
+        "requires_inter_s_exact_match": false
+      }
+    ]
+  },
+  "productions": {
+    "single_case_observables": [
+      "C_QQ_raw",
+      "rho_QQ",
+      "C_TT_raw",
+      "C_TT_conn",
+      "raw_G",
+      "flavor_singlet",
+      "flavor_frobenius_squared",
+      "flavor_singular_values",
+      "flavor_singular_value_ratio"
+    ],
+    "single_case_diagnostics": [
+      "hermitian_restricted_diagnostic",
+      "non_hermitian_restricted_diagnostic"
+    ],
+    "path_statistics": [],
+    "orbit_statistics": [
+      "orbit_mean",
+      "orbit_max_pairwise_spread",
+      "orbit_covariance_defect"
+    ],
+    "inter_s_observables": {
+      "primary": "gamma_O",
+      "secondary": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence"],
+      "robustness_verdicts_included": true,
+      "unproduced": ["G_occ", "path_phase_coherence"]
+    }
+  },
+  "robustness": {
+    "primary": "gamma_O",
+    "secondary": ["G_occ", "rho_QQ", "C_TT_conn", "flavor_singular_value_ratio", "path_phase_coherence"],
+    "absolute_tolerance": 0.05,
+    "relative_tolerance": 0.15,
+    "normalization_floor": 1e-12
+  },
+  "resource_guardrails": {
+    "max_dense_dimension": 2000,
+    "max_sparse_dimension": 200000
+  },
+  "degeneracy_tolerance": 1e-10,
+  "pair_selection": "all_ordered_distinct_pairs",
+  "path_selection": "all_minimal_paths"
+}

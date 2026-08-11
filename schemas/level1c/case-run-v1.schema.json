@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1c-case-run-v1.schema.json",
+  "title": "Cosmobox Level 1C case run artifact (v1)",
+  "description": "Dedicated Level1C case-run schema (lot 1C-8b-fix, extended by 1C-8c-fix). Mirrors scripts/level1b_campaign/outputs.py's run.json convention (case_id/campaign_id/manifest_fingerprint/repository_commit/run_status/record_count/records_sha256), extended with target_selections: the case-level, per-target selection outcome (TargetSelectionRecord, section 20.8/1C-8a-fix/1C-8b-fix) -- TARGET_SELECTION_PERSISTENCE=CASE_RUN_ARTIFACT_ONLY. A target-selection outcome is never a ResultRecord: ambiguous/not_in_window/structurally_not_applicable outcomes have no selected spectral group at all, so they can never be forced into schemas/level1c/result-record-v1.schema.json's identity.spectral_group, which is reserved for documents genuinely attached to a physical group. normative_case_valid (1C-8c-fix) separates run_status (RUN_STATUS_SEMANTICS=TECHNICAL_EXECUTION_STATUS: whether the computation executed without technical error) from the scientific/normative verdict (whether every REQUIRED target was found and conformant) -- a technically successful run can still be normatively invalid; this is never expressed as a new run_status value.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "manifest_fingerprint",
+    "repository_commit",
+    "case_id",
+    "geometry",
+    "spin",
+    "hamiltonian_case_id",
+    "sector_id",
+    "spectral_window",
+    "run_status",
+    "target_selections",
+    "records_sha256",
+    "record_count",
+    "normative_case_valid"
+  ],
+  "properties": {
+    "schema_version": {"const": "level1c-case-run-v1"},
+    "campaign_id": {"const": "level1c-j0-response-v1"},
+    "manifest_fingerprint": {"type": "string", "minLength": 1},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "case_id": {"type": "string", "minLength": 1},
+    "geometry": {"enum": ["triangle", "ring5"]},
+    "spin": {"enum": [2, 3]},
+    "hamiltonian_case_id": {"type": "string", "pattern": "^j0-[0-9]\\.[0-9]{2}$"},
+    "sector_id": {"const": "default"},
+    "spectral_window": {"type": "integer", "minimum": 1},
+    "run_status": {
+      "enum": ["success", "failed", "resource_guardrail_exceeded"],
+      "description": "Reuses Level1B's own run_status convention (scripts/level1b_campaign/outputs.py) verbatim -- no new scientific status invented."
+    },
+    "target_selections": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/targetSelectionRecord"}
+    },
+    "records_sha256": {"oneOf": [{"type": "string", "pattern": "^[0-9a-f]{64}$"}, {"type": "null"}]},
+    "record_count": {"type": "integer", "minimum": 0},
+    "normative_case_valid": {
+      "type": ["boolean", "null"],
+      "description": "null means NOT_EVALUATED (a technical failure was never scientifically evaluated), never a synonym for false. Required boolean (never null) for a success run; required null for a technical failure."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"required": ["run_status"], "properties": {"run_status": {"const": "success"}}},
+      "then": {
+        "required": ["records_sha256", "record_count", "target_selections", "normative_case_valid"],
+        "properties": {
+          "records_sha256": {"type": "string"},
+          "record_count": {"type": "integer", "minimum": 1},
+          "target_selections": {"minItems": 1},
+          "normative_case_valid": {"type": "boolean"}
+        }
+      },
+      "else": {
+        "properties": {
+          "records_sha256": {"type": "null"},
+          "record_count": {"const": 0},
+          "target_selections": {"maxItems": 0},
+          "normative_case_valid": {"type": "null"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "targetSelectionRecord": {
+      "type": "object",
+      "required": [
+        "target_id",
+        "role",
+        "selection_status",
+        "spectral_window_group_index",
+        "selected_group_status",
+        "meets_normative_requirements"
+      ],
+      "additionalProperties": false,
+      "description": "TargetSelectionRecord (1C-8a section 11, 1C-8a-fix section 2, 1C-8b-fix section 12): persists target_id -> spectral_window_group_index explicitly, the exact mapping Level1B never wrote to disk (D022) -- root cause of the abandoned T_max calibration hold-out (section 20.22 historical). A case-level structure, never a ResultRecord.",
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "role": {
+          "enum": ["REQUIRED", "CALIBRATION_ONLY"],
+          "description": "Transcribed from Level1CTargetSpec.role -- never inferred from required_spectral_status or from selected_group_status."
+        },
+        "selection_status": {
+          "enum": ["selected", "ambiguous", "not_in_window", "structurally_not_applicable"],
+          "description": "Exactly experiments.level1.target_selection's own closed taxonomy -- no new status introduced."
+        },
+        "spectral_window_group_index": {"type": ["integer", "null"], "minimum": 0},
+        "selected_group_status": {"enum": ["complete_multiplet", "partial_subspace", null]},
+        "meets_normative_requirements": {"type": ["boolean", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"selection_status": {"const": "selected"}}, "required": ["selection_status"]},
+          "then": {
+            "required": ["spectral_window_group_index", "selected_group_status", "meets_normative_requirements"],
+            "properties": {
+              "spectral_window_group_index": {"type": "integer"},
+              "selected_group_status": {"enum": ["complete_multiplet", "partial_subspace"]},
+              "meets_normative_requirements": {"type": "boolean"}
+            }
+          },
+          "else": {
+            "properties": {
+              "spectral_window_group_index": {"type": "null"},
+              "selected_group_status": {"type": "null"},
+              "meets_normative_requirements": {"type": "null"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

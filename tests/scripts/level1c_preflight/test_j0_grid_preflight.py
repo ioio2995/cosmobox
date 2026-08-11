@@ -1,0 +1,915 @@
+"""Unit tests for scripts.level1c_preflight.j0_grid_preflight (lot 1C-6h).
+
+Every test exercises pure, diagonalization-free functions using real
+(never mocked) small objects already accepted elsewhere in the project
+(cosmobox.level0.degeneracy.SpectralLevelGroup,
+experiments.level1.target_selection.TargetSelectionOutcome) -- never a
+real Level0 diagonalization, never the 20-case scientific grid, per the
+1C-6h mandate.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import json
+import traceback
+from types import SimpleNamespace
+
+import numpy as np
+import pytest
+
+from cosmobox.level0.degeneracy import SpectralLevelGroup
+from cosmobox.level1.restricted import COMPLETE_MULTIPLET, PARTIAL_SUBSPACE
+from experiments.level1.target_selection import (
+    AMBIGUOUS,
+    NOT_IN_WINDOW,
+    SELECTED,
+    STRUCTURALLY_NOT_APPLICABLE,
+    TargetSelectionOutcome,
+)
+from scripts.level1c_preflight import j0_grid_preflight as preflight
+
+
+def _group(start: int, end: int, *, lower_bound_only: bool = False) -> SpectralLevelGroup:
+    return SpectralLevelGroup(
+        start_index=start,
+        end_index_exclusive=end,
+        representative_energy=float(start),
+        min_energy=float(start),
+        max_energy=float(end - 1),
+        multiplicity_observed=end - start,
+        lower_bound_only=lower_bound_only,
+    )
+
+
+def _selection_outcome(
+    target_id: str, *, group_index: int, complete: bool = True, twice_T: int | None = None
+) -> TargetSelectionOutcome:
+    return TargetSelectionOutcome(
+        target_id=target_id,
+        status=SELECTED,
+        group_index=group_index,
+        twice_T=twice_T,
+        selected_group_status=COMPLETE_MULTIPLET if complete else PARTIAL_SUBSPACE,
+        meets_normative_requirements=complete,
+    )
+
+
+def _required_outcome(
+    target_id: str,
+    *,
+    group_index: int | None,
+    group: SpectralLevelGroup | None,
+    selection_status: str = preflight.TARGET_SELECTED,
+    subcause: str | None = None,
+    complete: bool = True,
+    reflection_restriction_valid: bool | None = True,
+    v23_applicable: bool | None = True,
+    v23_is_valid: bool | None = True,
+) -> preflight.RequiredTargetOutcome:
+    return preflight.RequiredTargetOutcome(
+        target_id=target_id,
+        role=preflight.TARGET_ROLE_REQUIRED,
+        selection_status=selection_status,
+        subcause=subcause,
+        group_index=group_index,
+        group=group,
+        group_state_status=(COMPLETE_MULTIPLET if complete else PARTIAL_SUBSPACE) if selection_status == preflight.TARGET_SELECTED else None,
+        twice_T=None,
+        translation_label_kind=None,
+        reflection_label_kind="numeric" if selection_status == preflight.TARGET_SELECTED else None,
+        reflection_restriction_valid=reflection_restriction_valid if selection_status == preflight.TARGET_SELECTED else None,
+        v23_applicable=v23_applicable if selection_status == preflight.TARGET_SELECTED else None,
+        v23_is_valid=v23_is_valid if selection_status == preflight.TARGET_SELECTED else None,
+        v23_status=preflight.V23_OK if selection_status == preflight.TARGET_SELECTED else None,
+    )
+
+
+_FAKE_SHA = "a" * 40
+
+
+def _fake_provenance(sha: str = _FAKE_SHA) -> preflight.PreflightProvenance:
+    return preflight.PreflightProvenance(
+        code_commit=sha,
+        manifest_fingerprint="deadbeef",
+        preflight_contract_version=preflight.PREFLIGHT_CONTRACT_VERSION,
+    )
+
+
+class _FakeCompletedProcess:
+    def __init__(self, stdout: str) -> None:
+        self.stdout = stdout
+
+
+# ---------------------------------------------------------------------------
+# Plan: exactly 20 cases, exact order, no duplicates.
+# ---------------------------------------------------------------------------
+
+
+def test_plan_has_exactly_20_cases_no_duplicates() -> None:
+    plan = preflight.build_j0_grid_plan()
+    assert len(plan) == 20
+    assert len({(case.geometry, case.spin, case.j0) for case in plan}) == 20
+
+
+def test_plan_exact_deterministic_order() -> None:
+    plan = preflight.build_j0_grid_plan()
+    expected = [
+        (geometry, spin, j0)
+        for geometry in ("triangle", "ring5")
+        for spin in (2, 3)
+        for j0 in (0.5, 0.75, 1.0, 1.25, 1.5)
+    ]
+    assert [(case.geometry, case.spin, case.j0) for case in plan] == expected
+
+
+def test_plan_rejects_non_grid_values() -> None:
+    with pytest.raises(ValueError):
+        preflight.PreflightCase(geometry="triangle", spin=2, j0=0.6)
+    with pytest.raises(ValueError):
+        preflight.PreflightCase(geometry="ring4", spin=2, j0=1.0)
+    with pytest.raises(ValueError):
+        preflight.PreflightCase(geometry="triangle", spin=1, j0=1.0)
+
+
+# ---------------------------------------------------------------------------
+# Targets per geometry / T_max never blocking.
+# ---------------------------------------------------------------------------
+
+
+def test_target_role_classification() -> None:
+    assert preflight.classify_target_role("fundamental") == preflight.TARGET_ROLE_REQUIRED
+    assert preflight.classify_target_role("first_excited") == preflight.TARGET_ROLE_REQUIRED
+    assert preflight.classify_target_role("T_3_2") == preflight.TARGET_ROLE_REQUIRED
+    assert preflight.classify_target_role("T_max") == preflight.TARGET_ROLE_OPTIONAL_CALIBRATION
+
+
+def test_t_max_absent_never_blocks_window_sufficient() -> None:
+    """A T_max outcome that is TARGET_NOT_IDENTIFIABLE must never even
+    reach derive_window_decision: run_case only ever appends REQUIRED
+    outcomes to required_outcomes, so an OPTIONAL_CALIBRATION target's
+    fate never has a role parameter here at all -- this test asserts the
+    decision is SUFFICIENT using only the REQUIRED subset, confirming
+    T_max's absence is structurally irrelevant."""
+    g0, g1 = _group(0, 2), _group(2, 3)
+    required = [
+        _required_outcome("fundamental", group_index=0, group=g0),
+        _required_outcome("first_excited", group_index=1, group=g1),
+    ]
+    margin = _group(3, 4)
+    decision = preflight.derive_window_decision(required, margin, last_required_end=3, full_spectrum_dimension=10)
+    assert decision == preflight.WINDOW_SUFFICIENT
+
+
+# ---------------------------------------------------------------------------
+# Deduplication of REQUIRED groups and last_required_end.
+# ---------------------------------------------------------------------------
+
+
+def test_required_group_indices_deduplicates_shared_group() -> None:
+    shared_group = _group(2, 5)
+    other_group = _group(5, 9)
+    outcomes = [
+        _required_outcome("fundamental", group_index=2, group=shared_group),
+        _required_outcome("first_excited", group_index=2, group=shared_group),
+        _required_outcome("T_3_2", group_index=5, group=other_group),
+    ]
+    indices = preflight.compute_required_group_indices(outcomes)
+    assert indices == frozenset({2, 5})
+
+
+def test_last_required_end_uses_max_of_unique_groups() -> None:
+    shared_group = _group(2, 5)
+    other_group = _group(5, 9)
+    outcomes = [
+        _required_outcome("fundamental", group_index=2, group=shared_group),
+        _required_outcome("first_excited", group_index=2, group=shared_group),
+        _required_outcome("T_3_2", group_index=5, group=other_group),
+    ]
+    assert preflight.compute_last_required_end(outcomes) == 9
+
+
+def test_last_required_end_none_when_no_target_selected() -> None:
+    outcomes = [
+        _required_outcome(
+            "fundamental",
+            group_index=None,
+            group=None,
+            selection_status=preflight.TARGET_NOT_IDENTIFIABLE,
+            subcause=preflight.SUBCAUSE_ABSENT_IN_FULL_SPECTRUM,
+        )
+    ]
+    assert preflight.compute_last_required_end(outcomes) is None
+
+
+# ---------------------------------------------------------------------------
+# Margin group selection.
+# ---------------------------------------------------------------------------
+
+
+def test_margin_group_is_first_complete_group_after_last_required_end() -> None:
+    groups = [_group(0, 3), _group(3, 5), _group(5, 8)]
+    margin = preflight.find_margin_group(groups, last_required_end=3)
+    assert margin is not None
+    assert (margin.start_index, margin.end_index_exclusive) == (3, 5)
+
+
+def test_margin_group_none_when_last_required_end_is_top_of_spectrum() -> None:
+    groups = [_group(0, 3), _group(3, 8)]
+    margin = preflight.find_margin_group(groups, last_required_end=8)
+    assert margin is None
+
+
+# ---------------------------------------------------------------------------
+# Production window rule A: general case + dimension fallback.
+# ---------------------------------------------------------------------------
+
+
+def test_production_window_rule_a_general_case() -> None:
+    assert preflight.compute_production_window(last_required_end=7, full_spectrum_dimension=20) == 8
+
+
+def test_production_window_rule_a_dimension_fallback() -> None:
+    assert preflight.compute_production_window(last_required_end=20, full_spectrum_dimension=20) == 20
+
+
+def test_production_window_never_depends_on_margin_group_size() -> None:
+    """RULE A depends only on last_required_end and full_spectrum_dimension
+    -- a margin group of multiplicity 1 or 50 must yield the identical
+    production_window."""
+    small_margin_window = preflight.compute_production_window(10, 100)
+    # Simulate a "large margin group" scenario: last_required_end is
+    # unaffected by whatever the margin group's own multiplicity is,
+    # since compute_production_window never receives the margin group.
+    assert small_margin_window == 11
+
+
+# ---------------------------------------------------------------------------
+# Target selection classification: absent vs ambiguous, never
+# "physically absent".
+# ---------------------------------------------------------------------------
+
+
+def test_classify_selection_outcome_selected() -> None:
+    outcome = _selection_outcome("fundamental", group_index=0)
+    status, subcause = preflight.classify_selection_outcome(outcome, unresolved_twice_T_present=False)
+    assert status == preflight.TARGET_SELECTED
+    assert subcause is None
+
+
+def test_classify_selection_outcome_not_in_window_is_absent_when_all_resolved() -> None:
+    outcome = TargetSelectionOutcome(
+        target_id="first_excited",
+        status=NOT_IN_WINDOW,
+        group_index=None,
+        twice_T=None,
+        selected_group_status=None,
+        meets_normative_requirements=None,
+    )
+    status, subcause = preflight.classify_selection_outcome(outcome, unresolved_twice_T_present=False)
+    assert status == preflight.TARGET_NOT_IDENTIFIABLE
+    assert subcause == preflight.SUBCAUSE_ABSENT_IN_FULL_SPECTRUM
+
+
+def test_classify_selection_outcome_not_in_window_is_ambiguous_when_unresolved_twice_t_present() -> None:
+    outcome = TargetSelectionOutcome(
+        target_id="T_3_2",
+        status=NOT_IN_WINDOW,
+        group_index=None,
+        twice_T=3,
+        selected_group_status=None,
+        meets_normative_requirements=None,
+    )
+    status, subcause = preflight.classify_selection_outcome(outcome, unresolved_twice_T_present=True)
+    assert status == preflight.TARGET_NOT_IDENTIFIABLE
+    assert subcause == preflight.SUBCAUSE_SELECTION_AMBIGUOUS
+
+
+def test_classify_selection_outcome_ambiguous_status() -> None:
+    outcome = TargetSelectionOutcome(
+        target_id="T_3_2",
+        status=AMBIGUOUS,
+        group_index=None,
+        twice_T=3,
+        selected_group_status=None,
+        meets_normative_requirements=None,
+    )
+    status, subcause = preflight.classify_selection_outcome(outcome, unresolved_twice_T_present=False)
+    assert status == preflight.TARGET_NOT_IDENTIFIABLE
+    assert subcause == preflight.SUBCAUSE_SELECTION_AMBIGUOUS
+
+
+def test_classify_selection_outcome_structurally_not_applicable() -> None:
+    outcome = TargetSelectionOutcome(
+        target_id="T_3_2",
+        status=STRUCTURALLY_NOT_APPLICABLE,
+        group_index=None,
+        twice_T=None,
+        selected_group_status=None,
+        meets_normative_requirements=None,
+    )
+    status, subcause = preflight.classify_selection_outcome(outcome, unresolved_twice_T_present=False)
+    assert status == preflight.TARGET_NOT_IDENTIFIABLE
+    assert subcause == preflight.SUBCAUSE_ABSENT_IN_FULL_SPECTRUM
+
+
+# ---------------------------------------------------------------------------
+# Window status priority ordering.
+# ---------------------------------------------------------------------------
+
+
+def test_window_decision_sufficient_when_everything_holds() -> None:
+    g0 = _group(0, 2)
+    required = [_required_outcome("fundamental", group_index=0, group=g0)]
+    margin = _group(2, 3)
+    assert (
+        preflight.derive_window_decision(required, margin, last_required_end=2, full_spectrum_dimension=10)
+        == preflight.WINDOW_SUFFICIENT
+    )
+
+
+def test_window_decision_not_identifiable_wins_over_every_other_condition() -> None:
+    """A required target that could not be identified must win even when
+    every other condition (margin, V23) would otherwise also fail --
+    priority 1 is checked first and returns immediately."""
+    required = [
+        _required_outcome(
+            "first_excited",
+            group_index=None,
+            group=None,
+            selection_status=preflight.TARGET_NOT_IDENTIFIABLE,
+            subcause=preflight.SUBCAUSE_ABSENT_IN_FULL_SPECTRUM,
+        )
+    ]
+    decision = preflight.derive_window_decision(required, margin_group=None, last_required_end=None, full_spectrum_dimension=10)
+    assert decision == preflight.TARGET_NOT_IDENTIFIABLE
+
+
+def test_window_decision_inconclusive_when_margin_group_missing() -> None:
+    g0 = _group(0, 5)
+    required = [_required_outcome("fundamental", group_index=0, group=g0)]
+    decision = preflight.derive_window_decision(required, margin_group=None, last_required_end=5, full_spectrum_dimension=10)
+    assert decision == preflight.WINDOW_INCONCLUSIVE
+
+
+def test_window_decision_sufficient_when_last_required_end_is_full_dimension_and_no_margin_needed() -> None:
+    g0 = _group(0, 10)
+    required = [_required_outcome("fundamental", group_index=0, group=g0)]
+    decision = preflight.derive_window_decision(required, margin_group=None, last_required_end=10, full_spectrum_dimension=10)
+    assert decision == preflight.WINDOW_SUFFICIENT
+
+
+def test_window_decision_inconclusive_when_v23_not_valid() -> None:
+    g0 = _group(0, 2)
+    required = [_required_outcome("fundamental", group_index=0, group=g0, v23_is_valid=False)]
+    margin = _group(2, 3)
+    decision = preflight.derive_window_decision(required, margin, last_required_end=2, full_spectrum_dimension=10)
+    assert decision == preflight.WINDOW_INCONCLUSIVE
+
+
+def test_window_decision_insufficient_when_selected_target_not_complete() -> None:
+    g0 = _group(0, 2)
+    required = [_required_outcome("fundamental", group_index=0, group=g0, complete=False)]
+    margin = _group(2, 3)
+    decision = preflight.derive_window_decision(required, margin, last_required_end=2, full_spectrum_dimension=10)
+    assert decision == preflight.WINDOW_INSUFFICIENT
+
+
+# ---------------------------------------------------------------------------
+# Global aggregation: ALL_REQUIRED_CASES.
+# ---------------------------------------------------------------------------
+
+
+def _minimal_case_report(*, window_status: str, resource_status: str = preflight.RESOURCE_FEASIBLE) -> preflight.PublicCaseReport:
+    return preflight.PublicCaseReport(
+        geometry="triangle",
+        spin=2,
+        j0=1.0,
+        full_spectrum_dimension=88,
+        eigensolver_dispatch="dense",
+        exploratory_window=88,
+        production_window=10,
+        last_required_end=9,
+        margin_group_start_index=9,
+        margin_group_end_index_exclusive=10,
+        resource_status=resource_status,
+        window_status=window_status,
+        tracking_preflight_status=preflight.TRACKING_FEASIBLE,
+        targets=(),
+    )
+
+
+def test_global_sufficient_when_all_cases_sufficient() -> None:
+    reports = [_minimal_case_report(window_status=preflight.WINDOW_SUFFICIENT) for _ in range(20)]
+    aggregated = preflight.aggregate_preflight(_fake_provenance(), reports)
+    assert aggregated.global_status == preflight.GLOBAL_SUFFICIENT
+    assert aggregated.provenance == _fake_provenance()
+
+
+def test_global_fail_when_a_single_case_is_blocking() -> None:
+    reports = [_minimal_case_report(window_status=preflight.WINDOW_SUFFICIENT) for _ in range(19)]
+    reports.append(_minimal_case_report(window_status=preflight.WINDOW_INCONCLUSIVE))
+    aggregated = preflight.aggregate_preflight(_fake_provenance(), reports)
+    assert aggregated.global_status == preflight.GLOBAL_FAIL
+
+
+def test_global_fail_on_resource_blocking() -> None:
+    reports = [_minimal_case_report(window_status=preflight.WINDOW_SUFFICIENT) for _ in range(19)]
+    reports.append(
+        _minimal_case_report(window_status=preflight.WINDOW_SUFFICIENT, resource_status=preflight.RESOURCE_BLOCKING)
+    )
+    aggregated = preflight.aggregate_preflight(_fake_provenance(), reports)
+    assert aggregated.global_status == preflight.GLOBAL_FAIL
+
+
+# ---------------------------------------------------------------------------
+# Information firewall: energy fields structurally absent from the public
+# surface.
+# ---------------------------------------------------------------------------
+
+_FORBIDDEN_FIELD_SUBSTRINGS = ("energy", "eigenvalue", "gap")
+_FORBIDDEN_V23_FIELD_SUBSTRINGS = ("measured", "expected", "residual", "diagonal", "offdiagonal")
+
+
+def test_public_target_report_has_no_energy_or_raw_v23_fields() -> None:
+    field_names = {field.name for field in dataclasses.fields(preflight.PublicTargetReport)}
+    for forbidden in _FORBIDDEN_FIELD_SUBSTRINGS + _FORBIDDEN_V23_FIELD_SUBSTRINGS:
+        assert not any(forbidden in name for name in field_names), (forbidden, field_names)
+    # Only the sanitized booleans/status may appear for V23.
+    assert {"v23_applicable", "v23_is_valid", "v23_status"} <= field_names
+
+
+def test_public_case_report_has_no_energy_fields() -> None:
+    field_names = {field.name for field in dataclasses.fields(preflight.PublicCaseReport)}
+    for forbidden in _FORBIDDEN_FIELD_SUBSTRINGS:
+        assert not any(forbidden in name for name in field_names), (forbidden, field_names)
+
+
+def test_public_report_json_serialization_never_contains_forbidden_tokens() -> None:
+    target = preflight.PublicTargetReport(
+        target_id="fundamental",
+        role=preflight.TARGET_ROLE_REQUIRED,
+        selection_status=preflight.TARGET_SELECTED,
+        subcause=None,
+        group_start_index=0,
+        group_end_index_exclusive=2,
+        multiplicity=2,
+        twice_T=1,
+        translation_label_kind="not_applicable",
+        reflection_label_kind="numeric",
+        reflection_restriction_valid=True,
+        complete_multiplet=True,
+        lower_bound_only=False,
+        v23_applicable=True,
+        v23_is_valid=True,
+        v23_status=preflight.V23_OK,
+    )
+    case = preflight.PublicCaseReport(
+        geometry="triangle",
+        spin=2,
+        j0=1.25,
+        full_spectrum_dimension=88,
+        eigensolver_dispatch="dense",
+        exploratory_window=88,
+        production_window=3,
+        last_required_end=2,
+        margin_group_start_index=2,
+        margin_group_end_index_exclusive=3,
+        resource_status=preflight.RESOURCE_FEASIBLE,
+        window_status=preflight.WINDOW_SUFFICIENT,
+        tracking_preflight_status=preflight.TRACKING_FEASIBLE,
+        targets=(target,),
+    )
+    report = preflight.PublicPreflightReport(
+        provenance=_fake_provenance(), cases=(case,), global_status=preflight.GLOBAL_SUFFICIENT
+    )
+    rendered = json.dumps(preflight._public_report_to_json(report))
+    for forbidden in _FORBIDDEN_FIELD_SUBSTRINGS + _FORBIDDEN_V23_FIELD_SUBSTRINGS:
+        assert forbidden not in rendered
+
+
+# ---------------------------------------------------------------------------
+# V23 sanitization, including exception sanitization.
+# ---------------------------------------------------------------------------
+
+
+def test_sanitize_v23_result_ok_path() -> None:
+    diagonal = {0: 0.75, 1: 0.75, 2: 0.75}
+    off_diagonal = {(0, 1): 0.25, (1, 0): 0.25, (0, 2): 0.25, (2, 0): 0.25, (1, 2): 0.25, (2, 1): 0.25}
+    applicable, is_valid, status = preflight.sanitize_v23_result(COMPLETE_MULTIPLET, 3, diagonal, off_diagonal)
+    assert applicable is True
+    assert is_valid is True
+    assert status == preflight.V23_OK
+
+
+def test_sanitize_v23_result_catches_real_structural_valueerror() -> None:
+    # Two sites declared via the diagonal, but the required (0,1)/(1,0)
+    # off-diagonal pairs are missing entirely -- a genuine structural
+    # incompleteness that validate_flavor_total_sum rejects with
+    # ValueError (never a coincidental is_valid=True/False).
+    incomplete_diagonal = {0: 0.75, 1: 0.75}
+    incomplete_off_diagonal = {}
+    applicable, is_valid, status = preflight.sanitize_v23_result(
+        COMPLETE_MULTIPLET, 1, incomplete_diagonal, incomplete_off_diagonal
+    )
+    assert applicable is None
+    assert is_valid is None
+    assert status == preflight.V23_VALIDATION_FAILED
+
+
+def test_sanitize_v23_result_scrubs_crafted_exception(monkeypatch, capsys) -> None:
+    def _raise(*_args, **_kwargs):
+        raise ValueError("measured=1.234567 expected=2.0 residual=0.765433 boom")
+
+    monkeypatch.setattr(preflight, "validate_flavor_total_sum", _raise)
+    applicable, is_valid, status = preflight.sanitize_v23_result(COMPLETE_MULTIPLET, 1, {0: 0.0}, {})
+    assert applicable is None
+    assert is_valid is None
+    assert status == preflight.V23_VALIDATION_FAILED
+    forbidden_tokens = ("measured", "expected", "residual", "1.234567", "2.0", "0.765433")
+    for token in forbidden_tokens:
+        assert token not in status
+    captured = capsys.readouterr()
+    for token in forbidden_tokens:
+        assert token not in captured.out
+        assert token not in captured.err
+
+
+# ---------------------------------------------------------------------------
+# Reflection public surface: only the label kind and a validity boolean.
+# ---------------------------------------------------------------------------
+
+
+def test_reflection_public_fields_are_minimal() -> None:
+    field_names = {field.name for field in dataclasses.fields(preflight.PublicTargetReport)}
+    reflection_fields = {name for name in field_names if "reflection" in name}
+    assert reflection_fields == {"reflection_label_kind", "reflection_restriction_valid"}
+
+
+# ---------------------------------------------------------------------------
+# R_rest^2 = I on the RESTRICTED operator (1C-6h correctif). A single
+# fixed GLOBAL unitary R_global is used for both cases below -- R_global
+# itself is block-diagonal (a genuine 2x2 involution block, and a genuine
+# 2x2 order-4 rotation block) and is therefore NOT a global involution
+# (R_global^2 != I_4) -- exactly the scenario the fix must handle
+# correctly: the verdict must depend on WHICH subspace is selected, never
+# on the global operator alone.
+# ---------------------------------------------------------------------------
+
+
+def _block_reflection_unitary():
+    import numpy as np
+    import scipy.sparse as sp
+
+    swap_block = np.array([[0.0, 1.0], [1.0, 0.0]], dtype=np.complex128)  # involution: swap^2 = I
+    rotation_block = np.array([[0.0, -1.0], [1.0, 0.0]], dtype=np.complex128)  # order 4: rot^2 = -I
+    dense = np.zeros((4, 4), dtype=np.complex128)
+    dense[0:2, 0:2] = swap_block
+    dense[2:4, 2:4] = rotation_block
+    return sp.csr_matrix(dense)
+
+
+def _standard_basis_group_state(indices: tuple[int, int]):
+    import numpy as np
+
+    from cosmobox.level1.restricted import COMPLETE_MULTIPLET as _COMPLETE, SpectralGroupState
+
+    psi = np.zeros((4, 2), dtype=np.complex128)
+    psi[indices[0], 0] = 1.0
+    psi[indices[1], 1] = 1.0
+    return SpectralGroupState(psi=psi, status=_COMPLETE)
+
+
+def test_restricted_reflection_defect_zero_for_true_restricted_involution() -> None:
+    """psi spans the swap block: R_rest = [[0,1],[1,0]], R_rest^2 = I
+    exactly, even though the GLOBAL R_global is not itself an
+    involution (its rotation block has order 4)."""
+    r_global = _block_reflection_unitary()
+    group_state = _standard_basis_group_state((0, 1))
+    defect = preflight.restricted_reflection_squared_identity_defect(r_global, group_state)
+    assert defect == pytest.approx(0.0, abs=1e-12)
+
+
+def test_restricted_reflection_defect_nonzero_for_restricted_non_involution() -> None:
+    """psi spans the rotation block: R_rest = [[0,-1],[1,0]], correct
+    (2x2) dimensions, but R_rest^2 = -I != I -- must be flagged invalid."""
+    r_global = _block_reflection_unitary()
+    group_state = _standard_basis_group_state((2, 3))
+    defect = preflight.restricted_reflection_squared_identity_defect(r_global, group_state)
+    assert defect > preflight.UNITARITY_TOLERANCE
+
+
+def test_global_reflection_involution_helper_was_removed() -> None:
+    """Non-regression (1C-6h correctif): the old, incorrect global-only
+    check must no longer exist under its previous name -- only the
+    restricted-operator helper is exposed, so nothing can silently fall
+    back to testing R_global^2=I instead of R_rest^2=I."""
+    assert not hasattr(preflight, "reflection_squared_identity_defect")
+    assert hasattr(preflight, "restricted_reflection_squared_identity_defect")
+
+
+def test_run_case_source_never_references_removed_global_check() -> None:
+    """Structural non-regression: run_case's own source must reference
+    the RESTRICTED helper name and must never mention the removed
+    global-only helper name, so a future edit cannot quietly reintroduce
+    a global-only R^2=I check under a different call site."""
+    import inspect
+
+    source = inspect.getsource(preflight.run_case)
+    assert "restricted_reflection_squared_identity_defect" in source
+    assert "reflection_squared_identity_defect(reflection_automorphism.unitary)" not in source
+
+
+# ---------------------------------------------------------------------------
+# Tracking preflight vocabulary: exclusive to the preflight, distinct from
+# the final-analysis vocabulary.
+# ---------------------------------------------------------------------------
+
+_FINAL_ANALYSIS_VOCABULARY = (
+    "tracked_one_to_one",
+    "tracked_split_branch",
+    "ambiguous",
+    "discontinuous",
+    "not_available",
+)
+
+
+def test_tracking_preflight_statuses_are_disjoint_from_final_analysis_vocabulary() -> None:
+    for status in preflight.TRACKING_PREFLIGHT_STATUSES:
+        assert status not in _FINAL_ANALYSIS_VOCABULARY
+
+
+def test_tracking_preflight_status_feasible_when_all_required_selected_and_reflection_valid() -> None:
+    g0 = _group(0, 2)
+    required = [_required_outcome("fundamental", group_index=0, group=g0, reflection_restriction_valid=True)]
+    assert preflight.derive_tracking_preflight_status(required) == preflight.TRACKING_FEASIBLE
+
+
+def test_tracking_preflight_status_structurally_ambiguous_on_ambiguous_subcause() -> None:
+    required = [
+        _required_outcome(
+            "T_3_2",
+            group_index=None,
+            group=None,
+            selection_status=preflight.TARGET_NOT_IDENTIFIABLE,
+            subcause=preflight.SUBCAUSE_SELECTION_AMBIGUOUS,
+        )
+    ]
+    assert preflight.derive_tracking_preflight_status(required) == preflight.TRACKING_STRUCTURALLY_AMBIGUOUS
+
+
+def test_tracking_preflight_status_structurally_ambiguous_on_invalid_reflection() -> None:
+    g0 = _group(0, 2)
+    required = [_required_outcome("fundamental", group_index=0, group=g0, reflection_restriction_valid=False)]
+    assert preflight.derive_tracking_preflight_status(required) == preflight.TRACKING_STRUCTURALLY_AMBIGUOUS
+
+
+def test_tracking_preflight_status_not_evaluated_when_empty() -> None:
+    assert preflight.derive_tracking_preflight_status([]) == preflight.TRACKING_NOT_EVALUATED
+
+
+# ---------------------------------------------------------------------------
+# CLI safety: --help never diagonalizes anything.
+# ---------------------------------------------------------------------------
+
+
+def test_cli_help_does_not_run_full_grid(monkeypatch, capsys) -> None:
+    def _fail_if_called(*_args, **_kwargs):
+        raise AssertionError("run_preflight must never be called without --confirm-run-full-grid")
+
+    monkeypatch.setattr(preflight, "run_preflight", _fail_if_called)
+    exit_code = preflight.main([])
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "usage" in captured.out.lower()
+
+
+def test_cli_without_confirm_flag_never_invokes_run_preflight(monkeypatch) -> None:
+    called = {"value": False}
+
+    def _mark_called(*_args, **_kwargs):
+        called["value"] = True
+        raise AssertionError("must not be called")
+
+    monkeypatch.setattr(preflight, "run_preflight", _mark_called)
+    preflight.main([])
+    assert called["value"] is False
+
+
+def test_cli_confirm_flag_prints_json_and_exits_zero_when_sufficient(monkeypatch, capsys) -> None:
+    fake_report = preflight.PublicPreflightReport(
+        provenance=_fake_provenance(), cases=(), global_status=preflight.GLOBAL_SUFFICIENT
+    )
+    monkeypatch.setattr(preflight, "run_preflight", lambda: fake_report)
+    exit_code = preflight.main(["--confirm-run-full-grid"])
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["global_status"] == preflight.GLOBAL_SUFFICIENT
+    assert payload["provenance"]["code_commit"] == _FAKE_SHA
+    assert payload["provenance"]["manifest_fingerprint"] == "deadbeef"
+    assert payload["provenance"]["preflight_contract_version"] == preflight.PREFLIGHT_CONTRACT_VERSION
+
+
+def test_cli_confirm_flag_exits_one_when_global_fail(monkeypatch, capsys) -> None:
+    fake_report = preflight.PublicPreflightReport(
+        provenance=_fake_provenance(), cases=(), global_status=preflight.GLOBAL_FAIL
+    )
+    monkeypatch.setattr(preflight, "run_preflight", lambda: fake_report)
+    exit_code = preflight.main(["--confirm-run-full-grid"])
+    assert exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# Provenance (1C-6j correctif): resolved before any case runs. Every git
+# invocation is monkeypatched at the module level -- never a real `git`
+# call in these unit tests.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_code_commit_valid_sha(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout=_FAKE_SHA + "\n"))
+    assert preflight.resolve_code_commit() == _FAKE_SHA
+
+
+def test_resolve_code_commit_rejects_non_hex_sha(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout="not-a-sha\n"))
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.resolve_code_commit()
+
+
+def test_resolve_code_commit_rejects_short_sha(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout="a" * 7 + "\n"))
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.resolve_code_commit()
+
+
+def test_resolve_code_commit_subprocess_failure_fails_hard(monkeypatch) -> None:
+    def _raise(*_a, **_k):
+        raise FileNotFoundError("git executable not found")
+
+    monkeypatch.setattr(preflight.subprocess, "run", _raise)
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.resolve_code_commit()
+
+
+def test_require_clean_worktree_passes_when_clean(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout=""))
+    preflight.require_clean_worktree()  # must not raise
+
+
+def test_require_clean_worktree_refuses_when_dirty(monkeypatch) -> None:
+    monkeypatch.setattr(
+        preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout=" M some/file.py\n")
+    )
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.require_clean_worktree()
+
+
+class _FakeManifestForProvenance:
+    fingerprint = "cafebabe"
+
+
+def test_resolve_preflight_provenance_fields_transmitted_exactly(monkeypatch) -> None:
+    def _fake_run(args, **_kwargs):
+        if args[1] == "status":
+            return _FakeCompletedProcess(stdout="")
+        return _FakeCompletedProcess(stdout=_FAKE_SHA + "\n")
+
+    monkeypatch.setattr(preflight.subprocess, "run", _fake_run)
+    provenance = preflight.resolve_preflight_provenance(_FakeManifestForProvenance())
+    assert provenance.code_commit == _FAKE_SHA
+    assert provenance.manifest_fingerprint == "cafebabe"
+    assert provenance.preflight_contract_version == preflight.PREFLIGHT_CONTRACT_VERSION
+
+
+def test_preflight_contract_version_is_constant() -> None:
+    assert preflight.PREFLIGHT_CONTRACT_VERSION == "level1c-j0-blind-preflight-v1"
+
+
+def test_run_preflight_refuses_dirty_worktree_before_any_case_and_never_calls_run_case(monkeypatch) -> None:
+    monkeypatch.setattr(preflight.subprocess, "run", lambda *a, **k: _FakeCompletedProcess(stdout=" M x.py\n"))
+
+    def _fail_if_called(*_a, **_k):
+        raise AssertionError("run_case must never be called when the worktree is dirty")
+
+    monkeypatch.setattr(preflight, "run_case", _fail_if_called)
+
+    with pytest.raises(preflight.PreflightInternalFailure):
+        preflight.run_preflight(manifest=_FakeManifestForProvenance())
+
+
+def test_provenance_dataclass_has_only_the_three_expected_fields() -> None:
+    field_names = {field.name for field in dataclasses.fields(preflight.PreflightProvenance)}
+    assert field_names == {"code_commit", "manifest_fingerprint", "preflight_contract_version"}
+    for forbidden in _FORBIDDEN_FIELD_SUBSTRINGS + _FORBIDDEN_V23_FIELD_SUBSTRINGS:
+        assert not any(forbidden in name for name in field_names)
+
+
+def test_public_preflight_report_has_provenance_as_its_only_new_field() -> None:
+    field_names = {field.name for field in dataclasses.fields(preflight.PublicPreflightReport)}
+    assert field_names == {"provenance", "cases", "global_status"}
+
+
+# ---------------------------------------------------------------------------
+# Runtime firewall + run_case wiring (1C-6j correctif): only
+# build_level0_report_with_eigenvectors is mocked -- lattice/basis/
+# Hamiltonian-term/flavor-Casimir/automorphism construction all run for
+# real (none of it diagonalizes anything), and a plain identity matrix is
+# used as a trivially orthonormal, non-physical stand-in eigenbasis: it
+# is enough to exercise run_case's own orchestration without ever
+# performing a real diagonalization of the J0 grid.
+# ---------------------------------------------------------------------------
+
+
+def _synthetic_level0_report_and_eigenvectors(dimension: int, group_boundaries):
+    groups = tuple(_group(start, end) for start, end in group_boundaries)
+    level0_report = SimpleNamespace(
+        spectrum=SimpleNamespace(degeneracy=SimpleNamespace(groups=groups), method="dense")
+    )
+    eigenvectors = np.eye(dimension, dtype=np.complex128)
+    return level0_report, eigenvectors
+
+
+def _patch_synthetic_diagonalization(monkeypatch, *, dimension: int, group_boundaries) -> None:
+    level0_report, eigenvectors = _synthetic_level0_report_and_eigenvectors(dimension, group_boundaries)
+    monkeypatch.setattr(
+        preflight, "build_level0_report_with_eigenvectors", lambda *a, **k: (level0_report, eigenvectors)
+    )
+
+
+def _real_triangle_dimension(spin: int) -> int:
+    lattice = preflight.build_lattice("triangle")
+    basis = preflight.build_basis(lattice, preflight.N_FLAVORS, spin, external_charges=None)
+    return len(basis.keys)
+
+
+def test_run_case_wiring_produces_a_coherent_public_case_report(monkeypatch) -> None:
+    from experiments.level1.manifest import load_manifest
+
+    manifest = load_manifest()
+    dimension = _real_triangle_dimension(spin=2)
+    _patch_synthetic_diagonalization(monkeypatch, dimension=dimension, group_boundaries=[(0, 1), (1, 3), (3, dimension)])
+
+    case = preflight.PreflightCase(geometry="triangle", spin=2, j0=1.0)
+    report = preflight.run_case(case, manifest)
+
+    assert isinstance(report, preflight.PublicCaseReport)
+    assert report.geometry == "triangle"
+    assert report.spin == 2
+    assert report.j0 == 1.0
+    assert report.full_spectrum_dimension == dimension
+    assert report.exploratory_window == dimension
+    assert len(report.targets) == len(manifest.target_groups["triangle"])
+    assert report.resource_status == preflight.RESOURCE_FEASIBLE
+
+
+_FIREWALL_FORBIDDEN_TOKENS = ("energy", "1.234567", "measured", "2.345678", "residual", "3.456789")
+
+
+def test_run_case_sanitizes_exception_from_non_v23_internal_primitive(monkeypatch, capsys) -> None:
+    from experiments.level1.manifest import load_manifest
+
+    manifest = load_manifest()
+    dimension = _real_triangle_dimension(spin=2)
+    _patch_synthetic_diagonalization(monkeypatch, dimension=dimension, group_boundaries=[(0, 1), (1, 3), (3, dimension)])
+
+    def _raise(*_a, **_k):
+        raise ValueError("energy=1.234567 measured=2.345678 residual=3.456789")
+
+    monkeypatch.setattr(preflight, "canonical_multiplet_expectation", _raise)
+
+    case = preflight.PreflightCase(geometry="triangle", spin=2, j0=1.0)
+    with pytest.raises(preflight.PreflightInternalFailure) as excinfo:
+        preflight.run_case(case, manifest)
+
+    assert excinfo.value.__cause__ is None
+    assert str(excinfo.value) == "internal preflight analysis failed"
+
+    rendered = "".join(traceback.format_exception(type(excinfo.value), excinfo.value, excinfo.value.__traceback__))
+    for token in _FIREWALL_FORBIDDEN_TOKENS:
+        assert token not in str(excinfo.value)
+        assert token not in rendered
+
+    captured = capsys.readouterr()
+    for token in _FIREWALL_FORBIDDEN_TOKENS:
+        assert token not in captured.out
+        assert token not in captured.err
+
+
+def test_run_case_still_reports_resource_blocking_on_memoryerror(monkeypatch) -> None:
+    """MemoryError must still map to RESOURCE_BLOCKING, never be
+    converted into PreflightInternalFailure (1C-6j section 5)."""
+    from experiments.level1.manifest import load_manifest
+
+    manifest = load_manifest()
+
+    def _raise_memory_error(*_a, **_k):
+        raise MemoryError("simulated allocation failure")
+
+    monkeypatch.setattr(preflight, "build_level0_report_with_eigenvectors", _raise_memory_error)
+
+    case = preflight.PreflightCase(geometry="triangle", spin=2, j0=1.0)
+    report = preflight.run_case(case, manifest)
+    assert report.resource_status == preflight.RESOURCE_BLOCKING
+    assert report.window_status == preflight.WINDOW_INCONCLUSIVE

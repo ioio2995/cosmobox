@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1c-baseline-nonregression-v1.schema.json",
+  "title": "Cosmobox Level 1C baseline non-regression gate artifact (v1)",
+  "description": "Dedicated Level1C baseline non-regression gate schema (lot 1C-8d), positioned exactly between PHASE_P and PHASE_T (identifiability-preregistration.md section 20.19: P -> BASELINE_NON_REGRESSION_GATE -> T). Compares the four Level1C J0=1 baselines (triangle/ring5 x S in {2,3}) against their Level1B reference counterparts, using the tolerances frozen by the accepted calibration (1C-7c4/1C-7c5). T_max is never part of this comparison scope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "repository_commit",
+    "manifest_fingerprint",
+    "historical_campaign_id",
+    "historical_manifest_fingerprint",
+    "historical_repository_commit",
+    "ctt_abs_tol",
+    "rho_abs_tol",
+    "case_comparisons",
+    "e_ctt",
+    "e_rho",
+    "gate_status",
+    "failure_reasons"
+  ],
+  "properties": {
+    "schema_version": {"const": "level1c-baseline-nonregression-v1"},
+    "campaign_id": {"const": "level1c-j0-response-v1"},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifest_fingerprint": {"type": "string", "minLength": 1},
+    "historical_campaign_id": {"const": "level1b-reference-v1"},
+    "historical_manifest_fingerprint": {"const": "159660cac738518dc620b9627ec95fd67c5dbc283707fdf72e572886364693ab"},
+    "historical_repository_commit": {"const": "0ff65ac66b4aa054f739b350cd384c26ecd19752"},
+    "ctt_abs_tol": {"const": 1e-15},
+    "rho_abs_tol": {"const": 1e-15},
+    "case_comparisons": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"$ref": "#/$defs/caseComparison"}
+    },
+    "e_ctt": {"type": ["number", "null"], "minimum": 0},
+    "e_rho": {"type": ["number", "null"], "minimum": 0},
+    "gate_status": {"enum": ["PASS", "FAIL"]},
+    "failure_reasons": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  },
+  "if": {"required": ["gate_status"], "properties": {"gate_status": {"const": "PASS"}}},
+  "then": {"properties": {"failure_reasons": {"maxItems": 0}}},
+  "$defs": {
+    "targetComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "level1c_group_index",
+        "historical_group_index",
+        "structural_status",
+        "ctt_status",
+        "rho_status",
+        "max_abs_ctt",
+        "max_abs_rho",
+        "failure_reasons"
+      ],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "level1c_group_index": {"type": ["integer", "null"], "minimum": 0},
+        "historical_group_index": {"type": ["integer", "null"], "minimum": 0},
+        "structural_status": {"enum": ["PASS", "FAIL"]},
+        "ctt_status": {"enum": ["PASS", "FAIL"]},
+        "rho_status": {"enum": ["PASS", "FAIL"]},
+        "max_abs_ctt": {"type": ["number", "null"], "minimum": 0},
+        "max_abs_rho": {"type": ["number", "null"], "minimum": 0},
+        "failure_reasons": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "caseComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level1c_case_id",
+        "historical_case_id",
+        "geometry",
+        "spin",
+        "target_results",
+        "structural_status",
+        "ctt_status",
+        "rho_status",
+        "max_abs_ctt",
+        "max_abs_rho",
+        "case_status",
+        "failure_reasons"
+      ],
+      "properties": {
+        "level1c_case_id": {"type": ["string", "null"], "minLength": 1},
+        "historical_case_id": {"type": ["string", "null"], "minLength": 1},
+        "geometry": {"enum": ["triangle", "ring5"]},
+        "spin": {"enum": [2, 3]},
+        "target_results": {"type": "array", "items": {"$ref": "#/$defs/targetComparison"}},
+        "structural_status": {"enum": ["PASS", "FAIL"]},
+        "ctt_status": {"enum": ["PASS", "FAIL"]},
+        "rho_status": {"enum": ["PASS", "FAIL"]},
+        "max_abs_ctt": {"type": ["number", "null"], "minimum": 0},
+        "max_abs_rho": {"type": ["number", "null"], "minimum": 0},
+        "case_status": {"enum": ["PASS", "FAIL"]},
+        "failure_reasons": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      },
+      "if": {"required": ["case_status"], "properties": {"case_status": {"const": "PASS"}}},
+      "then": {"properties": {"failure_reasons": {"maxItems": 0}}}
+    }
+  }
+}

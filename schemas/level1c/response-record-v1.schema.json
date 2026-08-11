@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level1c-response-record-v1.schema.json",
+  "title": "Cosmobox Level 1C PHASE_R response record (v1)",
+  "description": "One response outcome for one (REQUIRED target, tracking edge) pair, one-to-one with a tracking-record-v1 document (lot 1C-8f, PHASE_R, positioned after PHASE_T: identifiability-preregistration.md section 20.17). RESPONSE_AVAILABLE requires tracking.status==TRACKED_ONE_TO_ONE AND the tracked branch to be exactly the target's own pre-registered selected group on both sides (section 20.17: a structurally-continued group that is not the pre-registered target never yields a response). Carries only Delta_C_TT (the sole ratified response-derived quantity) and a pairwise rho_QQ concordance control (never a Delta_rho/ratio/relative-change -- rho_QQ's role remains PAIRWISE_CONCORDANCE_CONTROL, never a response amplitude). Never contains an incident/non-incident classification, a physical significance verdict, or any G-related field -- all deferred.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "repository_commit",
+    "manifest_fingerprint",
+    "geometry",
+    "spin",
+    "baseline_case_id",
+    "perturbed_case_id",
+    "baseline_hamiltonian_case_id",
+    "perturbed_hamiltonian_case_id",
+    "target_id",
+    "tracking_status",
+    "response_eligibility",
+    "baseline_group_index",
+    "perturbed_group_index",
+    "delta_ctt_pairs",
+    "rho_pair_controls",
+    "failure_reasons"
+  ],
+  "properties": {
+    "schema_version": {"const": "level1c-response-record-v1"},
+    "campaign_id": {"const": "level1c-j0-response-v1"},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifest_fingerprint": {"type": "string", "minLength": 1},
+    "geometry": {"enum": ["triangle", "ring5"]},
+    "spin": {"enum": [2, 3]},
+    "baseline_case_id": {"type": "string", "minLength": 1},
+    "perturbed_case_id": {"type": "string", "minLength": 1},
+    "baseline_hamiltonian_case_id": {"type": "string", "minLength": 1},
+    "perturbed_hamiltonian_case_id": {"type": "string", "minLength": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "tracking_status": {
+      "enum": ["TRACKED_ONE_TO_ONE", "AMBIGUOUS", "NOT_AVAILABLE"],
+      "description": "Transcribed verbatim from the source tracking-record-v1 document's own `status` -- never recomputed."
+    },
+    "response_eligibility": {
+      "enum": ["RESPONSE_AVAILABLE", "RESPONSE_NOT_AVAILABLE"],
+      "description": "RESPONSE_ELIGIBILITY (section 20.17), orthogonal to tracking_status -- never fused with it, never a physical verdict."
+    },
+    "baseline_group_index": {"type": ["integer", "null"], "minimum": 0},
+    "perturbed_group_index": {"type": ["integer", "null"], "minimum": 0},
+    "delta_ctt_pairs": {"oneOf": [{"type": "null"}, {"type": "array", "items": {"$ref": "#/$defs/deltaCttPair"}}]},
+    "rho_pair_controls": {"oneOf": [{"type": "null"}, {"type": "array", "items": {"$ref": "#/$defs/rhoPairControl"}}]},
+    "failure_reasons": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  },
+  "if": {"required": ["response_eligibility"], "properties": {"response_eligibility": {"const": "RESPONSE_AVAILABLE"}}},
+  "then": {
+    "properties": {
+      "tracking_status": {"const": "TRACKED_ONE_TO_ONE"},
+      "baseline_group_index": {"type": "integer"},
+      "perturbed_group_index": {"type": "integer"},
+      "delta_ctt_pairs": {"type": "array"},
+      "rho_pair_controls": {"type": "array"},
+      "failure_reasons": {"maxItems": 0}
+    }
+  },
+  "else": {
+    "properties": {
+      "delta_ctt_pairs": {"type": "null"},
+      "rho_pair_controls": {"type": "null"},
+      "failure_reasons": {"minItems": 1}
+    }
+  },
+  "$defs": {
+    "deltaCttPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["i", "j", "baseline_value", "perturbed_value", "delta"],
+      "properties": {
+        "i": {"type": "integer", "minimum": 0},
+        "j": {"type": "integer", "minimum": 0},
+        "baseline_value": {"type": "number"},
+        "perturbed_value": {"type": "number"},
+        "delta": {
+          "type": "number",
+          "description": "perturbed_value - baseline_value, a direct arithmetic difference -- never a tolerance-gated comparison, never a physical significance threshold."
+        }
+      }
+    },
+    "rhoPairControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["i", "j", "baseline_value", "baseline_null_reason", "perturbed_value", "perturbed_null_reason"],
+      "properties": {
+        "i": {"type": "integer", "minimum": 0},
+        "j": {"type": "integer", "minimum": 0},
+        "baseline_value": {"type": ["number", "null"]},
+        "baseline_null_reason": {"type": ["string", "null"]},
+        "perturbed_value": {"type": ["number", "null"]},
+        "perturbed_null_reason": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"required": ["baseline_value"], "properties": {"baseline_value": {"type": "null"}}},
+          "then": {"required": ["baseline_null_reason"], "properties": {"baseline_null_reason": {"type": "string", "minLength": 1}}},
+          "else": {"properties": {"baseline_null_reason": {"const": null}}}
+        },
+        {
+          "if": {"required": ["perturbed_value"], "properties": {"perturbed_value": {"type": "null"}}},
+          "then": {"required": ["perturbed_null_reason"], "properties": {"perturbed_null_reason": {"type": "string", "minLength": 1}}},
+          "else": {"properties": {"perturbed_null_reason": {"const": null}}}
+        }
+      ],
+      "description": "Deliberately no delta/ratio/relative_change field: rho_QQ is a pairwise concordance control juxtaposed side-by-side, never a response amplitude (RHO_RESPONSE_ROLE=PAIRWISE_CONCORDANCE_CONTROL). value==null <=> null_reason is a non-empty string, independently for baseline and perturbed (1C-8f-fix) -- mirrors the identical idiom already frozen in schemas/level1c/result-record-v1.schema.json $defs.normalizedMoment."
+    }
+  }
+}
