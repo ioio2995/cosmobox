@@ -56,11 +56,12 @@ Statut : **clos**.
 ## Niveau 2
 
 - [`levels/level2/conceptual-framing.md`](levels/level2/conceptual-framing.md) — cadrage scientifique initial de l'axe régime énergétique/spectral.
-- [`levels/level2/spectral-capability-audit.md`](levels/level2/spectral-capability-audit.md) — audit L2-A des capacités spectrales existantes et proposition de périmètre plein spectre.
+- [`levels/level2/spectral-capability-audit.md`](levels/level2/spectral-capability-audit.md) — audit L2-A des capacités spectrales existantes.
+- [`levels/level2/spectral-regime-design.md`](levels/level2/spectral-regime-design.md) — design scientifique L2-B : spectre complet, coordonnées `epsilon`/`q`, métriques relationnelles et synthèses LOW/MID/HIGH.
 
-Statut : **L2-A — audit scientifique en cours**.
+Statut : **L2-B — design scientifique terminé, pré-enregistrement L2-C à concevoir**.
 
-Aucune campagne normative Level 2 n'est encore ouverte. La prochaine étape proposée est un préflight de ressources plein spectre, sans analyse physique des corrélations.
+Le préflight plein spectre a confirmé que les six cas `triangle/ring4/ring5 × S=2/3` sont entièrement accessibles avec le solveur dense actuel. Aucune campagne normative Level 2 n'est encore ouverte et aucune observable physique plein spectre n'a encore été inspectée.
 
 ## Archives
 
