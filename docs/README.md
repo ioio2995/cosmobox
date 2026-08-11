@@ -57,8 +57,6 @@ Statut : **clos**.
 
 - [`archive/current-task-through-level1.md`](archive/current-task-through-level1.md) — point d'entrée vers le snapshot Git intégral de l'historique de gouvernance jusqu'à la clôture de Level 1.
 
-## Compatibilité des anciens chemins
+## Chemins documentaires
 
-Les anciens fichiers placés directement sous `docs/`, ainsi que les anciens chemins du manifeste et du schéma Level 1B, sont conservés temporairement sous forme de fichiers de redirection textuels. Ils ne sont plus des sources de vérité.
-
-Tout nouveau document ou nouveau renvoi doit utiliser les chemins fonctionnels définis ci-dessus.
+Les anciens fichiers de redirection conservés directement sous `docs/` pour compatibilité ont été supprimés après la clôture de Level 1. Les références historiques restent accessibles via l’historique Git ; les chemins fonctionnels listés dans ce fichier sont désormais les seuls chemins documentaires à utiliser.
