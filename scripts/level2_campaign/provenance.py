@@ -1,0 +1,112 @@
+"""Campaign-start Git provenance resolution for Level2 campaigns.
+
+Lot L2-E-CAMPAIGN-INFRASTRUCTURE. Mirrors scripts/level1c_preflight/
+j0_grid_preflight.py's own resolve_code_commit/require_clean_worktree
+(DIRTY_WORKTREE_POLICY = REFUSE_EXECUTION): a non-clean `git status
+--porcelain` refuses campaign execution before any case runs.
+
+REPOSITORY_COMMIT_CAPTURE = ONCE_AT_CAMPAIGN_START_AFTER_CLEAN_WORKTREE_
+CHECK (docs/governance/current-task.md, L2-E decision): resolve_campaign_
+provenance is called exactly once per campaign; the CampaignProvenance it
+returns is then threaded unchanged through every case and geometry
+comparison -- never re-resolved mid-campaign, so no campaign can ever mix
+cases from different commits by construction of the runner's own control
+flow.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+from dataclasses import dataclass
+
+from experiments.level2.manifest import Level2Manifest
+
+_GIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+
+
+class ProvenanceResolutionFailure(RuntimeError):
+    """Raised when the repository's Git state cannot be resolved, or is
+    not clean. Carries no diff content or file paths -- a generic,
+    sanitized failure only, matching scripts/level1c_preflight/
+    j0_grid_preflight.py's own PreflightInternalFailure discipline."""
+
+
+def resolve_code_commit(repo_root: str | None = None) -> str:
+    """The exact `git rev-parse HEAD` of `repo_root` (ambient cwd if
+    None), strictly validated as 40 lowercase hex characters -- never a
+    short SHA, never a fallback value. Any subprocess failure (missing
+    git, no commits, non-zero exit) or an unexpected stdout shape fails
+    hard, never a best-effort placeholder."""
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo_root, capture_output=True, text=True, check=True
+        )
+    except Exception:
+        raise ProvenanceResolutionFailure("could not resolve the repository's HEAD commit") from None
+    sha = completed.stdout.strip()
+    if not _GIT_SHA_PATTERN.fullmatch(sha):
+        raise ProvenanceResolutionFailure("git rev-parse HEAD did not return a 40-character hex commit")
+    return sha
+
+
+def _repository_is_clean(repo_root: str | None = None) -> bool:
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True, check=True
+        )
+    except Exception:
+        raise ProvenanceResolutionFailure("could not determine the repository's worktree status") from None
+    return completed.stdout.strip() == ""
+
+
+def require_clean_worktree(repo_root: str | None = None) -> None:
+    """DIRTY_WORKTREE_POLICY = REFUSE_EXECUTION: a non-empty `git status
+    --porcelain` refuses campaign execution before any case runs."""
+    if not _repository_is_clean(repo_root):
+        raise ProvenanceResolutionFailure("repository worktree is not clean; refusing campaign execution")
+
+
+@dataclass(frozen=True, slots=True)
+class CampaignProvenance:
+    """The provenance quintuple every persisted Level2 artifact must
+    carry. Resolved once per campaign (resolve_campaign_provenance),
+    never per case."""
+
+    repository_commit: str
+    branch: str
+    manifest_fingerprint: str
+    campaign_id: str
+    frozen_preregistration_commit: str
+
+    def __post_init__(self) -> None:
+        if not _GIT_SHA_PATTERN.fullmatch(self.repository_commit):
+            raise ValueError(
+                f"repository_commit must be a 40-character lowercase hex string, got {self.repository_commit!r}"
+            )
+        if not self.branch:
+            raise ValueError("branch must be non-empty")
+        if not self.manifest_fingerprint:
+            raise ValueError("manifest_fingerprint must be non-empty")
+        if not self.campaign_id:
+            raise ValueError("campaign_id must be non-empty")
+        if not _GIT_SHA_PATTERN.fullmatch(self.frozen_preregistration_commit):
+            raise ValueError(
+                f"frozen_preregistration_commit must be a 40-character lowercase hex string, "
+                f"got {self.frozen_preregistration_commit!r}"
+            )
+
+
+def resolve_campaign_provenance(manifest: Level2Manifest, *, repo_root: str | None = None) -> CampaignProvenance:
+    """require_clean_worktree, then resolve_code_commit, exactly once.
+    branch/campaign_id/frozen_preregistration_commit/manifest_fingerprint
+    come from `manifest` itself -- never re-derived."""
+    require_clean_worktree(repo_root)
+    repository_commit = resolve_code_commit(repo_root)
+    return CampaignProvenance(
+        repository_commit=repository_commit,
+        branch=manifest.branch,
+        manifest_fingerprint=manifest.fingerprint,
+        campaign_id=manifest.campaign_id,
+        frozen_preregistration_commit=manifest.frozen_preregistration_commit,
+    )

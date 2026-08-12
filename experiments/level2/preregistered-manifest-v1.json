@@ -1,0 +1,28 @@
+{
+  "manifest_version": "level2-reference-v1",
+  "campaign_id": "level2-energy-regime-v1",
+  "schema_version": "level2-case-result-v1",
+  "branch": "research/level2-energy-regime",
+  "frozen_preregistration_commit": "2d4c859db7939da51ee7d919889a18f4c7e229ed",
+  "numerical_guard_reference": {
+    "guard_m_tt": 1e-16,
+    "guard_r_eff": 1e-15,
+    "guard_scope": "DELTA_HL_ONLY"
+  },
+  "cases": [
+    {"geometry": "triangle", "spin": 2},
+    {"geometry": "triangle", "spin": 3},
+    {"geometry": "ring4", "spin": 2},
+    {"geometry": "ring4", "spin": 3},
+    {"geometry": "ring5", "spin": 2},
+    {"geometry": "ring5", "spin": 3}
+  ],
+  "full_spectrum_required": true,
+  "primary_metrics": ["M_TT", "R_eff"],
+  "control_metrics": ["A_QQ", "M_QQ"],
+  "primary_contrast": "HIGH_MINUS_LOW",
+  "inter_s_policy": {
+    "primary": ["taxonomy", "C_X_23", "D_X_23"],
+    "control": "descriptive_only"
+  }
+}

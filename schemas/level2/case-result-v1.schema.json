@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level2-case-result-v1.schema.json",
+  "title": "Cosmobox Level2 case result (v1)",
+  "description": "One (geometry, spin) case's full result: per-multiplet source observables and derived metrics, plus the four regime analyses. C_TT_conn (full N x N matrix, diagonal included) and rho_QQ (every ordered i != j pair, value/null_reason preserved exactly, no imputation) are REQUIRED per multiplet -- docs/levels/level2/spectral-regime-design.md SS6 ('on conserve la matrice complete... ne reduit pas cette matrice a une seule amplitude avant persistance') and the L2-E arbitration recorded in docs/governance/current-task.md (C_TT_CONN_PERSISTENCE=REQUIRED, RHO_QQ_PERSISTENCE=REQUIRED). NOTE (L2-E-CAMPAIGN-INFRASTRUCTURE lot): this schema defines the frozen target contract; no serializer populates it yet, because cosmobox.level2.adapter.MultipletProfileEntry and cosmobox.level2.execution.CaseExecutionResult do not currently carry C_TT_conn/rho_QQ through from cosmobox.level2.adapter.assemble_c_tt_conn/assemble_rho_qq -- extending them requires a separate, explicitly authorized D2/D4 corrective lot.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "manifest_fingerprint",
+    "repository_commit",
+    "branch",
+    "geometry",
+    "spin",
+    "dimension",
+    "group_count",
+    "full_spectrum",
+    "solver_method",
+    "window_truncated",
+    "partial_subspace_count",
+    "multiplet_entries",
+    "regime_analyses"
+  ],
+  "properties": {
+    "schema_version": {"const": "level2-case-result-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "manifest_fingerprint": {"type": "string", "minLength": 1},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "branch": {"type": "string", "minLength": 1},
+    "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+    "spin": {"enum": [2, 3]},
+    "dimension": {"type": "integer", "minimum": 1},
+    "group_count": {"type": "integer", "minimum": 1},
+    "full_spectrum": {"const": true},
+    "solver_method": {"const": "dense"},
+    "window_truncated": {"const": false},
+    "partial_subspace_count": {"const": 0},
+    "multiplet_entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/multipletEntry"}
+    },
+    "regime_analyses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["M_TT", "R_eff", "A_QQ", "M_QQ"],
+      "properties": {
+        "M_TT": {"$ref": "#/$defs/regimeAnalysis"},
+        "R_eff": {"$ref": "#/$defs/regimeAnalysis"},
+        "A_QQ": {"$ref": "#/$defs/regimeAnalysis"},
+        "M_QQ": {"$ref": "#/$defs/regimeAnalysis"}
+      }
+    }
+  },
+  "$defs": {
+    "available": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "reason"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "reason": {"type": ["string", "null"]}
+      },
+      "description": "value is None if and only if reason is set -- never both, never neither."
+    },
+    "regimeMean": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "reason", "evaluable_weight_fraction"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "reason": {"type": ["string", "null"]},
+        "evaluable_weight_fraction": {"type": "number", "minimum": 0, "maximum": 1.0000000001}
+      }
+    },
+    "regimeAnalysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["low", "mid", "high", "delta_hl", "delta_ml", "delta_hm"],
+      "properties": {
+        "low": {"$ref": "#/$defs/regimeMean"},
+        "mid": {"$ref": "#/$defs/regimeMean"},
+        "high": {"$ref": "#/$defs/regimeMean"},
+        "delta_hl": {"$ref": "#/$defs/available"},
+        "delta_ml": {"$ref": "#/$defs/available"},
+        "delta_hm": {"$ref": "#/$defs/available"}
+      }
+    },
+    "rhoQQEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["i", "j", "value", "null_reason"],
+      "properties": {
+        "i": {"type": "integer", "minimum": 0},
+        "j": {"type": "integer", "minimum": 0},
+        "value": {"type": ["number", "null"]},
+        "null_reason": {"type": ["string", "null"]}
+      },
+      "description": "value is None if and only if null_reason is set -- never imputed, never replaced by 0."
+    },
+    "multipletEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "energy",
+        "multiplicity",
+        "epsilon",
+        "q_start",
+        "q_end",
+        "q_midpoint",
+        "m_tt",
+        "r_eff",
+        "a_qq",
+        "m_qq",
+        "c_tt_conn",
+        "rho_qq"
+      ],
+      "properties": {
+        "energy": {"type": "number"},
+        "multiplicity": {"type": "integer", "minimum": 1},
+        "epsilon": {"type": "number", "minimum": 0, "maximum": 1},
+        "q_start": {"type": "number", "minimum": 0, "maximum": 1},
+        "q_end": {"type": "number", "minimum": 0, "maximum": 1},
+        "q_midpoint": {"type": "number", "minimum": 0, "maximum": 1},
+        "m_tt": {"type": "number", "minimum": 0},
+        "r_eff": {"$ref": "#/$defs/available"},
+        "a_qq": {"type": "number", "minimum": 0, "maximum": 1},
+        "m_qq": {"$ref": "#/$defs/available"},
+        "c_tt_conn": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "array", "minItems": 1, "items": {"type": "number"}},
+          "description": "Full N x N C_TT_conn matrix, diagonal included, row-major -- never reduced to M_TT/R_eff alone before persistence (spectral-regime-design.md SS6)."
+        },
+        "rho_qq": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/rhoQQEntry"},
+          "description": "Every ordered (i,j), i != j, pair -- exactly N*(N-1) entries."
+        }
+      }
+    }
+  }
+}

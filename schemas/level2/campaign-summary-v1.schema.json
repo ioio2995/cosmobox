@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level2-campaign-summary-v1.schema.json",
+  "title": "Cosmobox Level2 campaign summary (v1)",
+  "description": "The campaign-level finalization marker: exactly the three geometry inter-S comparisons (triangle, ring4, ring5), each with a full taxonomy + shape-descriptor comparison for the two primary metrics (M_TT, R_eff) and a descriptive-only comparison for the two control metrics (A_QQ, M_QQ) -- structurally incapable of carrying a taxonomy or shape descriptor for a control metric, mirroring cosmobox.level2.orchestration.ControlMetricAnalysis. This document is written ONLY when a campaign is fully complete (6/6 cases, 3/3 geometry comparisons, same repository_commit/manifest_fingerprint/campaign_id, all cases full-spectrum with zero partial subspaces): PARTIAL_CAMPAIGN_COMPLETE_STATUS = FORBIDDEN, so its mere existence on disk is the completeness marker -- an interrupted campaign never produces this file at all.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "manifest_fingerprint",
+    "repository_commit",
+    "branch",
+    "frozen_preregistration_commit",
+    "campaign_status",
+    "geometries"
+  ],
+  "properties": {
+    "schema_version": {"const": "level2-campaign-summary-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "manifest_fingerprint": {"type": "string", "minLength": 1},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "branch": {"type": "string", "minLength": 1},
+    "frozen_preregistration_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "campaign_status": {
+      "const": "COMPLETE",
+      "description": "Always COMPLETE: an incomplete or failed campaign never produces this document at all (see the top-level description)."
+    },
+    "geometries": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/geometryComparison"},
+      "description": "Exactly triangle, ring4, ring5 -- no more, no fewer."
+    }
+  },
+  "$defs": {
+    "available": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "reason"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "primaryComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "delta_hl_s2", "delta_hl_s3", "taxonomy", "direction_s2", "direction_s3", "c_x_23", "d_x_23"],
+      "properties": {
+        "metric": {"enum": ["M_TT", "R_eff"]},
+        "delta_hl_s2": {"$ref": "#/$defs/available"},
+        "delta_hl_s3": {"$ref": "#/$defs/available"},
+        "taxonomy": {
+          "enum": ["NO_RESOLVED_SPECTRAL_CONTRAST", "OPPOSITE_INTER_S_DIRECTION", "SAME_INTER_S_DIRECTION", "NOT_EVALUABLE"]
+        },
+        "direction_s2": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "direction_s3": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "c_x_23": {"$ref": "#/$defs/available"},
+        "d_x_23": {"$ref": "#/$defs/available"}
+      },
+      "description": "Mirrors cosmobox.level2.orchestration.PrimaryInterSComparison exactly."
+    },
+    "controlComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "delta_hl_s2", "delta_ml_s2", "delta_hm_s2", "delta_hl_s3", "delta_ml_s3", "delta_hm_s3"],
+      "properties": {
+        "metric": {"enum": ["A_QQ", "M_QQ"]},
+        "delta_hl_s2": {"$ref": "#/$defs/available"},
+        "delta_ml_s2": {"$ref": "#/$defs/available"},
+        "delta_hm_s2": {"$ref": "#/$defs/available"},
+        "delta_hl_s3": {"$ref": "#/$defs/available"},
+        "delta_ml_s3": {"$ref": "#/$defs/available"},
+        "delta_hm_s3": {"$ref": "#/$defs/available"}
+      },
+      "description": "Deliberately has NO taxonomy/c_x_23/d_x_23 property at all -- additionalProperties:false makes it a schema error to include one, mirroring cosmobox.level2.orchestration.ControlMetricAnalysis's own structural absence of those fields."
+    },
+    "geometryComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry", "m_tt", "r_eff", "a_qq", "m_qq"],
+      "properties": {
+        "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+        "m_tt": {"allOf": [{"$ref": "#/$defs/primaryComparison"}, {"properties": {"metric": {"const": "M_TT"}}}]},
+        "r_eff": {"allOf": [{"$ref": "#/$defs/primaryComparison"}, {"properties": {"metric": {"const": "R_eff"}}}]},
+        "a_qq": {"allOf": [{"$ref": "#/$defs/controlComparison"}, {"properties": {"metric": {"const": "A_QQ"}}}]},
+        "m_qq": {"allOf": [{"$ref": "#/$defs/controlComparison"}, {"properties": {"metric": {"const": "M_QQ"}}}]}
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level2-campaign-manifest-v1.schema.json",
+  "title": "Cosmobox Level2 campaign manifest (v1)",
+  "description": "Machine-readable transcription of the Level2 first-test scientific contract (docs/levels/level2/spectral-regime-design.md, docs/levels/level2/profile-comparison-preregistration.md, docs/levels/level2/numerical-guard-protocol.md). Fixes exactly the six frozen (geometry, spin) cases, the reference-Hamiltonian/full-spectrum requirement, the primary/control metric split, and the inter-S comparison policy -- no scientific degree of freedom beyond what is already frozen. n_flavors, J, h, t, g_E, K, and external_charges are deliberately absent: they are never manifest-level parameters, they are derived exclusively by cosmobox.level2.execution's own frozen constants (REFERENCE_N_FLAVORS, build_reference_hamiltonian_parameters, REFERENCE_EXTERNAL_CHARGES).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "campaign_id",
+    "schema_version",
+    "branch",
+    "frozen_preregistration_commit",
+    "numerical_guard_reference",
+    "cases",
+    "full_spectrum_required",
+    "primary_metrics",
+    "control_metrics",
+    "primary_contrast",
+    "inter_s_policy"
+  ],
+  "properties": {
+    "manifest_version": {"const": "level2-reference-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "schema_version": {"type": "string", "minLength": 1},
+    "branch": {"type": "string", "minLength": 1},
+    "frozen_preregistration_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "The exact commit that froze docs/levels/level2/profile-comparison-preregistration.md (L2_C_PREREGISTRATION = FROZEN)."
+    },
+    "numerical_guard_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["guard_m_tt", "guard_r_eff", "guard_scope"],
+      "properties": {
+        "guard_m_tt": {"const": 1e-16},
+        "guard_r_eff": {"const": 1e-15},
+        "guard_scope": {"const": "DELTA_HL_ONLY"}
+      },
+      "description": "The frozen L2-C1 numerical zero-resolution guards. Reproducibility guards only -- never a physical effect threshold, never widened post-hoc."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["geometry", "spin"],
+        "properties": {
+          "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+          "spin": {"enum": [2, 3]}
+        }
+      },
+      "description": "Exactly the six frozen Level2 cases, in deterministic (geometry-major, spin-minor) order -- the same order as cosmobox.level2.execution.build_all_reference_case_specs()."
+    },
+    "full_spectrum_required": {"const": true},
+    "primary_metrics": {
+      "type": "array",
+      "items": {"enum": ["M_TT", "R_eff"]},
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true
+    },
+    "control_metrics": {
+      "type": "array",
+      "items": {"enum": ["A_QQ", "M_QQ"]},
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true
+    },
+    "primary_contrast": {"const": "HIGH_MINUS_LOW"},
+    "inter_s_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "control"],
+      "properties": {
+        "primary": {
+          "type": "array",
+          "items": {"enum": ["taxonomy", "C_X_23", "D_X_23"]},
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "control": {"const": "descriptive_only"}
+      },
+      "description": "Per the L2-D3 control-metric arbitration: primary metrics get a taxonomy and both shape descriptors; control metrics stay descriptive only (no taxonomy, no C_X_23/D_X_23, no L2-C1 guard classification)."
+    }
+  }
+}
