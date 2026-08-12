@@ -30,6 +30,15 @@ from cosmobox.level2.orchestration import CaseMetricAnalysis, ControlMetricAnaly
 GEOMETRIES: tuple[str, ...] = ("triangle", "ring4", "ring5")
 SPINS: tuple[int, ...] = (2, 3)
 
+REFERENCE_N_FLAVORS = 2
+REFERENCE_EXTERNAL_CHARGES = None
+"""The frozen Level2 contract's n_flavors and external_charges
+(spectral-regime-design.md SS3: "n_flavors: 2", "charges ext: 0" --
+None is normalize_external_charges's own all-zero default, never a
+richer, separately-invented all-zero tuple). These are never caller-
+supplied degrees of freedom: CaseSpec carries only (geometry, spin), and
+run_case uses these two constants directly."""
+
 L2_A1_PREFLIGHT_REFERENCE: dict[tuple[str, int], tuple[int, int]] = {
     ("triangle", 2): (88, 22),
     ("triangle", 3): (128, 32),
@@ -54,26 +63,25 @@ against them yet."""
 
 @dataclass(frozen=True, slots=True)
 class CaseSpec:
-    """One Level2 case's construction parameters. Directly constructible
-    for any (geometry, spin) in the frozen domain -- callers are not
-    required to use the "reference" builders below, but every field they
-    supply is still validated against the frozen contract's domain."""
+    """One Level2 case: geometry and spin alone. This is deliberately the
+    ENTIRE surface of a Level2 case at this layer: n_flavors, the
+    Hamiltonian parameters, and external_charges are never caller-
+    supplied degrees of freedom here -- they are exactly the frozen
+    Level2 contract (spectral-regime-design.md SS3: reference
+    Hamiltonian, J_i=1, h=0, t=1, g_E=1, K=1, n_flavors=2,
+    external_charges=0), derived internally by run_case via
+    REFERENCE_N_FLAVORS/REFERENCE_EXTERNAL_CHARGES/
+    build_reference_hamiltonian_parameters. No physical variant is
+    representable by this type."""
 
     geometry: str
     spin: int
-    n_flavors: int
-    hamiltonian_params: HamiltonianParameters
-    external_charges: tuple | None = None
 
     def __post_init__(self) -> None:
         if self.geometry not in GEOMETRIES:
             raise ValueError(f"geometry must be one of {GEOMETRIES}, got {self.geometry!r}")
         if self.spin not in SPINS:
             raise ValueError(f"spin must be one of {SPINS}, got {self.spin!r}")
-        if self.n_flavors != 2:
-            raise ValueError(f"n_flavors must be 2 (M=2, per D006), got {self.n_flavors!r}")
-        if not isinstance(self.hamiltonian_params, HamiltonianParameters):
-            raise ValueError(f"hamiltonian_params must be a HamiltonianParameters, got {type(self.hamiltonian_params)}")
 
 
 def build_reference_hamiltonian_parameters(n_nodes: int) -> HamiltonianParameters:
@@ -91,29 +99,9 @@ def build_reference_hamiltonian_parameters(n_nodes: int) -> HamiltonianParameter
     )
 
 
-def build_reference_case_spec(geometry: str, spin: int) -> CaseSpec:
-    """One of the six frozen Level2 cases: the reference Hamiltonian,
-    n_flavors=2, external_charges=0 (None, per
-    cosmobox.level0.charges.normalize_external_charges's own default).
-    Only build_lattice is called here to size J/h by node count --
-    build_lattice performs no basis construction and no diagonalization."""
-    if geometry not in GEOMETRIES:
-        raise ValueError(f"geometry must be one of {GEOMETRIES}, got {geometry!r}")
-    if spin not in SPINS:
-        raise ValueError(f"spin must be one of {SPINS}, got {spin!r}")
-    n_nodes = len(build_lattice(geometry).nodes)
-    return CaseSpec(
-        geometry=geometry,
-        spin=spin,
-        n_flavors=2,
-        hamiltonian_params=build_reference_hamiltonian_parameters(n_nodes),
-        external_charges=None,
-    )
-
-
 def build_all_reference_case_specs() -> tuple[CaseSpec, ...]:
     """The six frozen Level2 cases, geometry-major then spin-minor order."""
-    return tuple(build_reference_case_spec(geometry, spin) for geometry in GEOMETRIES for spin in SPINS)
+    return tuple(CaseSpec(geometry=geometry, spin=spin) for geometry in GEOMETRIES for spin in SPINS)
 
 
 # ---------------------------------------------------------------------------
@@ -183,26 +171,34 @@ def run_case(spec: CaseSpec) -> CaseExecutionResult:
     it through the D2 adapter (which rejects the whole case, via its own
     PartialSubspaceCaseRejected, if any spectral group is
     partial_subspace -- never bypassed or caught here), then produce the
-    four D3 metric analyses."""
+    four D3 metric analyses.
+
+    n_flavors, the Hamiltonian parameters, and external_charges are never
+    read from `spec` (it does not carry them): they are always exactly
+    REFERENCE_N_FLAVORS, build_reference_hamiltonian_parameters(len(lattice.nodes)),
+    and REFERENCE_EXTERNAL_CHARGES -- the frozen contract, with no
+    caller-reachable degree of freedom to diverge from it."""
     lattice = build_lattice(spec.geometry)
-    basis = build_basis(lattice, spec.n_flavors, spec.spin)
+    hamiltonian_params = build_reference_hamiltonian_parameters(len(lattice.nodes))
+
+    basis = build_basis(lattice, REFERENCE_N_FLAVORS, spec.spin)
     dimension = len(basis.keys)
     key_index = build_key_index(basis.keys)
 
-    terms = build_hamiltonian_terms(lattice, spec.n_flavors, spec.spin, basis.keys, key_index, spec.hamiltonian_params)
+    terms = build_hamiltonian_terms(lattice, REFERENCE_N_FLAVORS, spec.spin, basis.keys, key_index, hamiltonian_params)
     report, eigenvectors = build_level0_report_with_eigenvectors(
         lattice,
-        spec.n_flavors,
+        REFERENCE_N_FLAVORS,
         spec.spin,
         basis,
         terms,
-        spec.hamiltonian_params,
-        external_charges=spec.external_charges,
+        hamiltonian_params,
+        external_charges=REFERENCE_EXTERNAL_CHARGES,
         spectrum_options=SpectrumOptions(n_eigenvalues=dimension),
     )
 
     charge_operators, flavor_generators = adapter.build_case_operators(
-        lattice, spec.n_flavors, spec.spin, basis.keys, key_index
+        lattice, REFERENCE_N_FLAVORS, spec.spin, basis.keys, key_index
     )
     entries = adapter.build_case_multiplet_profile(report, eigenvectors, charge_operators, flavor_generators)
 
