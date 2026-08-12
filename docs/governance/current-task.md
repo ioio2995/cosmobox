@@ -8,10 +8,6 @@ Ce document contient uniquement l'état actif du projet. L'historique complet de
 BASE_BRANCH = main
 BASE_COMMIT = 24e457b182c7fec41f3cb93f3101f02fef1f65cb
 ACTIVE_BRANCH = research/level2-energy-regime
-LEVEL2_L2B_DESIGN_CANDIDATE = bb16f57838cdddfb4eca94b8a78cce5a7ccebe1b
-LEVEL2_L2C_PREREGISTRATION_CANDIDATE = 3169671bdfe1daaafdeb985aa175f35c49950576
-LEVEL2_NUMERICAL_GUARD_PROTOCOL_CANDIDATE = f2a08b73e7109aa8ae8c8d3c30365b64f91f21d6
-LEVEL2_NUMERICAL_GUARD_RESULT_CANDIDATE = bb52e968d4a5d465a3db0b194aadc53e9295a442
 LEVEL2_FROZEN_PREREGISTRATION = 2d4c859db7939da51ee7d919889a18f4c7e229ed
 LEVEL2_D1_IMPLEMENTATION = 27807985f18d1f97b0eb065b7fb436d6253ab3cd
 LEVEL2_D1_CORRECTIVE_COMMIT = ef8495f9539fef7e4c614d96907ba1224809b0d4
@@ -20,6 +16,7 @@ LEVEL2_D2_CORRECTIVE_COMMIT = 25f09735caed2a2ddfa1833e69165c81f7740183
 LEVEL2_D3_ORCHESTRATION_IMPLEMENTATION = 118c323aa8b2193a14f6edf19f5ac3167ebadf72
 LEVEL2_D4_EXECUTION_IMPLEMENTATION = 9f14a8a9367cad80f013d68ff79af2f3dd039fcf
 LEVEL2_D4_CORRECTIVE_COMMIT = 50df74b284cebcdc4e910e64965c3ceeab51cab5
+LEVEL2_D4_REAL_PREFLIGHT = 1d55f490b1bf8cf4738964e773516292b39e7767
 ```
 
 ## État scientifique
@@ -29,10 +26,10 @@ LEVEL0  = CLOSED
 LEVEL1B = CLOSED
 LEVEL1C = CLOSED
 LEVEL1  = CLOSED
-LEVEL2  = L2_D4_ACCEPTED
+LEVEL2  = L2_D4_REAL_PREFLIGHT_ACCEPTED
 
 LAST_CLOSED_LEVEL = LEVEL1
-LAST_ACCEPTED_LOT = L2-D4-EXECUTION
+LAST_ACCEPTED_LOT = L2-D4-REAL-PREFLIGHT
 
 LEVEL1C_PHYSICAL_VERDICT = INCONCLUSIVE
 LEVEL1C_STOP_REASON      = INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE
@@ -44,6 +41,7 @@ LEVEL2_D1_PRIMITIVES = ACCEPTED
 LEVEL2_D2_ADAPTER = ACCEPTED
 LEVEL2_D3_ORCHESTRATION = ACCEPTED
 LEVEL2_D4_EXECUTION = ACCEPTED
+LEVEL2_D4_REAL_PREFLIGHT = ACCEPTED
 LEVEL2_IMPLEMENTATION = IN_MEMORY_CHAIN_COMPLETE
 LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 ```
@@ -56,40 +54,19 @@ LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 - `docs/levels/level2/profile-comparison-preregistration.md`
 - `docs/levels/level2/numerical-guard-protocol.md`
 
-## Résultat L2-A1 — préflight plein spectre
-
-```text
-triangle S=2 : 88/88 eigenpairs, 22 groupes complets
-triangle S=3 : 128/128 eigenpairs, 32 groupes complets
-ring4    S=2 : 292/292 eigenpairs, 106 groupes complets
-ring4    S=3 : 432/432 eigenpairs, 158 groupes complets
-ring5    S=2 : 1000/1000 eigenpairs, 226 groupes complets
-ring5    S=3 : 1504/1504 eigenpairs, 342 groupes complets
-
-ALL_6_CASES_FULL_SPECTRUM_AVAILABLE = YES
-PARTIAL_SUBSPACES = 0
-NEW_SPECTRAL_APPROXIMATION_REQUIRED = NO
-```
-
-Aucune observable physique Level 2 n'a été inspectée pendant ce préflight.
-
 ## Contrat scientifique Level 2 gelé
 
 ```text
 UNIT = complete spectral multiplet over the full spectrum
-
 COORDINATES = epsilon, q
 PRIMARY = C_TT_conn
 CONTROL = rho_QQ
-
 PRIMARY_METRICS = M_TT, R_eff
 CONTROL_METRICS = A_QQ, M_QQ
-
 PROFILE_DOMAIN = q in [0,1]
 PROFILE_REPRESENTATION = multiplicity-weighted exact step function
 REGIMES = LOW/MID/HIGH equal thirds of cumulative state population
 PRIMARY_CONTRAST = HIGH_MINUS_LOW
-
 INTER_S_BRANCH_MATCHING = FORBIDDEN
 INTER_S_SHAPE_DESCRIPTORS = C_X_23, D_X_23
 PHYSICAL_EFFECT_THRESHOLD = NOT_APPLICABLE
@@ -100,18 +77,9 @@ COMPOSITE_SCORE = FORBIDDEN
 ## Résultat L2-C1 — calibration numérique
 
 ```text
-CALIBRATION_STATUS = PASS
-UNITARITY_CHECK = PASS
-PROJECTOR_INVARIANCE = PASS
-RHO_NULL_SEMANTICS = PASS
-M_TT_AVAILABILITY_INVARIANT = PASS
-R_EFF_AVAILABILITY_INVARIANT = PASS
-
-E_M_TT  = 4.163336342344337e-17
-E_R_EFF = 4.440892098500626e-16
-
 NUMERICAL_GUARD_M_TT  = 1e-16
 NUMERICAL_GUARD_R_EFF = 1e-15
+L2_C1_GUARD_SCOPE = DELTA_HL_ONLY
 ```
 
 Les gardes ont un rôle exclusivement numérique de résolution du signe autour de zéro. Elles ne sont pas des seuils physiques et ne peuvent pas être élargies post-hoc pendant la campagne.
@@ -119,51 +87,29 @@ Les gardes ont un rôle exclusivement numérique de résolution du signe autour 
 ## Résultat L2-D1 — primitives Level2
 
 ```text
-LOT = L2-D1-METRICS-AND-PROFILE-PRIMITIVES
 STATUS = ACCEPTED
-IMPLEMENTATION_COMMIT = 27807985f18d1f97b0eb065b7fb436d6253ab3cd
-CORRECTIVE_COMMIT = ef8495f9539fef7e4c614d96907ba1224809b0d4
-
 PRIMARY_METRICS = IMPLEMENTED_AND_TESTED
 CONTROL_METRICS = IMPLEMENTED_AND_TESTED
 REGIME_AGGREGATION = IMPLEMENTED_AND_TESTED
 CONTRASTS = IMPLEMENTED_AND_TESTED
 INTER_S_PROFILE_DESCRIPTORS = IMPLEMENTED_AND_TESTED
 INTER_S_TAXONOMY = IMPLEMENTED_AND_TESTED
-
-L2_C1_GUARD_SCOPE = DELTA_HL_ONLY
-NEW_NUMERICAL_TOLERANCE = NO
-REAL_LEVEL2_DIAGONALIZATION = NO
-NORMATIVE_CAMPAIGN_EXECUTED = NO
-WEIGHTED_SPEARMAN_IMPLEMENTED = NO
 ```
 
 ## Résultat L2-D2 — adaptateur spectral Level2
 
 ```text
-LOT = L2-D2-LEVEL2-ADAPTER
 STATUS = ACCEPTED
-IMPLEMENTATION_COMMIT = 2fad3951290489ad0ddb4b8bb99f858651485f82
-CORRECTIVE_COMMIT = 25f09735caed2a2ddfa1833e69165c81f7740183
-
 COMPLETE_MULTIPLET_EXTRACTION = IMPLEMENTED_AND_TESTED
 PARTIAL_SUBSPACE_CASE_REJECTION = IMPLEMENTED_AND_TESTED
 C_TT_CONN_ASSEMBLY = IMPLEMENTED_AND_TESTED
 RHO_QQ_ASSEMBLY = IMPLEMENTED_AND_TESTED
 PER_MULTIPLET_PROFILE_ADAPTER = IMPLEMENTED_AND_TESTED
-SYNTHETIC_TESTS_ONLY = YES
-
 PARTIAL_SUBSPACE_SILENT_EXCLUSION = NO
 EXPLORATORY_PARTIAL_SUBSPACE_MEAN_USED = NO
-REAL_LEVEL2_DIAGONALIZATION = NO
-NORMATIVE_CAMPAIGN_EXECUTED = NO
-NEW_SCIENTIFIC_METRIC = NO
-NEW_NUMERICAL_TOLERANCE = NO
 ```
 
 ## Arbitrage L2-D3 — métriques de contrôle
-
-L'audit L2-D3 a identifié une ambiguïté de périmètre concernant les descripteurs inter-S de forme pour les métriques de contrôle. Pour le premier test normatif, l'interprétation conservatrice suivante est gelée :
 
 ```text
 PRIMARY_INTER_S_SHAPE_DESCRIPTORS:
@@ -181,15 +127,10 @@ CONTROL_ANALYSIS:
   L2_C1_GUARDS = NOT_APPLICABLE
 ```
 
-`A_QQ` et `M_QQ` restent donc des contrôles descriptifs. Aucun `C_X_23`, `D_X_23`, classement inter-S primaire ou garde numérique n'est introduit pour ces métriques dans ce premier test.
-
 ## Résultat L2-D3 — orchestration analytique
 
 ```text
-LOT = L2-D3-ANALYTIC-ORCHESTRATION
 STATUS = ACCEPTED
-IMPLEMENTATION_COMMIT = 118c323aa8b2193a14f6edf19f5ac3167ebadf72
-
 CASE_METRIC_ANALYSIS = IMPLEMENTED_AND_TESTED
 LOW_MID_HIGH = IMPLEMENTED_AND_TESTED
 DELTA_HL_ML_HM = IMPLEMENTED_AND_TESTED
@@ -197,42 +138,50 @@ PRIMARY_INTER_S_SHAPE = IMPLEMENTED_AND_TESTED
 PRIMARY_INTER_S_TAXONOMY = IMPLEMENTED_AND_TESTED
 CONTROL_ANALYSIS_DESCRIPTIVE_ONLY = ENFORCED_STRUCTURALLY
 INCOMPLETE_PROFILE_COVERAGE = EXPLICIT_NOT_AVAILABLE
-SYNTHETIC_TESTS_ONLY = YES
-
-L2_C1_GUARD_SCOPE = DELTA_HL_ONLY
-REAL_LEVEL2_DATA_USED = NO
-REAL_LEVEL2_DIAGONALIZATION = NO
-NORMATIVE_CAMPAIGN_EXECUTED = NO
-NEW_SCIENTIFIC_METRIC = NO
-NEW_NUMERICAL_TOLERANCE = NO
 ```
 
 ## Résultat L2-D4 — exécution en mémoire
 
 ```text
-LOT = L2-D4-EXECUTION
 STATUS = ACCEPTED
-IMPLEMENTATION_COMMIT = 9f14a8a9367cad80f013d68ff79af2f3dd039fcf
-CORRECTIVE_COMMIT = 50df74b284cebcdc4e910e64965c3ceeab51cab5
-
 CASE_SPEC_PHYSICAL_LOCK = PASS
 FULL_SPECTRUM_ENFORCEMENT = PASS
 EXECUTION_PIPELINE = IMPLEMENTED_AND_TESTED
 INTER_S_STRUCTURE = IMPLEMENTED_AND_TESTED
 PHYSICAL_DEGREES_OF_FREEDOM_EXPOSED = NO
-SYNTHETIC_TESTS_ONLY = YES
-
-REAL_LEVEL2_DIAGONALIZATION = NO
-REAL_LEVEL2_OBSERVABLE_COMPUTATION = NO
-REAL_LEVEL2_PREFLIGHT = NO
-NORMATIVE_CAMPAIGN_EXECUTED = NO
 MANIFEST_CREATED = NO
 SCHEMA_CREATED = NO
 RUNNER_CREATED = NO
 RESULT_SERIALIZATION = NO
-NEW_SCIENTIFIC_METRIC = NO
-NEW_NUMERICAL_TOLERANCE = NO
 ```
+
+## Résultat L2-D4 — préflight réel
+
+```text
+LOT = L2-D4-REAL-PREFLIGHT
+STATUS = ACCEPTED
+COMMIT = 1d55f490b1bf8cf4738964e773516292b39e7767
+
+triangle S=2 : D=88,   eigenpairs=88,   groupes=22
+triangle S=3 : D=128,  eigenpairs=128,  groupes=32
+ring4    S=2 : D=292,  eigenpairs=292,  groupes=106
+ring4    S=3 : D=432,  eigenpairs=432,  groupes=158
+ring5    S=2 : D=1000, eigenpairs=1000, groupes=226
+ring5    S=3 : D=1504, eigenpairs=1504, groupes=342
+
+ALL_6_CASES_PASS = YES
+SOLVER_METHOD = dense
+WINDOW_TRUNCATED = false
+PARTIAL_SUBSPACES = 0
+MULTIPLICITY_COVERAGE = COMPLETE
+
+REAL_LEVEL2_DIAGONALIZATION = YES
+REAL_LEVEL2_OBSERVABLE_COMPUTATION = NO
+PHYSICAL_RESULT_INSPECTED = NO
+NORMATIVE_CAMPAIGN_EXECUTED = NO
+```
+
+Le préflight réel reproduit exactement les invariants L2-A1 et n'a inspecté aucune observable Level2.
 
 ## Taxonomie de conclusion primaire
 
@@ -250,13 +199,13 @@ NOT_EVALUABLE
 ## Étape suivante
 
 ```text
-NEXT_STEP = L2_D4_REAL_PREFLIGHT
+NEXT_STEP = L2_E_CAMPAIGN_AND_PROVENANCE_AUDIT
 OPEN_METHODOLOGICAL_ITEM = NONE
 ```
 
-L2-D1 à L2-D4 sont clos. La chaîne scientifique et sa couche d'exécution en mémoire sont implémentées et testées synthétiquement. Le jalon suivant est un préflight réel, strictement non interprétatif, destiné à rejouer les invariants spectraux déjà observés en L2-A1 sur les six cas gelés. Il peut diagonaliser les cas réels mais ne doit calculer aucune observable Level2 (`C_TT_conn`, `rho_QQ`, `M_TT`, `R_eff`, `A_QQ`, `M_QQ`) ni produire de conclusion physique.
+La chaîne scientifique D1→D4 et le préflight spectral réel sont acceptés. Avant toute première exécution normative des observables Level2, la couche de campagne doit être auditée puis figée : manifeste et fingerprint, schémas versionnés, provenance Git/pré-enregistrement/gardes numériques, runner, règles de persistance et atomicité de campagne.
 
-La campagne normative reste fermée jusqu'à acceptation explicite du préflight et mise en place ultérieure de la couche manifeste/schéma/runner/persistance.
+Aucune observable Level2 réelle n'est autorisée tant que cette couche n'est pas implémentée, revue et acceptée explicitement.
 
 ## Rôles de collaboration
 
@@ -276,8 +225,7 @@ intuition / direction / final decision
 ```text
 - L'unité de progrès est l'expérience scientifique, pas le lot logiciel.
 - Aucun résultat de Level 1C ne doit être réparé post-hoc : Level 1 est clos.
-- Un défaut logiciel ne bloque que s'il peut altérer le résultat physique,
-  sa provenance ou son interprétation.
+- Un défaut logiciel ne bloque que s'il peut altérer le résultat physique, sa provenance ou son interprétation.
 - Aucun seuil binaire de réponse physique ne doit être réintroduit.
 - Aucune nouvelle métrique ne sera ajoutée après ouverture de la campagne pour améliorer le résultat.
 - Aucun matching multiplet-par-multiplet S=2 vers S=3 n'est autorisé dans Level 2.
