@@ -18,6 +18,8 @@ LEVEL2_D1_CORRECTIVE_COMMIT = ef8495f9539fef7e4c614d96907ba1224809b0d4
 LEVEL2_D2_ADAPTER_IMPLEMENTATION = 2fad3951290489ad0ddb4b8bb99f858651485f82
 LEVEL2_D2_CORRECTIVE_COMMIT = 25f09735caed2a2ddfa1833e69165c81f7740183
 LEVEL2_D3_ORCHESTRATION_IMPLEMENTATION = 118c323aa8b2193a14f6edf19f5ac3167ebadf72
+LEVEL2_D4_EXECUTION_IMPLEMENTATION = 9f14a8a9367cad80f013d68ff79af2f3dd039fcf
+LEVEL2_D4_CORRECTIVE_COMMIT = 50df74b284cebcdc4e910e64965c3ceeab51cab5
 ```
 
 ## État scientifique
@@ -27,10 +29,10 @@ LEVEL0  = CLOSED
 LEVEL1B = CLOSED
 LEVEL1C = CLOSED
 LEVEL1  = CLOSED
-LEVEL2  = L2_D3_ACCEPTED
+LEVEL2  = L2_D4_ACCEPTED
 
 LAST_CLOSED_LEVEL = LEVEL1
-LAST_ACCEPTED_LOT = L2-D3-ANALYTIC-ORCHESTRATION
+LAST_ACCEPTED_LOT = L2-D4-EXECUTION
 
 LEVEL1C_PHYSICAL_VERDICT = INCONCLUSIVE
 LEVEL1C_STOP_REASON      = INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE
@@ -41,7 +43,8 @@ LEVEL2_C_PREREGISTRATION = FROZEN
 LEVEL2_D1_PRIMITIVES = ACCEPTED
 LEVEL2_D2_ADAPTER = ACCEPTED
 LEVEL2_D3_ORCHESTRATION = ACCEPTED
-LEVEL2_IMPLEMENTATION = IN_PROGRESS
+LEVEL2_D4_EXECUTION = ACCEPTED
+LEVEL2_IMPLEMENTATION = IN_MEMORY_CHAIN_COMPLETE
 LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 ```
 
@@ -178,7 +181,7 @@ CONTROL_ANALYSIS:
   L2_C1_GUARDS = NOT_APPLICABLE
 ```
 
-`A_QQ` et `M_QQ` restent donc des contrôles descriptifs. Aucun `C_X_23`, `D_X_23`, classement inter-S primaire ou garde numérique n'est introduit pour ces métriques dans ce premier test. Cette décision ne modifie pas les définitions pré-enregistrées ; elle borne leur usage normatif au périmètre explicitement prévu pour les métriques primaires.
+`A_QQ` et `M_QQ` restent donc des contrôles descriptifs. Aucun `C_X_23`, `D_X_23`, classement inter-S primaire ou garde numérique n'est introduit pour ces métriques dans ce premier test.
 
 ## Résultat L2-D3 — orchestration analytique
 
@@ -204,6 +207,33 @@ NEW_SCIENTIFIC_METRIC = NO
 NEW_NUMERICAL_TOLERANCE = NO
 ```
 
+## Résultat L2-D4 — exécution en mémoire
+
+```text
+LOT = L2-D4-EXECUTION
+STATUS = ACCEPTED
+IMPLEMENTATION_COMMIT = 9f14a8a9367cad80f013d68ff79af2f3dd039fcf
+CORRECTIVE_COMMIT = 50df74b284cebcdc4e910e64965c3ceeab51cab5
+
+CASE_SPEC_PHYSICAL_LOCK = PASS
+FULL_SPECTRUM_ENFORCEMENT = PASS
+EXECUTION_PIPELINE = IMPLEMENTED_AND_TESTED
+INTER_S_STRUCTURE = IMPLEMENTED_AND_TESTED
+PHYSICAL_DEGREES_OF_FREEDOM_EXPOSED = NO
+SYNTHETIC_TESTS_ONLY = YES
+
+REAL_LEVEL2_DIAGONALIZATION = NO
+REAL_LEVEL2_OBSERVABLE_COMPUTATION = NO
+REAL_LEVEL2_PREFLIGHT = NO
+NORMATIVE_CAMPAIGN_EXECUTED = NO
+MANIFEST_CREATED = NO
+SCHEMA_CREATED = NO
+RUNNER_CREATED = NO
+RESULT_SERIALIZATION = NO
+NEW_SCIENTIFIC_METRIC = NO
+NEW_NUMERICAL_TOLERANCE = NO
+```
+
 ## Taxonomie de conclusion primaire
 
 Pour chaque géométrie et chaque métrique primaire :
@@ -220,13 +250,13 @@ NOT_EVALUABLE
 ## Étape suivante
 
 ```text
-NEXT_STEP = L2_D4_EXECUTION_AND_PROVENANCE_AUDIT
+NEXT_STEP = L2_D4_REAL_PREFLIGHT
 OPEN_METHODOLOGICAL_ITEM = NONE
 ```
 
-L2-D1, L2-D2 et L2-D3 sont clos. La chaîne scientifique en mémoire est implémentée et testée sur données synthétiques. L'étape suivante doit auditer la couche minimale d'exécution et de provenance nécessaire pour relier les six cas Level2 gelés à cette chaîne et produire des résultats persistables, sans encore exécuter la campagne normative réelle.
+L2-D1 à L2-D4 sont clos. La chaîne scientifique et sa couche d'exécution en mémoire sont implémentées et testées synthétiquement. Le jalon suivant est un préflight réel, strictement non interprétatif, destiné à rejouer les invariants spectraux déjà observés en L2-A1 sur les six cas gelés. Il peut diagonaliser les cas réels mais ne doit calculer aucune observable Level2 (`C_TT_conn`, `rho_QQ`, `M_TT`, `R_eff`, `A_QQ`, `M_QQ`) ni produire de conclusion physique.
 
-Aucune exécution normative réelle n'est autorisée avant audit, implémentation, revue et acceptation explicite de cette dernière couche de campagne.
+La campagne normative reste fermée jusqu'à acceptation explicite du préflight et mise en place ultérieure de la couche manifeste/schéma/runner/persistance.
 
 ## Rôles de collaboration
 
