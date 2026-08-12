@@ -17,6 +17,7 @@ LEVEL2_D1_IMPLEMENTATION = 27807985f18d1f97b0eb065b7fb436d6253ab3cd
 LEVEL2_D1_CORRECTIVE_COMMIT = ef8495f9539fef7e4c614d96907ba1224809b0d4
 LEVEL2_D2_ADAPTER_IMPLEMENTATION = 2fad3951290489ad0ddb4b8bb99f858651485f82
 LEVEL2_D2_CORRECTIVE_COMMIT = 25f09735caed2a2ddfa1833e69165c81f7740183
+LEVEL2_D3_ORCHESTRATION_IMPLEMENTATION = 118c323aa8b2193a14f6edf19f5ac3167ebadf72
 ```
 
 ## État scientifique
@@ -26,10 +27,10 @@ LEVEL0  = CLOSED
 LEVEL1B = CLOSED
 LEVEL1C = CLOSED
 LEVEL1  = CLOSED
-LEVEL2  = L2_D2_ACCEPTED
+LEVEL2  = L2_D3_ACCEPTED
 
 LAST_CLOSED_LEVEL = LEVEL1
-LAST_ACCEPTED_LOT = L2-D2-LEVEL2-ADAPTER
+LAST_ACCEPTED_LOT = L2-D3-ANALYTIC-ORCHESTRATION
 
 LEVEL1C_PHYSICAL_VERDICT = INCONCLUSIVE
 LEVEL1C_STOP_REASON      = INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE
@@ -39,6 +40,7 @@ LEVEL2_PRIMARY_AXIS = ENERGY_SPECTRAL_REGIME
 LEVEL2_C_PREREGISTRATION = FROZEN
 LEVEL2_D1_PRIMITIVES = ACCEPTED
 LEVEL2_D2_ADAPTER = ACCEPTED
+LEVEL2_D3_ORCHESTRATION = ACCEPTED
 LEVEL2_IMPLEMENTATION = IN_PROGRESS
 LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 ```
@@ -178,6 +180,30 @@ CONTROL_ANALYSIS:
 
 `A_QQ` et `M_QQ` restent donc des contrôles descriptifs. Aucun `C_X_23`, `D_X_23`, classement inter-S primaire ou garde numérique n'est introduit pour ces métriques dans ce premier test. Cette décision ne modifie pas les définitions pré-enregistrées ; elle borne leur usage normatif au périmètre explicitement prévu pour les métriques primaires.
 
+## Résultat L2-D3 — orchestration analytique
+
+```text
+LOT = L2-D3-ANALYTIC-ORCHESTRATION
+STATUS = ACCEPTED
+IMPLEMENTATION_COMMIT = 118c323aa8b2193a14f6edf19f5ac3167ebadf72
+
+CASE_METRIC_ANALYSIS = IMPLEMENTED_AND_TESTED
+LOW_MID_HIGH = IMPLEMENTED_AND_TESTED
+DELTA_HL_ML_HM = IMPLEMENTED_AND_TESTED
+PRIMARY_INTER_S_SHAPE = IMPLEMENTED_AND_TESTED
+PRIMARY_INTER_S_TAXONOMY = IMPLEMENTED_AND_TESTED
+CONTROL_ANALYSIS_DESCRIPTIVE_ONLY = ENFORCED_STRUCTURALLY
+INCOMPLETE_PROFILE_COVERAGE = EXPLICIT_NOT_AVAILABLE
+SYNTHETIC_TESTS_ONLY = YES
+
+L2_C1_GUARD_SCOPE = DELTA_HL_ONLY
+REAL_LEVEL2_DATA_USED = NO
+REAL_LEVEL2_DIAGONALIZATION = NO
+NORMATIVE_CAMPAIGN_EXECUTED = NO
+NEW_SCIENTIFIC_METRIC = NO
+NEW_NUMERICAL_TOLERANCE = NO
+```
+
 ## Taxonomie de conclusion primaire
 
 Pour chaque géométrie et chaque métrique primaire :
@@ -194,13 +220,13 @@ NOT_EVALUABLE
 ## Étape suivante
 
 ```text
-NEXT_STEP = L2_D3_ANALYTIC_ORCHESTRATION_IMPLEMENTATION
+NEXT_STEP = L2_D4_EXECUTION_AND_PROVENANCE_AUDIT
 OPEN_METHODOLOGICAL_ITEM = NONE
 ```
 
-L2-D1 et L2-D2 sont clos. L'audit L2-D3 est accepté avec l'arbitrage ci-dessus. L'étape suivante peut implémenter l'orchestration analytique minimale sur données synthétiques uniquement : agrégation LOW/MID/HIGH et contrastes pour les quatre métriques ; C_X_23/D_X_23 et taxonomie uniquement pour M_TT et R_eff selon leur disponibilité.
+L2-D1, L2-D2 et L2-D3 sont clos. La chaîne scientifique en mémoire est implémentée et testée sur données synthétiques. L'étape suivante doit auditer la couche minimale d'exécution et de provenance nécessaire pour relier les six cas Level2 gelés à cette chaîne et produire des résultats persistables, sans encore exécuter la campagne normative réelle.
 
-Aucune exécution normative réelle n'est autorisée avant audit, implémentation, revue et acceptation explicite de la chaîne Level2 complète nécessaire à la campagne.
+Aucune exécution normative réelle n'est autorisée avant audit, implémentation, revue et acceptation explicite de cette dernière couche de campagne.
 
 ## Rôles de collaboration
 
