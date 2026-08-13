@@ -37,6 +37,7 @@ from cosmobox.level2 import adapter as level2_adapter
 from cosmobox.level2 import metrics, profiles
 from cosmobox.level2.adapter import (
     CompleteMultiplet,
+    MultipletProfileEntry,
     PartialSubspaceCaseRejected,
     assemble_c_tt_conn,
     assemble_rho_qq,
@@ -395,6 +396,148 @@ def test_build_case_multiplet_profile_end_to_end_matches_manual_assembly_and_cov
         expected_m_qq = metrics.m_qq(rho_qq_pairs, len(charges))
         assert entry.m_qq.value == expected_m_qq.value
         assert entry.m_qq.reason == expected_m_qq.reason
+
+        # L2-E1: the retained raw observables are exactly the same
+        # objects/values that fed m_tt/r_eff/a_qq/m_qq above -- never a
+        # second, independently recomputed copy
+        assert np.array_equal(entry.c_tt_conn, c_tt_conn)
+        assert entry.c_tt_conn.shape == (len(charges), len(charges))
+        n = len(charges)
+        assert len(entry.rho_qq) == n * (n - 1)
+        for key, expected_entry in rho_qq_pairs.items():
+            assert entry.rho_qq[key].value == expected_entry.value
+            assert entry.rho_qq[key].null_reason == expected_entry.null_reason
+
+
+# ---------------------------------------------------------------------------
+# L2-E1-RAW-OBSERVABLE-RETENTION: c_tt_conn/rho_qq retention, immutability,
+# and null preservation on MultipletProfileEntry
+# ---------------------------------------------------------------------------
+
+
+def test_multiplet_profile_entry_retains_full_c_tt_conn_matrix_diagonal_included():
+    report = _synthetic_report([0.0, 0.0, 2.0])
+    eigenvectors = np.eye(3, dtype=complex)
+    charges = [_diag([1.0, -1.0, 0.5]), _diag([0.0, 1.0, -0.5])]
+    generators = [
+        {"x": _diag([2.0, 0.0, 1.0]), "y": _zero(3), "z": _zero(3)},
+        {"x": _diag([1.0, 2.0, 0.0]), "y": _zero(3), "z": _zero(3)},
+    ]
+
+    profile = build_case_multiplet_profile(report, eigenvectors, charges, generators)
+    multiplets = extract_complete_multiplets(report, eigenvectors)
+
+    for entry, multiplet in zip(profile, multiplets):
+        expected = assemble_c_tt_conn(generators, multiplet.state)
+        assert entry.c_tt_conn is not None
+        assert entry.c_tt_conn.shape == (2, 2)
+        # the diagonal is present in the retained matrix (never stripped
+        # before persistence), whatever value this multiplet's own
+        # connected moment happens to produce
+        assert entry.c_tt_conn[0, 0] == pytest.approx(expected[0, 0])
+        assert entry.c_tt_conn[1, 1] == pytest.approx(expected[1, 1])
+        assert np.array_equal(entry.c_tt_conn, expected)
+
+
+def test_multiplet_profile_entry_c_tt_conn_is_immutable():
+    report = _synthetic_report([0.0, 0.0, 2.0])
+    eigenvectors = np.eye(3, dtype=complex)
+    charges = [_diag([1.0, -1.0, 0.5]), _diag([0.0, 1.0, -0.5])]
+    generators = [
+        {"x": _diag([2.0, 0.0, 1.0]), "y": _zero(3), "z": _zero(3)},
+        {"x": _diag([1.0, 2.0, 0.0]), "y": _zero(3), "z": _zero(3)},
+    ]
+
+    profile = build_case_multiplet_profile(report, eigenvectors, charges, generators)
+
+    entry = profile[0]
+    assert entry.c_tt_conn.flags.writeable is False
+    with pytest.raises(ValueError):
+        entry.c_tt_conn[0, 0] = 999.0
+
+
+def test_multiplet_profile_entry_rho_qq_is_immutable():
+    report = _synthetic_report([0.0, 0.0, 2.0])
+    eigenvectors = np.eye(3, dtype=complex)
+    charges = [_diag([1.0, -1.0, 0.5]), _diag([0.0, 1.0, -0.5])]
+    generators = [
+        {"x": _diag([2.0, 0.0, 1.0]), "y": _zero(3), "z": _zero(3)},
+        {"x": _diag([1.0, 2.0, 0.0]), "y": _zero(3), "z": _zero(3)},
+    ]
+
+    profile = build_case_multiplet_profile(report, eigenvectors, charges, generators)
+
+    entry = profile[0]
+    with pytest.raises(TypeError):
+        entry.rho_qq[(0, 1)] = metrics.RhoQQEntry(0.0, None)
+
+
+def test_multiplet_profile_entry_rho_qq_preserves_null_reason_without_imputation():
+    n = 3
+    state = _complete_state(n, [0, 1])  # multiplicity 2
+    charges = [
+        _diag([5.0, 5.0, 0.0]),  # constant over the group -> zero variance -> null
+        _diag([1.0, 3.0, 0.0]),  # varies over the group -> numeric
+    ]
+    rho_qq_pairs = assemble_rho_qq(charges, state)
+
+    report = _synthetic_report([0.0, 0.0, 2.0])
+    eigenvectors = np.eye(3, dtype=complex)
+    generators = [
+        {"x": _diag([2.0, 0.0, 1.0]), "y": _zero(3), "z": _zero(3)},
+        {"x": _diag([1.0, 2.0, 0.0]), "y": _zero(3), "z": _zero(3)},
+    ]
+    profile = build_case_multiplet_profile(report, eigenvectors, charges, generators)
+
+    # cross-check: at least one pair from the same charges/state is null,
+    # and MultipletProfileEntry.rho_qq preserves it exactly (never imputed to 0)
+    assert rho_qq_pairs[(0, 1)].value is None
+    assert rho_qq_pairs[(0, 1)].null_reason == "zero_local_charge_variance"
+
+    entry = profile[0]
+    assert entry.rho_qq[(0, 1)].value is None
+    assert entry.rho_qq[(0, 1)].null_reason == "zero_local_charge_variance"
+
+
+def test_multiplet_profile_entry_defaults_allow_backward_compatible_construction():
+    # Direct construction without c_tt_conn/rho_qq must keep working
+    # unchanged, for every synthetic fixture outside this lot's authorized
+    # scope that already constructs MultipletProfileEntry this way.
+    entry = MultipletProfileEntry(
+        energy=0.0, multiplicity=1, epsilon=0.0, q_start=0.0, q_end=1.0, q_midpoint=0.5,
+        m_tt=1.0, r_eff=metrics.Available(0.5, None), a_qq=0.5, m_qq=metrics.Available(0.2, None),
+    )
+    assert entry.c_tt_conn is None
+    assert entry.rho_qq is None
+
+
+def test_multiplet_profile_entry_rejects_non_square_c_tt_conn():
+    with pytest.raises(ValueError):
+        MultipletProfileEntry(
+            energy=0.0, multiplicity=1, epsilon=0.0, q_start=0.0, q_end=1.0, q_midpoint=0.5,
+            m_tt=1.0, r_eff=metrics.Available(0.5, None), a_qq=0.5, m_qq=metrics.Available(0.2, None),
+            c_tt_conn=np.zeros((2, 3)),
+        )
+
+
+def test_multiplet_profile_entry_rejects_rho_qq_dimension_mismatch_with_c_tt_conn():
+    with pytest.raises(ValueError):
+        MultipletProfileEntry(
+            energy=0.0, multiplicity=1, epsilon=0.0, q_start=0.0, q_end=1.0, q_midpoint=0.5,
+            m_tt=1.0, r_eff=metrics.Available(0.5, None), a_qq=0.5, m_qq=metrics.Available(0.2, None),
+            c_tt_conn=np.zeros((2, 2)),
+            rho_qq={(0, 1): metrics.RhoQQEntry(0.0, None)},  # missing (1, 0)
+        )
+
+
+def test_multiplet_profile_entry_rejects_diagonal_key_in_rho_qq():
+    with pytest.raises(ValueError):
+        MultipletProfileEntry(
+            energy=0.0, multiplicity=1, epsilon=0.0, q_start=0.0, q_end=1.0, q_midpoint=0.5,
+            m_tt=1.0, r_eff=metrics.Available(0.5, None), a_qq=0.5, m_qq=metrics.Available(0.2, None),
+            c_tt_conn=np.zeros((1, 1)),
+            rho_qq={(0, 0): metrics.RhoQQEntry(0.0, None)},
+        )
 
 
 def test_build_case_multiplet_profile_rejects_partial_subspace_case():

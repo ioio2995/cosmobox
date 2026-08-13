@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 
 import numpy as np
 import scipy.sparse as sp
@@ -232,7 +233,19 @@ class MultipletProfileEntry:
     the assembled C_TT_conn matrix and rho_QQ pairs. No regime
     aggregation, no contrast, no C_X_23/D_X_23, no inter-S comparison --
     those remain the next lot's orchestration, on top of this per-case
-    result."""
+    result.
+
+    c_tt_conn/rho_qq (lot L2-E1-RAW-OBSERVABLE-RETENTION) are exactly the
+    same matrix/mapping build_case_multiplet_profile already passes to
+    metrics.m_tt/r_eff and metrics.a_qq/m_qq -- never a second,
+    independently recomputed copy. Both default to None so every
+    pre-existing direct construction of this type (synthetic tests
+    outside this lot's authorized scope) keeps working unchanged;
+    build_case_multiplet_profile itself always supplies real values.
+    Once supplied, both are made immutable here (a write-locked copy of
+    c_tt_conn, a MappingProxyType over rho_qq) so a caller can never
+    mutate the retained raw observable out of sync with the scalar
+    metrics already derived from it."""
 
     energy: float
     multiplicity: int
@@ -244,6 +257,35 @@ class MultipletProfileEntry:
     r_eff: Available
     a_qq: float
     m_qq: Available
+    c_tt_conn: np.ndarray | None = None
+    rho_qq: Mapping[tuple[int, int], RhoQQEntry] | None = None
+
+    def __post_init__(self) -> None:
+        if self.c_tt_conn is not None:
+            matrix = np.asarray(self.c_tt_conn)
+            if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+                raise ValueError(f"c_tt_conn must be a square 2-D matrix, got shape {matrix.shape}")
+            matrix = np.array(matrix, copy=True)
+            matrix.setflags(write=False)
+            object.__setattr__(self, "c_tt_conn", matrix)
+
+        if self.rho_qq is not None:
+            rho_qq = dict(self.rho_qq)
+            for key, value in rho_qq.items():
+                if not (isinstance(key, tuple) and len(key) == 2 and key[0] != key[1]):
+                    raise ValueError(f"every rho_qq key must be an ordered pair (i, j) with i != j, got {key!r}")
+                if not isinstance(value, RhoQQEntry):
+                    raise ValueError(f"every rho_qq value must be a RhoQQEntry, got {type(value)}")
+            object.__setattr__(self, "rho_qq", MappingProxyType(rho_qq))
+
+        if self.c_tt_conn is not None and self.rho_qq is not None:
+            n = self.c_tt_conn.shape[0]
+            expected_keys = {(i, j) for i in range(n) for j in range(n) if i != j}
+            if set(self.rho_qq.keys()) != expected_keys:
+                raise ValueError(
+                    f"rho_qq must carry exactly the {n * (n - 1)} ordered pairs implied by c_tt_conn's "
+                    f"dimension N={n}, got {sorted(self.rho_qq.keys())}"
+                )
 
 
 def build_case_multiplet_profile(
@@ -289,6 +331,8 @@ def build_case_multiplet_profile(
                 r_eff=metrics.r_eff(c_tt_conn),
                 a_qq=metrics.a_qq(rho_qq_pairs, n),
                 m_qq=metrics.m_qq(rho_qq_pairs, n),
+                c_tt_conn=c_tt_conn,
+                rho_qq=rho_qq_pairs,
             )
         )
     return tuple(entries)

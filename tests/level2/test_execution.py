@@ -22,6 +22,7 @@ import dataclasses
 import inspect
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 from cosmobox.level2 import adapter, metrics, orchestration
@@ -294,6 +295,40 @@ def test_case_execution_result_carries_no_premature_provenance_fields():
     field_names = {field.name for field in dataclasses.fields(CaseExecutionResult)}
     forbidden = {"repository_commit", "campaign_id", "manifest_fingerprint", "schema_version"}
     assert field_names & forbidden == set()
+
+
+def test_case_execution_result_transports_raw_observables_without_duplicating_them():
+    # L2-E1-RAW-OBSERVABLE-RETENTION: CaseExecutionResult has no
+    # c_tt_conn/rho_qq field of its own -- entry.c_tt_conn/entry.rho_qq on
+    # each MultipletProfileEntry in `entries` is the only copy, and
+    # CaseExecutionResult transports it unchanged.
+    field_names = {field.name for field in dataclasses.fields(CaseExecutionResult)}
+    assert "c_tt_conn" not in field_names
+    assert "rho_qq" not in field_names
+
+    matrix = np.array([[1.0, 2.0], [3.0, 4.0]])
+    rho_qq = {(0, 1): metrics.RhoQQEntry(0.5, None), (1, 0): metrics.RhoQQEntry(None, "zero_local_charge_variance")}
+    enriched_entry = MultipletProfileEntry(
+        energy=0.0, multiplicity=1, epsilon=0.0, q_start=0.0, q_end=1.0, q_midpoint=0.5,
+        m_tt=1.0, r_eff=metrics.Available(0.5, None), a_qq=0.5, m_qq=metrics.Available(0.2, None),
+        c_tt_conn=matrix, rho_qq=rho_qq,
+    )
+    analyses = _analyses((enriched_entry,))
+    result = CaseExecutionResult(
+        spec=CaseSpec(geometry="triangle", spin=2),
+        dimension=1,
+        group_count=1,
+        entries=(enriched_entry,),
+        m_tt_analysis=analyses["M_TT"],
+        r_eff_analysis=analyses["R_eff"],
+        a_qq_analysis=analyses["A_QQ"],
+        m_qq_analysis=analyses["M_QQ"],
+    )
+
+    assert np.array_equal(result.entries[0].c_tt_conn, matrix)
+    assert result.entries[0].rho_qq[(0, 1)].value == 0.5
+    assert result.entries[0].rho_qq[(1, 0)].value is None
+    assert result.entries[0].rho_qq[(1, 0)].null_reason == "zero_local_charge_variance"
 
 
 def test_geometry_comparison_carries_no_premature_provenance_fields():
