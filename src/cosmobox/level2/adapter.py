@@ -242,9 +242,13 @@ class MultipletProfileEntry:
     pre-existing direct construction of this type (synthetic tests
     outside this lot's authorized scope) keeps working unchanged;
     build_case_multiplet_profile itself always supplies real values.
-    Once supplied, both are made immutable here (a write-locked copy of
-    c_tt_conn, a MappingProxyType over rho_qq) so a caller can never
-    mutate the retained raw observable out of sync with the scalar
+    Once supplied, both are made immutable here (c_tt_conn backed by an
+    immutable bytes buffer via np.frombuffer -- setflags(write=False)
+    alone leaves the underlying buffer itself writeable and reversible by
+    a caller via setflags(write=True); routing through bytes makes the
+    buffer itself non-writeable, so re-enabling WRITEABLE raises
+    ValueError -- and a MappingProxyType over rho_qq) so a caller can
+    never mutate the retained raw observable out of sync with the scalar
     metrics already derived from it."""
 
     energy: float
@@ -265,9 +269,15 @@ class MultipletProfileEntry:
             matrix = np.asarray(self.c_tt_conn)
             if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
                 raise ValueError(f"c_tt_conn must be a square 2-D matrix, got shape {matrix.shape}")
-            matrix = np.array(matrix, copy=True)
-            matrix.setflags(write=False)
-            object.__setattr__(self, "c_tt_conn", matrix)
+            canonical = np.array(matrix, copy=True)
+            # np.frombuffer over `bytes` (an immutable buffer) yields an array
+            # whose WRITEABLE flag cannot be re-enabled by a caller -- unlike
+            # setflags(write=False) alone, which a caller can undo with
+            # setflags(write=True). No value is altered: tobytes()/frombuffer
+            # round-trip the exact same bit pattern, and .reshape restores the
+            # original shape without copying.
+            immutable = np.frombuffer(canonical.tobytes(), dtype=canonical.dtype).reshape(canonical.shape)
+            object.__setattr__(self, "c_tt_conn", immutable)
 
         if self.rho_qq is not None:
             rho_qq = dict(self.rho_qq)

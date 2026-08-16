@@ -454,6 +454,13 @@ def test_multiplet_profile_entry_c_tt_conn_is_immutable():
     assert entry.c_tt_conn.flags.writeable is False
     with pytest.raises(ValueError):
         entry.c_tt_conn[0, 0] = 999.0
+    # setflags(write=False) alone would leave the underlying buffer itself
+    # writeable and reversible by a caller via setflags(write=True); the
+    # backing buffer must be genuinely non-writeable so this re-enable
+    # attempt itself raises, not just direct element assignment above.
+    with pytest.raises(ValueError):
+        entry.c_tt_conn.setflags(write=True)
+    assert entry.c_tt_conn.flags.writeable is False
 
 
 def test_multiplet_profile_entry_rho_qq_is_immutable():
