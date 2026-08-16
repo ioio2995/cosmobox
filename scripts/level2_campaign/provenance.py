@@ -24,6 +24,14 @@ from experiments.level2.manifest import Level2Manifest
 
 _GIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
+REPOSITORY_IDENTITY = "ioio2995/cosmobox"
+"""The frozen repository identity every persisted Level2 artifact must
+carry (lot L2-E2-PROVENANCE-AND-NO-OVERWRITE-CORRECTIVE). A fixed
+constant, never a caller-supplied or git-remote-derived value, and never
+a configurable field of the scientific manifest (experiments.level2.
+manifest.Level2Manifest) -- it identifies which repository this code
+lives in, not anything about the campaign's scientific content."""
+
 
 class ProvenanceResolutionFailure(RuntimeError):
     """Raised when the repository's Git state cannot be resolved, or is
@@ -89,10 +97,11 @@ def require_clean_worktree(repo_root: str | None = None) -> None:
 
 @dataclass(frozen=True, slots=True)
 class CampaignProvenance:
-    """The provenance quintuple every persisted Level2 artifact must
+    """The provenance sextuple every persisted Level2 artifact must
     carry. Resolved once per campaign (resolve_campaign_provenance),
     never per case."""
 
+    repository: str
     repository_commit: str
     branch: str
     manifest_fingerprint: str
@@ -100,6 +109,8 @@ class CampaignProvenance:
     frozen_preregistration_commit: str
 
     def __post_init__(self) -> None:
+        if self.repository != REPOSITORY_IDENTITY:
+            raise ValueError(f"repository must be {REPOSITORY_IDENTITY!r}, got {self.repository!r}")
         if not _GIT_SHA_PATTERN.fullmatch(self.repository_commit):
             raise ValueError(
                 f"repository_commit must be a 40-character lowercase hex string, got {self.repository_commit!r}"
@@ -120,14 +131,17 @@ class CampaignProvenance:
 def resolve_campaign_provenance(manifest: Level2Manifest, *, repo_root: str | None = None) -> CampaignProvenance:
     """require_clean_worktree, then resolve_code_commit, exactly once.
     branch/campaign_id/frozen_preregistration_commit/manifest_fingerprint
-    come from `manifest` itself -- never re-derived. Does not verify
-    that manifest.branch matches the repository's actual current branch
-    -- callers requiring that check call verify_branch_matches_manifest
+    come from `manifest` itself -- never re-derived. repository is always
+    exactly REPOSITORY_IDENTITY, never derived from git remote or any
+    other caller-influenceable source. Does not verify that
+    manifest.branch matches the repository's actual current branch --
+    callers requiring that check call verify_branch_matches_manifest
     separately (kept as a distinct step so this already-reviewed
     function's own behavior is unchanged by that addition)."""
     require_clean_worktree(repo_root)
     repository_commit = resolve_code_commit(repo_root)
     return CampaignProvenance(
+        repository=REPOSITORY_IDENTITY,
         repository_commit=repository_commit,
         branch=manifest.branch,
         manifest_fingerprint=manifest.fingerprint,

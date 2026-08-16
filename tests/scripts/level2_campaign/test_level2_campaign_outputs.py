@@ -17,6 +17,7 @@ from cosmobox.level2 import metrics, orchestration, serialization
 from cosmobox.level2.adapter import MultipletProfileEntry
 from cosmobox.level2.execution import CaseExecutionResult, CaseSpec
 from scripts.level2_campaign.outputs import (
+    CampaignManifestAlreadyExists,
     CampaignSummaryAlreadyExists,
     CaseArtifactAlreadyExists,
     CaseArtifactIntegrityError,
@@ -32,10 +33,12 @@ from scripts.level2_campaign.outputs import (
     write_campaign_summary,
     write_case_result,
 )
+from scripts.level2_campaign.provenance import REPOSITORY_IDENTITY
 
 _PROVENANCE = dict(
     campaign_id="level2-energy-regime-v1",
     manifest_fingerprint="a" * 64,
+    repository=REPOSITORY_IDENTITY,
     repository_commit="b" * 40,
     branch="research/level2-energy-regime",
     frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
@@ -154,6 +157,25 @@ def test_write_campaign_manifest_is_atomic_and_readable(tmp_path):
     assert json.loads(path.read_text()) == raw
 
 
+def test_write_campaign_manifest_refuses_to_overwrite_existing(tmp_path):
+    raw = {"campaign_id": "level2-energy-regime-v1", "cases": []}
+    write_campaign_manifest(tmp_path, "level2-energy-regime-v1", raw)
+    with pytest.raises(CampaignManifestAlreadyExists):
+        write_campaign_manifest(tmp_path, "level2-energy-regime-v1", raw)
+
+
+def test_write_campaign_manifest_refuses_to_overwrite_even_a_different_manifest(tmp_path):
+    # A partial old campaign's manifest.json must never be silently
+    # replaced, even by a manifest with genuinely different content --
+    # no comparison, no merge, no reuse.
+    original = {"campaign_id": "level2-energy-regime-v1", "cases": ["old"]}
+    write_campaign_manifest(tmp_path, "level2-energy-regime-v1", original)
+    different = {"campaign_id": "level2-energy-regime-v1", "cases": ["new"]}
+    with pytest.raises(CampaignManifestAlreadyExists):
+        write_campaign_manifest(tmp_path, "level2-energy-regime-v1", different)
+    assert json.loads(campaign_manifest_path(tmp_path, "level2-energy-regime-v1").read_text()) == original
+
+
 # ---------------------------------------------------------------------------
 # case_artifact_path / write_case_result
 # ---------------------------------------------------------------------------
@@ -246,6 +268,29 @@ def test_load_and_verify_case_result_raises_on_campaign_id_mismatch(tmp_path):
             manifest_fingerprint=_PROVENANCE["manifest_fingerprint"],
             repository_commit=_PROVENANCE["repository_commit"],
         )
+
+
+def test_load_and_verify_case_result_raises_on_wrong_repository(tmp_path):
+    # The artifact itself is schema-valid (schema forces repository to be
+    # the const REPOSITORY_IDENTITY at write time via case_result_payload),
+    # so simulate a corrupted/foreign artifact by writing the raw JSON
+    # directly, bypassing case_result_payload's own schema validation.
+    document = dict(_case_result_document("triangle", 2))
+    document["repository"] = "someone-else/cosmobox"
+    atomic_write_json(case_artifact_path(tmp_path, "level2-energy-regime-v1", "triangle", 2), document)
+    with pytest.raises(CaseArtifactIntegrityError):
+        load_and_verify_case_result(
+            tmp_path, "level2-energy-regime-v1", "triangle", 2,
+            manifest_fingerprint=_PROVENANCE["manifest_fingerprint"],
+            repository_commit=_PROVENANCE["repository_commit"],
+        )
+
+
+def test_case_result_schema_enforces_repository_const():
+    document = _case_result_document("triangle", 2)
+    document["repository"] = "someone-else/cosmobox"
+    with pytest.raises(ValueError):
+        serialization.validate_case_result_document(document)
 
 
 # ---------------------------------------------------------------------------

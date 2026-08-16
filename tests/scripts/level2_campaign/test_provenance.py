@@ -17,6 +17,7 @@ import pytest
 
 from experiments.level2.manifest import load_manifest
 from scripts.level2_campaign.provenance import (
+    REPOSITORY_IDENTITY,
     CampaignProvenance,
     ProvenanceResolutionFailure,
     require_clean_worktree,
@@ -83,7 +84,20 @@ def test_require_clean_worktree_refuses_when_porcelain_is_nonempty(monkeypatch):
 def test_campaign_provenance_rejects_short_repository_commit():
     with pytest.raises(ValueError):
         CampaignProvenance(
+            repository="ioio2995/cosmobox",
             repository_commit="a" * 39,
+            branch="research/level2-energy-regime",
+            manifest_fingerprint="f" * 64,
+            campaign_id="c",
+            frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
+        )
+
+
+def test_campaign_provenance_rejects_wrong_repository():
+    with pytest.raises(ValueError):
+        CampaignProvenance(
+            repository="someone-else/cosmobox",
+            repository_commit="a" * 40,
             branch="research/level2-energy-regime",
             manifest_fingerprint="f" * 64,
             campaign_id="c",
@@ -94,6 +108,7 @@ def test_campaign_provenance_rejects_short_repository_commit():
 def test_campaign_provenance_rejects_empty_campaign_id():
     with pytest.raises(ValueError):
         CampaignProvenance(
+            repository="ioio2995/cosmobox",
             repository_commit="a" * 40,
             branch="research/level2-energy-regime",
             manifest_fingerprint="f" * 64,
@@ -121,6 +136,7 @@ def test_resolve_campaign_provenance_wires_manifest_fields_and_resolved_commit(m
     manifest = load_manifest()
     provenance = resolve_campaign_provenance(manifest)
 
+    assert provenance.repository == REPOSITORY_IDENTITY
     assert provenance.repository_commit == "c" * 40
     assert provenance.branch == manifest.branch
     assert provenance.manifest_fingerprint == manifest.fingerprint
@@ -170,6 +186,7 @@ def test_resolve_current_branch_rejects_detached_head(monkeypatch):
 def test_verify_branch_matches_manifest_passes_when_branches_agree(monkeypatch):
     monkeypatch.setattr(subprocess, "run", _fake_run("research/level2-energy-regime\n"))
     provenance = CampaignProvenance(
+        repository="ioio2995/cosmobox",
         repository_commit="a" * 40,
         branch="research/level2-energy-regime",
         manifest_fingerprint="f" * 64,
@@ -182,6 +199,7 @@ def test_verify_branch_matches_manifest_passes_when_branches_agree(monkeypatch):
 def test_verify_branch_matches_manifest_refuses_mismatch(monkeypatch):
     monkeypatch.setattr(subprocess, "run", _fake_run("main\n"))
     provenance = CampaignProvenance(
+        repository="ioio2995/cosmobox",
         repository_commit="a" * 40,
         branch="research/level2-energy-regime",
         manifest_fingerprint="f" * 64,

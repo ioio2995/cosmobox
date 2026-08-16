@@ -31,9 +31,22 @@ Order of operations (docs/governance/current-task.md, L2-E2 mandate):
 
 NO_IMPLICIT_RESUME: run_campaign refuses outright (CampaignAlreadyExists)
 if campaign-summary.json already exists for this campaign_id before doing
-any work at all; write_case_result/write_campaign_summary each refuse an
-individual overwrite on top of that (belt and suspenders, see
-outputs.py's own docstring).
+any work at all. outputs.write_campaign_manifest itself refuses
+(CampaignManifestAlreadyExists) if manifest.json already exists -- since
+it is called before the case loop starts, this means a pre-existing
+manifest.json (e.g. from an old, partial campaign directory) makes
+run_campaign fail before execution.run_case is ever invoked, without
+comparing, reusing, or deleting anything already on disk.
+write_case_result/write_campaign_summary each refuse an individual
+overwrite on top of that (belt and suspenders, see outputs.py's own
+docstring).
+
+REPOSITORY_IDENTITY (lot L2-E2-PROVENANCE-AND-NO-OVERWRITE-CORRECTIVE):
+CampaignProvenance.repository is always exactly
+provenance.REPOSITORY_IDENTITY ("ioio2995/cosmobox"), resolved once
+alongside repository_commit/branch and threaded, unchanged, into every
+case-result and the campaign-summary -- never a caller-supplied or
+manifest-configurable value.
 """
 
 from __future__ import annotations
@@ -87,6 +100,7 @@ def run_campaign(
             result,
             campaign_id=campaign_provenance.campaign_id,
             manifest_fingerprint=campaign_provenance.manifest_fingerprint,
+            repository=campaign_provenance.repository,
             repository_commit=campaign_provenance.repository_commit,
             branch=campaign_provenance.branch,
             frozen_preregistration_commit=campaign_provenance.frozen_preregistration_commit,
@@ -120,6 +134,7 @@ def run_campaign(
         geometry_comparisons,
         campaign_id=campaign_provenance.campaign_id,
         manifest_fingerprint=campaign_provenance.manifest_fingerprint,
+        repository=campaign_provenance.repository,
         repository_commit=campaign_provenance.repository_commit,
         branch=campaign_provenance.branch,
         frozen_preregistration_commit=campaign_provenance.frozen_preregistration_commit,

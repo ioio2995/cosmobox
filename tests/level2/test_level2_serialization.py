@@ -135,6 +135,7 @@ def _result_with_raw_observables(geometry: str, spin: int, n: int, *, offset: fl
 _CASE_RESULT_PROVENANCE = dict(
     campaign_id="level2-energy-regime-v1",
     manifest_fingerprint="a" * 64,
+    repository="ioio2995/cosmobox",
     repository_commit="b" * 40,
     branch="research/level2-energy-regime",
     frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
@@ -225,6 +226,20 @@ def test_case_result_payload_carries_frozen_preregistration_commit_and_numerical
     }
 
 
+def test_case_result_payload_carries_repository():
+    result = _result_with_raw_observables("triangle", 2, 2)
+    document = serialization.case_result_payload(result, **_CASE_RESULT_PROVENANCE)
+    assert document["repository"] == "ioio2995/cosmobox"
+
+
+def test_validate_case_result_document_rejects_wrong_repository():
+    result = _result_with_raw_observables("triangle", 2, 2)
+    document = serialization.case_result_payload(result, **_CASE_RESULT_PROVENANCE)
+    document["repository"] = "someone-else/cosmobox"
+    with pytest.raises(ValueError):
+        serialization.validate_case_result_document(document)
+
+
 def test_case_result_payload_refuses_when_any_entry_is_missing_raw_observables():
     result = _result("triangle", 2, 3)  # built without c_tt_conn/rho_qq (pre-L2-E1-style fixture)
     with pytest.raises(ValueError):
@@ -309,13 +324,31 @@ def test_campaign_summary_payload_validates_against_schema():
         comparisons,
         campaign_id="level2-energy-regime-v1",
         manifest_fingerprint="a" * 64,
+        repository="ioio2995/cosmobox",
         repository_commit="b" * 40,
         branch="research/level2-energy-regime",
         frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
     )
     serialization.validate_campaign_summary_document(document)  # no exception
     assert document["campaign_status"] == "COMPLETE"
+    assert document["repository"] == "ioio2995/cosmobox"
     assert {entry["geometry"] for entry in document["geometries"]} == {"triangle", "ring4", "ring5"}
+
+
+def test_validate_campaign_summary_document_rejects_wrong_repository():
+    comparisons = [_geometry_comparison(geometry) for geometry in ("triangle", "ring4", "ring5")]
+    document = serialization.campaign_summary_payload(
+        comparisons,
+        campaign_id="level2-energy-regime-v1",
+        manifest_fingerprint="a" * 64,
+        repository="ioio2995/cosmobox",
+        repository_commit="b" * 40,
+        branch="research/level2-energy-regime",
+        frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
+    )
+    document["repository"] = "someone-else/cosmobox"
+    with pytest.raises(ValueError):
+        serialization.validate_campaign_summary_document(document)
 
 
 def test_campaign_summary_payload_rejects_missing_geometry():
@@ -325,6 +358,7 @@ def test_campaign_summary_payload_rejects_missing_geometry():
             comparisons,
             campaign_id="c",
             manifest_fingerprint="a" * 64,
+            repository="ioio2995/cosmobox",
             repository_commit="b" * 40,
             branch="research/level2-energy-regime",
             frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
@@ -338,6 +372,7 @@ def test_campaign_summary_payload_rejects_duplicate_geometry():
             comparisons,
             campaign_id="c",
             manifest_fingerprint="a" * 64,
+            repository="ioio2995/cosmobox",
             repository_commit="b" * 40,
             branch="research/level2-energy-regime",
             frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
@@ -350,6 +385,7 @@ def test_validate_campaign_summary_document_rejects_incomplete_status():
         comparisons,
         campaign_id="c",
         manifest_fingerprint="a" * 64,
+        repository="ioio2995/cosmobox",
         repository_commit="b" * 40,
         branch="research/level2-energy-regime",
         frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",

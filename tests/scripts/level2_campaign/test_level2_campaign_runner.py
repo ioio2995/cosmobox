@@ -28,7 +28,7 @@ from scripts.level2_campaign.outputs import (
     campaign_summary_path,
     case_artifact_path,
 )
-from scripts.level2_campaign.provenance import CampaignProvenance
+from scripts.level2_campaign.provenance import REPOSITORY_IDENTITY, CampaignProvenance
 from scripts.level2_campaign.runner import CampaignAlreadyExists, run_campaign
 
 _SYNTHETIC_REFERENCE = {
@@ -53,6 +53,7 @@ def manifest():
 @pytest.fixture(autouse=True)
 def _fake_provenance(monkeypatch, manifest):
     provenance = CampaignProvenance(
+        repository=REPOSITORY_IDENTITY,
         repository_commit=_REPOSITORY_COMMIT,
         branch=manifest.branch,
         manifest_fingerprint=manifest.fingerprint,
@@ -149,6 +150,7 @@ def test_run_campaign_produces_full_artifact_tree(tmp_path, manifest):
 
     summary_document = json.loads(summary_path.read_text())
     assert summary_document["campaign_status"] == "COMPLETE"
+    assert summary_document["repository"] == REPOSITORY_IDENTITY
     assert {entry["geometry"] for entry in summary_document["geometries"]} == {"triangle", "ring4", "ring5"}
 
     manifest_document = json.loads(campaign_manifest_path(tmp_path, manifest.campaign_id).read_text())
@@ -157,6 +159,7 @@ def test_run_campaign_produces_full_artifact_tree(tmp_path, manifest):
     case_document = json.loads(case_artifact_path(tmp_path, manifest.campaign_id, "triangle", 2).read_text())
     assert case_document["geometry"] == "triangle"
     assert case_document["spin"] == 2
+    assert case_document["repository"] == REPOSITORY_IDENTITY
     assert case_document["repository_commit"] == _REPOSITORY_COMMIT
     assert len(case_document["multiplet_entries"]) == 3
     assert len(case_document["multiplet_entries"][0]["c_tt_conn"]) == 2
@@ -225,3 +228,41 @@ def test_run_campaign_leaves_no_summary_when_branch_verification_fails(tmp_path,
     assert not campaign_summary_path(tmp_path, manifest.campaign_id).exists()
     # provenance verification happens before any case is run or persisted
     assert not case_artifact_path(tmp_path, manifest.campaign_id, "triangle", 2).exists()
+
+
+def test_run_campaign_fails_when_manifest_json_already_exists(tmp_path, manifest, _fake_run_case):
+    campaign_manifest_path(tmp_path, manifest.campaign_id).parent.mkdir(parents=True, exist_ok=True)
+    campaign_manifest_path(tmp_path, manifest.campaign_id).write_text('{"stale": true}\n')
+
+    with pytest.raises(runner.outputs.CampaignManifestAlreadyExists):
+        run_campaign(tmp_path, manifest=manifest)
+
+    assert len(_fake_run_case) == 0
+    assert not campaign_summary_path(tmp_path, manifest.campaign_id).exists()
+
+
+def test_run_campaign_leaves_stale_manifest_json_content_unchanged(tmp_path, manifest, _fake_run_case):
+    campaign_manifest_path(tmp_path, manifest.campaign_id).parent.mkdir(parents=True, exist_ok=True)
+    stale_content = '{"stale": true}\n'
+    campaign_manifest_path(tmp_path, manifest.campaign_id).write_text(stale_content)
+
+    with pytest.raises(runner.outputs.CampaignManifestAlreadyExists):
+        run_campaign(tmp_path, manifest=manifest)
+
+    assert campaign_manifest_path(tmp_path, manifest.campaign_id).read_text() == stale_content
+
+
+def test_run_campaign_cannot_overwrite_manifest_of_a_partial_old_campaign(tmp_path, manifest, _fake_run_case):
+    # Simulate a previous, interrupted campaign attempt: manifest.json and
+    # one case artifact exist, but no campaign-summary.json (an
+    # incomplete run). A fresh run_campaign attempt must still refuse,
+    # never treating this as resumable.
+    campaign_manifest_path(tmp_path, manifest.campaign_id).parent.mkdir(parents=True, exist_ok=True)
+    campaign_manifest_path(tmp_path, manifest.campaign_id).write_text(json.dumps(manifest.raw) + "\n")
+    assert not campaign_summary_path(tmp_path, manifest.campaign_id).exists()
+
+    with pytest.raises(runner.outputs.CampaignManifestAlreadyExists):
+        run_campaign(tmp_path, manifest=manifest)
+
+    assert len(_fake_run_case) == 0
+    assert not campaign_summary_path(tmp_path, manifest.campaign_id).exists()

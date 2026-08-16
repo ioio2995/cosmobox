@@ -35,6 +35,8 @@ from pathlib import Path
 
 from cosmobox.level2 import serialization
 
+from .provenance import REPOSITORY_IDENTITY
+
 
 def canonical_json_bytes(document: dict) -> bytes:
     """UTF-8, sort_keys, ensure_ascii, allow_nan=False, single trailing
@@ -95,6 +97,15 @@ class CaseArtifactAlreadyExists(RuntimeError):
     merging is attempted for this first normative runner."""
 
 
+class CampaignManifestAlreadyExists(RuntimeError):
+    """Raised by write_campaign_manifest when manifest.json already
+    exists at the destination path -- compatible or not. NO_IMPLICIT_
+    RESUME (see this module's own docstring): an old, possibly partial
+    campaign directory's manifest.json is never overwritten, compared,
+    or auto-resumed -- a caller that hits this must choose a new output
+    directory or campaign_id."""
+
+
 class CaseArtifactIntegrityError(ValueError):
     """Raised by load_and_verify_case_result (and, transitively,
     verify_case_artifacts_share_provenance) for any parse, schema, or
@@ -129,8 +140,14 @@ def write_campaign_manifest(output_root: Path, campaign_id: str, raw_manifest: d
     and scripts/level0_symmetry_campaign. Every case-result/
     campaign-summary document already carries manifest_fingerprint
     (the SHA-256 of this exact content), so this snapshot is a
-    convenience for a reader, not the sole integrity anchor."""
+    convenience for a reader, not the sole integrity anchor. Raises
+    CampaignManifestAlreadyExists (never silently overwriting) if one is
+    already present -- the same NO_IMPLICIT_RESUME policy as
+    write_case_result/write_campaign_summary, so an old, possibly
+    partial campaign directory is never mutated by a new attempt."""
     path = campaign_manifest_path(output_root, campaign_id)
+    if path.exists():
+        raise CampaignManifestAlreadyExists(f"manifest.json already exists at {path}; refusing to overwrite")
     atomic_write_json(path, raw_manifest)
     return path
 
@@ -159,9 +176,11 @@ def load_and_verify_case_result(
     schema-valid against schemas/level2/case-result-v1.schema.json
     (serialization.validate_case_result_document -- never a second,
     duplicated jsonschema call), and verify its own campaign_id/
-    manifest_fingerprint/repository_commit/geometry/spin all match what
-    the caller currently expects. Raises CaseArtifactIntegrityError on
-    any failure. This is the single, shared integrity core: both the
+    manifest_fingerprint/repository/repository_commit/geometry/spin all
+    match what the caller currently expects (repository is always
+    checked against the fixed REPOSITORY_IDENTITY constant, never a
+    caller-supplied value). Raises CaseArtifactIntegrityError on any
+    failure. This is the single, shared integrity core: both the
     campaign runner and any later finalizer/diagnostic tool must call
     this rather than duplicating parse/schema/provenance logic."""
     path = case_artifact_path(output_root, campaign_id, geometry, spin)
@@ -185,6 +204,7 @@ def load_and_verify_case_result(
     expected = {
         "campaign_id": campaign_id,
         "manifest_fingerprint": manifest_fingerprint,
+        "repository": REPOSITORY_IDENTITY,
         "repository_commit": repository_commit,
         "geometry": geometry,
         "spin": spin,
