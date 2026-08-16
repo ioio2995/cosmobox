@@ -22,6 +22,8 @@ from scripts.level2_campaign.provenance import (
     require_clean_worktree,
     resolve_campaign_provenance,
     resolve_code_commit,
+    resolve_current_branch,
+    verify_branch_matches_manifest,
 )
 
 
@@ -134,3 +136,57 @@ def test_resolve_campaign_provenance_refuses_dirty_worktree(monkeypatch):
     manifest = load_manifest()
     with pytest.raises(ProvenanceResolutionFailure):
         resolve_campaign_provenance(manifest)
+
+
+# ---------------------------------------------------------------------------
+# resolve_current_branch
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_current_branch_returns_a_branch_name_for_this_real_repository():
+    branch = resolve_current_branch()
+    assert isinstance(branch, str)
+    assert branch != ""
+    assert branch != "HEAD"
+
+
+def test_resolve_current_branch_fails_hard_on_subprocess_error(monkeypatch):
+    monkeypatch.setattr(subprocess, "run", _fake_run("", returncode=1))
+    with pytest.raises(ProvenanceResolutionFailure):
+        resolve_current_branch()
+
+
+def test_resolve_current_branch_rejects_detached_head(monkeypatch):
+    monkeypatch.setattr(subprocess, "run", _fake_run("HEAD\n"))
+    with pytest.raises(ProvenanceResolutionFailure):
+        resolve_current_branch()
+
+
+# ---------------------------------------------------------------------------
+# verify_branch_matches_manifest
+# ---------------------------------------------------------------------------
+
+
+def test_verify_branch_matches_manifest_passes_when_branches_agree(monkeypatch):
+    monkeypatch.setattr(subprocess, "run", _fake_run("research/level2-energy-regime\n"))
+    provenance = CampaignProvenance(
+        repository_commit="a" * 40,
+        branch="research/level2-energy-regime",
+        manifest_fingerprint="f" * 64,
+        campaign_id="c",
+        frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
+    )
+    verify_branch_matches_manifest(provenance)  # no exception
+
+
+def test_verify_branch_matches_manifest_refuses_mismatch(monkeypatch):
+    monkeypatch.setattr(subprocess, "run", _fake_run("main\n"))
+    provenance = CampaignProvenance(
+        repository_commit="a" * 40,
+        branch="research/level2-energy-regime",
+        manifest_fingerprint="f" * 64,
+        campaign_id="c",
+        frozen_preregistration_commit="2d4c859db7939da51ee7d919889a18f4c7e229ed",
+    )
+    with pytest.raises(ProvenanceResolutionFailure):
+        verify_branch_matches_manifest(provenance)

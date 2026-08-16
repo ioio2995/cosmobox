@@ -50,6 +50,26 @@ def resolve_code_commit(repo_root: str | None = None) -> str:
     return sha
 
 
+def resolve_current_branch(repo_root: str | None = None) -> str:
+    """The exact `git rev-parse --abbrev-ref HEAD` of `repo_root` (ambient
+    cwd if None). Any subprocess failure or a detached HEAD (which
+    `git rev-parse --abbrev-ref` reports as the literal string "HEAD")
+    fails hard, never a best-effort placeholder -- mirrors
+    resolve_code_commit's own discipline."""
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, capture_output=True, text=True, check=True
+        )
+    except Exception:
+        raise ProvenanceResolutionFailure("could not resolve the repository's current branch") from None
+    branch = completed.stdout.strip()
+    if not branch or branch == "HEAD":
+        raise ProvenanceResolutionFailure(
+            "git rev-parse --abbrev-ref HEAD did not return a branch name (detached HEAD?)"
+        )
+    return branch
+
+
 def _repository_is_clean(repo_root: str | None = None) -> bool:
     try:
         completed = subprocess.run(
@@ -100,7 +120,11 @@ class CampaignProvenance:
 def resolve_campaign_provenance(manifest: Level2Manifest, *, repo_root: str | None = None) -> CampaignProvenance:
     """require_clean_worktree, then resolve_code_commit, exactly once.
     branch/campaign_id/frozen_preregistration_commit/manifest_fingerprint
-    come from `manifest` itself -- never re-derived."""
+    come from `manifest` itself -- never re-derived. Does not verify
+    that manifest.branch matches the repository's actual current branch
+    -- callers requiring that check call verify_branch_matches_manifest
+    separately (kept as a distinct step so this already-reviewed
+    function's own behavior is unchanged by that addition)."""
     require_clean_worktree(repo_root)
     repository_commit = resolve_code_commit(repo_root)
     return CampaignProvenance(
@@ -110,3 +134,18 @@ def resolve_campaign_provenance(manifest: Level2Manifest, *, repo_root: str | No
         campaign_id=manifest.campaign_id,
         frozen_preregistration_commit=manifest.frozen_preregistration_commit,
     )
+
+
+def verify_branch_matches_manifest(provenance: CampaignProvenance, *, repo_root: str | None = None) -> None:
+    """Refuses a campaign whose manifest-declared branch
+    (provenance.branch, threaded from Level2Manifest.branch) does not
+    match the repository's actual current branch at campaign start. A
+    separate step from resolve_campaign_provenance itself (see that
+    function's own docstring) -- callers that need this check call it
+    explicitly, right after resolving provenance."""
+    actual_branch = resolve_current_branch(repo_root)
+    if actual_branch != provenance.branch:
+        raise ProvenanceResolutionFailure(
+            f"manifest branch {provenance.branch!r} does not match the repository's actual "
+            f"current branch {actual_branch!r}"
+        )
