@@ -17,6 +17,9 @@ LEVEL2_D3_ORCHESTRATION_IMPLEMENTATION = 118c323aa8b2193a14f6edf19f5ac3167ebadf7
 LEVEL2_D4_EXECUTION_IMPLEMENTATION = 9f14a8a9367cad80f013d68ff79af2f3dd039fcf
 LEVEL2_D4_CORRECTIVE_COMMIT = 50df74b284cebcdc4e910e64965c3ceeab51cab5
 LEVEL2_D4_REAL_PREFLIGHT = 1d55f490b1bf8cf4738964e773516292b39e7767
+LEVEL2_E_CAMPAIGN_INFRASTRUCTURE = 41bf85e3ee22e7ba28fde294c072157fd8eef21e
+LEVEL2_E1_RAW_OBSERVABLE_RETENTION = 59dc708e481cd0b7bfb8117d3f69c6cefb1e2924
+LEVEL2_E1_IMMUTABILITY_CORRECTIVE = 7258dda1571e85f7cdfe42d86fa21dc6315e2be6
 ```
 
 ## État scientifique
@@ -26,10 +29,10 @@ LEVEL0  = CLOSED
 LEVEL1B = CLOSED
 LEVEL1C = CLOSED
 LEVEL1  = CLOSED
-LEVEL2  = L2_E_AUDIT_ACCEPTED
+LEVEL2  = L2_E1_ACCEPTED
 
 LAST_CLOSED_LEVEL = LEVEL1
-LAST_ACCEPTED_LOT = L2-E-CAMPAIGN-AND-PROVENANCE-AUDIT
+LAST_ACCEPTED_LOT = L2-E1-RAW-OBSERVABLE-RETENTION
 
 LEVEL1C_PHYSICAL_VERDICT = INCONCLUSIVE
 LEVEL1C_STOP_REASON      = INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE
@@ -43,7 +46,9 @@ LEVEL2_D3_ORCHESTRATION = ACCEPTED
 LEVEL2_D4_EXECUTION = ACCEPTED
 LEVEL2_D4_REAL_PREFLIGHT = ACCEPTED
 LEVEL2_E_CAMPAIGN_AND_PROVENANCE_AUDIT = ACCEPTED
-LEVEL2_IMPLEMENTATION = CAMPAIGN_LAYER_PENDING
+LEVEL2_E_CAMPAIGN_INFRASTRUCTURE = PARTIAL_ACCEPTED
+LEVEL2_E1_RAW_OBSERVABLE_RETENTION = ACCEPTED
+LEVEL2_IMPLEMENTATION = CAMPAIGN_LAYER_IN_PROGRESS
 LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 ```
 
@@ -147,7 +152,7 @@ MIXED_MANIFEST_FINGERPRINT = FORBIDDEN
 PARTIAL_CAMPAIGN_COMPLETE_STATUS = FORBIDDEN
 ```
 
-Trois schémas Level2 sont attendus :
+Trois schémas Level2 sont gelés :
 
 ```text
 schemas/level2/campaign-manifest-v1.schema.json
@@ -158,8 +163,6 @@ schemas/level2/campaign-summary-v1.schema.json
 Les artefacts de run doivent vivre sous `results/level2/<campaign-id>/`, jamais sous `experiments/level2/`.
 
 ### Persistance des observables sources
-
-La décision scientifique est gelée comme suit :
 
 ```text
 C_TT_CONN_PERSISTENCE = REQUIRED
@@ -172,7 +175,46 @@ RHO_QQ_NULL_REASON_PRESERVATION = EXACT
 RHO_QQ_IMPUTATION = FORBIDDEN
 ```
 
-Cette persistance conserve les observables sources déjà calculées par D2 ; elle n'introduit ni nouvelle métrique ni nouvelle convention physique.
+## Résultat L2-E — infrastructure de campagne
+
+```text
+LOT = L2-E-CAMPAIGN-INFRASTRUCTURE
+STATUS = PARTIAL_ACCEPTED
+COMMIT = 41bf85e3ee22e7ba28fde294c072157fd8eef21e
+
+MANIFEST = IMPLEMENTED_AND_REVIEWED
+FINGERPRINT = IMPLEMENTED_AND_REVIEWED
+PROVENANCE = IMPLEMENTED_AND_REVIEWED
+SCHEMAS = IMPLEMENTED_AND_REVIEWED
+CAMPAIGN_SUMMARY_SERIALIZATION = IMPLEMENTED_AND_REVIEWED
+GATES = IMPLEMENTED_AND_REVIEWED
+ATOMIC_FINALIZATION = IMPLEMENTED_AND_REVIEWED
+
+CASE_RESULT_SERIALIZATION = PENDING
+END_TO_END_RUNNER = PENDING
+```
+
+Le STOP de ce lot a correctement identifié que les observables sources étaient calculées en D2 puis perdues avant sérialisation. Aucun contournement par recomputation n'a été accepté.
+
+## Résultat L2-E1 — rétention des observables sources
+
+```text
+LOT = L2-E1-RAW-OBSERVABLE-RETENTION
+STATUS = ACCEPTED
+IMPLEMENTATION_COMMIT = 59dc708e481cd0b7bfb8117d3f69c6cefb1e2924
+CORRECTIVE_COMMIT = 7258dda1571e85f7cdfe42d86fa21dc6315e2be6
+
+C_TT_CONN_RETENTION = PASS
+C_TT_CONN_FULL_MATRIX_WITH_DIAGONAL = PASS
+C_TT_CONN_STRONG_IMMUTABILITY = PASS
+RHO_QQ_RETENTION = PASS
+RHO_QQ_ORDERED_PAIR_COVERAGE = PASS
+RHO_QQ_NULL_SEMANTICS = PASS
+NO_RECOMPUTATION = PASS
+SCALAR_METRICS_CHANGED = NO
+```
+
+`MultipletProfileEntry` transporte désormais les observables sources exactes déjà utilisées pour calculer les métriques réduites. `CaseExecutionResult.entries` les transporte sans duplication supplémentaire.
 
 ### Validation normative
 
@@ -217,13 +259,13 @@ NOT_EVALUABLE
 ## Étape suivante
 
 ```text
-NEXT_STEP = L2_E_IMPLEMENTATION
+NEXT_STEP = L2_E2_CASE_RESULT_AND_END_TO_END_RUNNER
 OPEN_METHODOLOGICAL_ITEM = NONE
 ```
 
-L'implémentation L2-E doit créer et tester synthétiquement le manifeste, le fingerprint, les schémas, la sérialisation, le runner, les gates de provenance et le mécanisme de finalisation atomique. Aucune exécution réelle des observables Level2 n'est autorisée pendant cette implémentation.
+L2-E2 doit terminer la couche de campagne en branchant la sérialisation/persistance de `case-result` sur les observables brutes désormais retenues, puis l'orchestration end-to-end du runner. Tous les tests doivent rester synthétiques ; aucune diagonalisation réelle, aucun calcul réel d'observable et aucune campagne normative ne sont autorisés pendant ce lot.
 
-La première campagne normative Level2 ne pourra être ouverte qu'après revue et acceptation explicite de L2-E IMPLEMENTATION, puis rejeu du préflight technique spectral.
+La première campagne normative Level2 ne pourra être ouverte qu'après revue et acceptation explicite de L2-E2, puis rejeu du préflight technique spectral sur le HEAD final de la couche de campagne.
 
 ## Rôles de collaboration
 
