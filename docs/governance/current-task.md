@@ -12,6 +12,7 @@ LEVEL3_B_GENERIC_EXECUTION_IMPLEMENTATION = ce2c7a16387490bb13ba1156249ea1129ec3
 LEVEL3_E_FULL_SPECTRUM_POLICY_IMPLEMENTATION = d8281b48b836a3ce14bb05cd739ea6b22f4a7ea4
 LEVEL3_F_S4_SCIENTIFIC_PREREGISTRATION = 1c1d71f07dd6a7399b3965b2bb0acfa5c665991e
 LEVEL3_H_FROZEN_LEVEL2_REFERENCE_ARTIFACTS = d1515a8118e415e78e0b8f9fc98ce93b63ec26f2
+LEVEL3_I_S4_CAMPAIGN_INFRASTRUCTURE = c215f5d9470daa01005dd93054f9dac991d849c7
 ```
 
 ## État scientifique
@@ -20,10 +21,10 @@ LEVEL3_H_FROZEN_LEVEL2_REFERENCE_ARTIFACTS = d1515a8118e415e78e0b8f9fc98ce93b63e
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S4_PREREGISTERED
+LEVEL3 = S4_EXECUTION_PREFLIGHT
 
 LAST_CLOSED_LEVEL = LEVEL2
-LAST_ACCEPTED_SOFTWARE_LOT = L3-H-FREEZE-LEVEL2-REFERENCE-ARTIFACTS
+LAST_ACCEPTED_SOFTWARE_LOT = L3-I-S4-CAMPAIGN-INFRASTRUCTURE
 LAST_FROZEN_SCIENTIFIC_JALON = L3-F-S4-SCIENTIFIC-PREREGISTRATION
 LAST_ACCEPTED_AUDIT = L3-G-S4-CAMPAIGN-INFRASTRUCTURE-AUDIT
 
@@ -53,7 +54,7 @@ Les artefacts gelés sont versionnés sous :
 results/level2/level2-energy-regime-v1/
 ```
 
-avec `SHA256SUMS`. Ils constituent désormais la référence normative reproductible S=2/S=3 pour Level3. Level2 reste immuable et clos.
+avec `SHA256SUMS`. Ils constituent la référence normative reproductible S=2/S=3 pour Level3. Level2 reste immuable et clos.
 
 ## Contrat scientifique Level 3 gelé
 
@@ -93,7 +94,7 @@ NOT_EVALUABLE
 
 La séquence S=2,3,4 et les descripteurs continus `T_X_23`, `T_X_34`, `R_DELTA_X`, `C_X_23`, `D_X_23`, `C_X_34`, `D_X_34`, `R_D_X` sont pré-enregistrés sans seuil de convergence.
 
-## Capacités Level 3 établies
+## Capacités et infrastructure Level 3 établies
 
 ```text
 LEVEL0_SPIN_ENCODING_GENERIC = YES
@@ -107,20 +108,37 @@ TRIANGLE_S4_DIMENSION = 168
 RING4_S4_DIMENSION = 572
 RING5_S4_DIMENSION = 2008
 LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
+
+LEVEL3_MANIFEST_IMPLEMENTED = YES
+LEVEL3_SCHEMAS_IMPLEMENTED = YES
+LEVEL3_FROZEN_REFERENCE_LOADER_IMPLEMENTED = YES
+LEVEL3_SERIALIZATION_IMPLEMENTED = YES
+LEVEL3_PLANNING_IMPLEMENTED = YES
+LEVEL3_GATES_IMPLEMENTED = YES
+LEVEL3_ATOMIC_OUTPUTS_IMPLEMENTED = YES
+LEVEL3_RUNNER_IMPLEMENTED = YES
+LEVEL3_NO_IMPLICIT_RESUME = YES
+LEVEL3_CAMPAIGN_COMPLETE_REQUIRES_SUMMARY = YES
 ```
 
 Aucun Hamiltonien physique S=4 n'a encore été construit ou diagonalisé. Aucune observable S=4 n'a été inspectée.
 
-## Lot courant — L3-I
+## Lot courant — L3-J
 
 ```text
-LOT = L3-I-S4-CAMPAIGN-INFRASTRUCTURE
+LOT = L3-J-S4-CAMPAIGN-EXECUTION-PREFLIGHT
 STATUS = OPEN
-TYPE = SOFTWARE_IMPLEMENTATION
+TYPE = EXECUTION_PREFLIGHT_ONLY
 
-CODE_CHANGE_AUTHORIZED = YES
-COMMIT_AUTHORIZED = YES
-PUSH_AUTHORIZED = YES
+CODE_CHANGE_AUTHORIZED = NO
+COMMIT_AUTHORIZED = NO
+PUSH_AUTHORIZED = NO
+
+DRY_RUN_MONKEYPATCHED_AUTHORIZED = YES
+RESOURCE_INSPECTION_AUTHORIZED = YES
+MANIFEST_FINGERPRINT_VERIFICATION_AUTHORIZED = YES
+LEVEL2_REFERENCE_INTEGRITY_VERIFICATION_AUTHORIZED = YES
+OUTPUT_PATH_PREFLIGHT_AUTHORIZED = YES
 
 REAL_S4_HAMILTONIAN_BUILD_AUTHORIZED = NO
 REAL_S4_DIAGONALIZATION_AUTHORIZED = NO
@@ -128,28 +146,33 @@ S4_OBSERVABLES_AUTHORIZED = NO
 LEVEL3_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
 ```
 
-Objectif : implémenter l'infrastructure Level3 nécessaire à la future campagne S=4 sans exécuter de cas physique S=4 : manifeste pré-enregistré, schémas, sérialisation, adaptateur de référence Level2 gelée, provenance, planning, gates, sorties atomiques, runner et tests logiciels.
-
-Décisions d'architecture gelées pour ce lot :
+Objectif : effectuer le dernier préflight d'exécution avant toute donnée physique S=4. Le lot doit vérifier l'environnement réel dans lequel la future campagne serait lancée, sans atteindre une vraie exécution `run_case(..., spin=4)` :
 
 ```text
-- Les artefacts versionnés Level2 sont la seule référence normative S2/S3.
-- Aucune recomputation normative S2/S3.
-- Le runner Level3 est distinct du runner Level2.
-- Les utilitaires de campagne Level3 peuvent être localement dupliqués pour préserver l'isolation de campagne.
-- Les primitives mathématiques génériques Level2 (profiles/orchestration/metrics/adapter) peuvent être réutilisées en lecture/import sans modifier leur contrat.
-- Le style de clés JSON Level3 est snake_case.
-- La reconstruction S3 depuis artefact gelé doit porter les scalaires/profils nécessaires ; aucune reconstruction de matrice brute supplémentaire n'est requise par le pré-enregistrement.
-- Aucun résultat partiel de campagne ne vaut COMPLETE ; le résumé de campagne écrit en dernier est le marqueur de complétude.
+- HEAD / branche / worktree ;
+- manifeste Level3 et fingerprint canonique ;
+- identité de pré-enregistrement ;
+- SHA256SUMS et provenance de la référence Level2 ;
+- planning exact des trois cas S4 ;
+- dimensions attendues et garde dense ;
+- chemins de sortie et politique NO_IMPLICIT_RESUME ;
+- espace disque, RAM visible, CPU et environnement numérique ;
+- dry-run complet du runner avec run_case strictement monkeypatché ;
+- ordre 3/3 avant comparaison ;
+- écriture campaign-summary en dernier ;
+- absence de résultat normatif dans le dépôt après le dry-run.
 ```
 
-## Invariants L3-I
+Le dry-run doit utiliser un répertoire temporaire hors du dépôt et des `CaseExecutionResult` synthétiques conformes. Il doit échouer si le vrai `cosmobox.level3.execution.run_case` est atteint.
+
+## Invariants L3-J
 
 ```text
 LEVEL2 = CLOSED
 LEVEL2_ARTIFACTS = FROZEN_REFERENCE
 LEVEL2_RECOMPUTATION = FORBIDDEN
 LEVEL3_S4_PREREGISTRATION = FROZEN
+LEVEL3_CAMPAIGN_INFRASTRUCTURE = ACCEPTED
 REAL_S4_EXECUTION = FORBIDDEN
 S5_EXECUTION = FORBIDDEN
 FULL_SPECTRUM = REQUIRED
@@ -167,11 +190,11 @@ PHASE_GRAVITY = CLOSED
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_I_S4_CAMPAIGN_INFRASTRUCTURE_IMPLEMENTATION
+NEXT_STEP = L3_J_S4_CAMPAIGN_EXECUTION_PREFLIGHT
 REAL_S4_EXECUTION = FORBIDDEN
 ```
 
-Après livraison L3-I, ChatGPT audite le commit distant. Lionel accepte ou non le lot. Une autorisation séparée sera nécessaire avant tout préflight d'exécution ou toute campagne physique S=4.
+Après le rapport L3-J, ChatGPT audite le préflight. Lionel décide ensuite explicitement si la campagne normative réelle S=4 peut être autorisée. Aucun PASS de préflight ne lance automatiquement cette campagne.
 
 ## Rôles de collaboration
 
