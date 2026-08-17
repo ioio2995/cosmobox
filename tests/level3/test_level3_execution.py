@@ -604,43 +604,8 @@ def test_dense_capability_guard_accepts_every_known_s2_through_s5_dimension(dime
 # ---------------------------------------------------------------------------
 
 
-def test_level3_validated_dense_dimension_limit_is_3016():
-    assert LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT == 3016
-
-
 def test_dense_capability_guard_accepts_exactly_3016():
     _check_dense_capability(3016)  # must not raise
-
-
-def test_dense_capability_guard_rejects_3017():
-    with pytest.raises(FullSpectrumCapabilityExceeded):
-        _check_dense_capability(3017)
-
-
-def test_run_case_rejects_3017_before_building_any_hamiltonian(monkeypatch):
-    # No 3017x3017 array is ever constructed: fake_basis.keys is a plain
-    # range tuple (length only matters, not content), and
-    # build_hamiltonian_terms is forbidden outright.
-    import cosmobox.level3.execution as level3_execution
-
-    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
-    fake_basis = SimpleNamespace(keys=tuple(range(3017)))
-
-    def fake_build_lattice(geometry):
-        return fake_lattice
-
-    def fake_build_basis(lattice, n_flavors, spin):
-        return fake_basis
-
-    def forbidden(*args, **kwargs):
-        raise AssertionError("build_hamiltonian_terms must not be called when capacity is exceeded")
-
-    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
-    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
-    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", forbidden)
-
-    with pytest.raises(FullSpectrumCapabilityExceeded):
-        run_case(CaseSpec(geometry="triangle", spin=2))
 
 
 def test_run_case_passes_the_guard_at_exactly_3016_and_reaches_hamiltonian_construction(monkeypatch):
@@ -678,6 +643,97 @@ def test_dense_capability_guard_accepts_every_known_s6_dimension(dimension: int)
     # preflight for S=6 (triangle=248, ring4=852, ring5=3016) must pass the
     # guard now that LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT covers it. No
     # S=6 physical case (Hamiltonian, diagonalization, observable) is
+    # built or executed by this test.
+    _check_dense_capability(dimension)  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# L3-AB: dense capability limit extended 3016 -> 3520 (L3-AA synthetic
+# preflight, ring5 S=7 basis dimension). Explicit, literal-value tests
+# alongside the symbolic ones above -- both must agree, since the symbolic
+# tests already exercise whatever LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT
+# currently is. The former 3016/3017 boundary tests (L3-V) are superseded
+# by these -- 3017 is no longer rejected now that the limit is 3520, so
+# testing a rejection there would be false, not historical -- while the
+# "3016 is still accepted" regression above is left untouched since it
+# remains true.
+# ---------------------------------------------------------------------------
+
+
+def test_level3_validated_dense_dimension_limit_is_3520():
+    assert LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT == 3520
+
+
+def test_dense_capability_guard_accepts_exactly_3520():
+    _check_dense_capability(3520)  # must not raise
+
+
+def test_dense_capability_guard_rejects_3521():
+    with pytest.raises(FullSpectrumCapabilityExceeded):
+        _check_dense_capability(3521)
+
+
+def test_run_case_rejects_3521_before_building_any_hamiltonian(monkeypatch):
+    # No 3521x3521 array is ever constructed: fake_basis.keys is a plain
+    # range tuple (length only matters, not content), and
+    # build_hamiltonian_terms is forbidden outright.
+    import cosmobox.level3.execution as level3_execution
+
+    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
+    fake_basis = SimpleNamespace(keys=tuple(range(3521)))
+
+    def fake_build_lattice(geometry):
+        return fake_lattice
+
+    def fake_build_basis(lattice, n_flavors, spin):
+        return fake_basis
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("build_hamiltonian_terms must not be called when capacity is exceeded")
+
+    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
+    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
+    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", forbidden)
+
+    with pytest.raises(FullSpectrumCapabilityExceeded):
+        run_case(CaseSpec(geometry="triangle", spin=2))
+
+
+def test_run_case_passes_the_guard_at_exactly_3520_and_reaches_hamiltonian_construction(monkeypatch):
+    # Confirms the guard lets dimension=3520 through -- without doing any
+    # real physics: a sentinel exception fired from build_hamiltonian_terms
+    # proves run_case got past _check_dense_capability, nothing more.
+    import cosmobox.level3.execution as level3_execution
+
+    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
+    fake_basis = SimpleNamespace(keys=tuple(range(3520)))
+
+    class _ReachedHamiltonianConstruction(Exception):
+        pass
+
+    def fake_build_lattice(geometry):
+        return fake_lattice
+
+    def fake_build_basis(lattice, n_flavors, spin):
+        return fake_basis
+
+    def sentinel_build_hamiltonian_terms(*args, **kwargs):
+        raise _ReachedHamiltonianConstruction
+
+    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
+    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
+    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", sentinel_build_hamiltonian_terms)
+
+    with pytest.raises(_ReachedHamiltonianConstruction):
+        run_case(CaseSpec(geometry="triangle", spin=2))
+
+
+@pytest.mark.parametrize("dimension", [288, 992, 3520])
+def test_dense_capability_guard_accepts_every_known_s7_dimension(dimension: int):
+    # Non-regression: every dimension established by the L3-AA capability
+    # preflight for S=7 (triangle=288, ring4=992, ring5=3520) must pass the
+    # guard now that LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT covers it. No
+    # S=7 physical case (Hamiltonian, diagonalization, observable) is
     # built or executed by this test.
     _check_dense_capability(dimension)  # must not raise
 

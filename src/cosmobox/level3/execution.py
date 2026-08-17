@@ -95,7 +95,7 @@ from cosmobox.level2.orchestration import CaseMetricAnalysis
 # capacity guard, post-diagonalization completeness assertion
 # ---------------------------------------------------------------------------
 
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3016
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3520
 """Operational capacity limit for Level3's dense full-spectrum execution
 path -- NOT a physical threshold, NOT a maximum spin, NOT a convergence
 criterion, NOT a property of the model. It records the largest dimension a
@@ -114,15 +114,20 @@ never a value chosen by assumption or extrapolation:
   eigenvectors.shape=(D,D)), orthonormality residual over a 20-sample
   ~1.33e-15, max spectral residual over a 20-sample ~3.07e-13 -- again no
   OOM, no LAPACK failure.
+- L3-AA: a D=3520 dense Hermitian eigh completed in ~37.6823s wall time at
+  ~1381.06 MiB peak RSS, full eigensystem produced (len(eigenvalues)=D,
+  eigenvectors.shape=(D,D)), orthonormality residual over a 20-sample
+  ~7.77e-16, max spectral residual over a 20-sample ~3.52e-13 -- again no
+  OOM, no LAPACK failure.
 
-D=3016 also happens to equal the ring5 S=6 basis dimension found by the
-L3-U capability preflight, but that is a coincidence of what was tested,
+D=3520 also happens to equal the ring5 S=7 basis dimension found by the
+L3-AA capability preflight, but that is a coincidence of what was tested,
 not a rule keyed to any particular (geometry, spin) pair -- nothing in this
-module branches on 3016, 2512, 2008, 6, 5, 4, or any specific
+module branches on 3520, 3016, 2512, 2008, 7, 6, 5, 4, or any specific
 dimension/spin value. This constant is a Level3 operational capacity
 guard, not a physical limit on the spin S the model can represent, and it
 does not modify cosmobox.level0's own solver in any way. A dimension above
-3016 is simply NOT YET VALIDATED by the current protocol, not asserted
+3520 is simply NOT YET VALIDATED by the current protocol, not asserted
 mathematically or physically impossible: raising this limit again requires
 a new, separately-run and separately-authorized capability preflight,
 never an edit to this constant based on assumption or extrapolation."""
