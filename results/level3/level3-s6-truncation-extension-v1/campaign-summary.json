@@ -1,0 +1,555 @@
+{
+  "branch": "research/level2-energy-regime",
+  "campaign_id": "level3-s6-truncation-extension-v1",
+  "campaign_status": "COMPLETE",
+  "frozen_preregistration_commit": "1c19a01e051c3df6f547afe0816a795989fdac3b",
+  "geometries": [
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.03472222222222243
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.026223776223776363
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.021067415730337324
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.017605633802816878
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "ring4",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.034741636495151496
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.023097563037031532
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.05155770008652544
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.06041461015956956
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.06474281975406132
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_45": {
+          "reason": null,
+          "value": 0.1418302659119262
+        },
+        "c_x_56": {
+          "reason": null,
+          "value": 0.10493909311946484
+        },
+        "d_x_45": {
+          "reason": null,
+          "value": 1.3102829165639254
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3380906050716723
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.007742838926974305
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.005857982377896448
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.02040937556731595
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.024002328924935146
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.017141998370443307
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "POSITIVE",
+        "direction_s5": "POSITIVE",
+        "direction_s6": "POSITIVE",
+        "last_two_transitions_directionally_continuous": "YES",
+        "metric": "M_TT",
+        "primary_s5_s6_taxonomy": "S6_DIRECTION_PERSISTS",
+        "r_d_x_56_45": {
+          "reason": null,
+          "value": 1.0212226597448661
+        },
+        "r_delta_x_56_45": {
+          "reason": null,
+          "value": 1.9093848073323483
+        },
+        "reversal_count_23456": 1,
+        "t_x_45": {
+          "reason": null,
+          "value": 0.003592953357619194
+        },
+        "t_x_56": {
+          "reason": null,
+          "value": 0.006860330554491839
+        }
+      },
+      "r_eff": {
+        "c_x_45": {
+          "reason": null,
+          "value": -0.07122414345616603
+        },
+        "c_x_56": {
+          "reason": null,
+          "value": 0.022945005484438515
+        },
+        "d_x_45": {
+          "reason": null,
+          "value": 1.463845908880112
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3979980302842638
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.0020882959675153634
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.0021358495740230188
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.01456570479028163
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.01809462533402406
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": -0.025303329519379525
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "NEGATIVE",
+        "direction_s5": "NEGATIVE",
+        "direction_s6": "NEGATIVE",
+        "last_two_transitions_directionally_continuous": "YES",
+        "metric": "R_eff",
+        "primary_s5_s6_taxonomy": "S6_DIRECTION_PERSISTS",
+        "r_d_x_56_45": {
+          "reason": null,
+          "value": 0.9550172062534753
+        },
+        "r_delta_x_56_45": {
+          "reason": null,
+          "value": 2.0427504943793977
+        },
+        "reversal_count_23456": 0,
+        "t_x_45": {
+          "reason": null,
+          "value": 0.003528920543742431
+        },
+        "t_x_56": {
+          "reason": null,
+          "value": 0.007208704185355463
+        }
+      }
+    },
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.015999999999999903
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.01196808510638303
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.008964143426294813
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.0071656050955414274
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.005968169761273123
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "ring5",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.020202352134593093
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.046124103926328375
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.07162742518780663
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.08253733329086804
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.08106298805310302
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_45": {
+          "reason": null,
+          "value": 0.12409243866751105
+        },
+        "c_x_56": {
+          "reason": null,
+          "value": 0.11210148134601557
+        },
+        "d_x_45": {
+          "reason": null,
+          "value": 1.324021466098548
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3328860830052787
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.005818691260019174
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.004351133007983621
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.015489274489672966
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.0199306997477227
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.01711523186576633
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "POSITIVE",
+        "direction_s4": "POSITIVE",
+        "direction_s5": "POSITIVE",
+        "direction_s6": "POSITIVE",
+        "last_two_transitions_directionally_continuous": "YES",
+        "metric": "M_TT",
+        "primary_s5_s6_taxonomy": "S6_DIRECTION_PERSISTS",
+        "r_d_x_56_45": {
+          "reason": null,
+          "value": 1.006695221439915
+        },
+        "r_delta_x_56_45": {
+          "reason": null,
+          "value": 0.6339108998521493
+        },
+        "reversal_count_23456": 1,
+        "t_x_45": {
+          "reason": null,
+          "value": 0.004441425258049733
+        },
+        "t_x_56": {
+          "reason": null,
+          "value": 0.002815467881956371
+        }
+      },
+      "r_eff": {
+        "c_x_45": {
+          "reason": null,
+          "value": 0.09894449125818931
+        },
+        "c_x_56": {
+          "reason": null,
+          "value": 0.049725787646787874
+        },
+        "d_x_45": {
+          "reason": null,
+          "value": 1.3433027307177314
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3790190130754818
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.002277479585917397
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.009134320925960226
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.018150290740480468
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.022833426281724134
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": -0.02196454701016648
+        },
+        "direction_s2": "POSITIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "NEGATIVE",
+        "direction_s5": "NEGATIVE",
+        "direction_s6": "NEGATIVE",
+        "last_two_transitions_directionally_continuous": "YES",
+        "metric": "R_eff",
+        "primary_s5_s6_taxonomy": "S6_DIRECTION_PERSISTS",
+        "r_d_x_56_45": {
+          "reason": null,
+          "value": 1.0265884089572772
+        },
+        "r_delta_x_56_45": {
+          "reason": null,
+          "value": 0.185533658785992
+        },
+        "reversal_count_23456": 1,
+        "t_x_45": {
+          "reason": null,
+          "value": 0.004683135541243666
+        },
+        "t_x_56": {
+          "reason": null,
+          "value": 0.0008688792715576543
+        }
+      }
+    },
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 3.3306690738754696e-16
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.09375
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.07142857142857129
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.05769230769230782
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.048387096774193394
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "triangle",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 1.1102230246251565e-16
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 1.1879386363489175e-14
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 3.9968028886505635e-15
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_45": {
+          "reason": null,
+          "value": 0.17866476604535575
+        },
+        "c_x_56": {
+          "reason": null,
+          "value": 0.08466964268714904
+        },
+        "d_x_45": {
+          "reason": null,
+          "value": 1.2818178864660208
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.353074120102096
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.004126671615421296
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.019478063957488134
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.022367678417702555
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.01497707126260038
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": -0.0094460497176658
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "POSITIVE",
+        "direction_s5": "POSITIVE",
+        "direction_s6": "NEGATIVE",
+        "last_two_transitions_directionally_continuous": "NO",
+        "metric": "M_TT",
+        "primary_s5_s6_taxonomy": "S6_DIRECTION_REVERSES",
+        "r_d_x_56_45": {
+          "reason": null,
+          "value": 1.0555899823121746
+        },
+        "r_delta_x_56_45": {
+          "reason": null,
+          "value": 3.304616314696885
+        },
+        "reversal_count_23456": 2,
+        "t_x_45": {
+          "reason": null,
+          "value": 0.007390607155102175
+        },
+        "t_x_56": {
+          "reason": null,
+          "value": 0.02442312098026618
+        }
+      },
+      "r_eff": {
+        "c_x_45": {
+          "reason": null,
+          "value": 0.21721435927733815
+        },
+        "c_x_56": {
+          "reason": null,
+          "value": 0.1218920403158594
+        },
+        "d_x_45": {
+          "reason": null,
+          "value": 1.2515482241724007
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3253383495264563
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0019610736818521657
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.008366750093282582
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.008452566387395777
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.004370144100328099
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.005189530857312552
+        },
+        "direction_s2": "POSITIVE",
+        "direction_s3": "POSITIVE",
+        "direction_s4": "NEGATIVE",
+        "direction_s5": "NEGATIVE",
+        "direction_s6": "POSITIVE",
+        "last_two_transitions_directionally_continuous": "NO",
+        "metric": "R_eff",
+        "primary_s5_s6_taxonomy": "S6_DIRECTION_REVERSES",
+        "r_d_x_56_45": {
+          "reason": null,
+          "value": 1.0589590747914248
+        },
+        "r_delta_x_56_45": {
+          "reason": null,
+          "value": 2.3416673448809666
+        },
+        "reversal_count_23456": 2,
+        "t_x_45": {
+          "reason": null,
+          "value": 0.004082422287067677
+        },
+        "t_x_56": {
+          "reason": null,
+          "value": 0.009559674957640651
+        }
+      }
+    }
+  ],
+  "level2_reference": {
+    "campaign_id": "level2-energy-regime-v1",
+    "frozen_preregistration_commit": "2d4c859db7939da51ee7d919889a18f4c7e229ed",
+    "manifest_fingerprint": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4",
+    "repository_commit": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0"
+  },
+  "level3_s4_reference": {
+    "campaign_id": "level3-s4-truncation-extension-v1",
+    "frozen_preregistration_commit": "1c1d71f07dd6a7399b3965b2bb0acfa5c665991e",
+    "manifest_fingerprint": "3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba",
+    "repository_commit": "ffb49da84111f778e45aa95b6d9e80b45d68f34c"
+  },
+  "level3_s5_reference": {
+    "campaign_id": "level3-s5-truncation-extension-v1",
+    "frozen_preregistration_commit": "496ba9484a6d7df9beb738607a5ffe23a75219ad",
+    "manifest_fingerprint": "3160a8e6e0f9ae4a21c027a865e4d56527303ad644e3f45137baa2120f0c5d04",
+    "repository_commit": "782f29eb9dcbc21ca2168e109997b0f59a12402f"
+  },
+  "manifest_fingerprint": "2e0f06b69139abeb0b225a3d2b715242d6a0c26d2d1067b789f26b4829f847ca",
+  "repository": "ioio2995/cosmobox",
+  "repository_commit": "55ea89be3a744953ff677754ff2ca22dbf116428",
+  "schema_version": "level3-s6-campaign-summary-v1"
+}
