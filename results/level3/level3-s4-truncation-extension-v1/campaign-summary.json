@@ -1,0 +1,429 @@
+{
+  "branch": "research/level2-energy-regime",
+  "campaign_id": "level3-s4-truncation-extension-v1",
+  "campaign_status": "COMPLETE",
+  "frozen_preregistration_commit": "1c1d71f07dd6a7399b3965b2bb0acfa5c665991e",
+  "geometries": [
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.03472222222222243
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.026223776223776363
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "ring4",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.034741636495151496
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.023097563037031532
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.05155770008652544
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_23": {
+          "reason": null,
+          "value": -0.04090283144144193
+        },
+        "c_x_34": {
+          "reason": null,
+          "value": 0.16408919181875126
+        },
+        "d_x_23": {
+          "reason": null,
+          "value": 1.4429225743845608
+        },
+        "d_x_34": {
+          "reason": null,
+          "value": 1.2931701092991155
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.007742838926974305
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.005857982377896448
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.02040937556731595
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "POSITIVE",
+        "metric": "M_TT",
+        "primary_s3_s4_taxonomy": "S4_DIRECTION_REVERSES",
+        "r_d_x": {
+          "reason": null,
+          "value": 0.8962158692753711
+        },
+        "r_delta_x": {
+          "reason": null,
+          "value": 13.935998449358593
+        },
+        "t_x_23": {
+          "reason": null,
+          "value": 0.0018848565490778568
+        },
+        "t_x_34": {
+          "reason": null,
+          "value": 0.0262673579452124
+        },
+        "three_spin_sequence_taxonomy": "SECOND_DIRECTION_REVERSAL_AT_S4"
+      },
+      "r_eff": {
+        "c_x_23": {
+          "reason": null,
+          "value": 0.11613297956586083
+        },
+        "c_x_34": {
+          "reason": null,
+          "value": 0.016829885066717454
+        },
+        "d_x_23": {
+          "reason": null,
+          "value": 1.329579810321566
+        },
+        "d_x_34": {
+          "reason": null,
+          "value": 1.4024594656259024
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.0020882959675153634
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.0021358495740230188
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.01456570479028163
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "NEGATIVE",
+        "metric": "R_eff",
+        "primary_s3_s4_taxonomy": "S4_DIRECTION_PERSISTS",
+        "r_d_x": {
+          "reason": null,
+          "value": 1.0548140508291188
+        },
+        "r_delta_x": {
+          "reason": null,
+          "value": 261.3861729763357
+        },
+        "t_x_23": {
+          "reason": null,
+          "value": 4.755360650765539e-05
+        },
+        "t_x_34": {
+          "reason": null,
+          "value": 0.012429855216258612
+        },
+        "three_spin_sequence_taxonomy": "THREE_SPIN_SAME_DIRECTION"
+      }
+    },
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.015999999999999903
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.01196808510638303
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.008964143426294813
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "ring5",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.020202352134593093
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.046124103926328375
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.07162742518780663
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_23": {
+          "reason": null,
+          "value": 0.012987171802246213
+        },
+        "c_x_34": {
+          "reason": null,
+          "value": 0.2072550311235818
+        },
+        "d_x_23": {
+          "reason": null,
+          "value": 1.4052852928874415
+        },
+        "d_x_34": {
+          "reason": null,
+          "value": 1.2601083568784401
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.005818691260019174
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.004351133007983621
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.015489274489672966
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "POSITIVE",
+        "direction_s4": "POSITIVE",
+        "metric": "M_TT",
+        "primary_s3_s4_taxonomy": "S4_DIRECTION_PERSISTS",
+        "r_d_x": {
+          "reason": null,
+          "value": 0.896692197133362
+        },
+        "r_delta_x": {
+          "reason": null,
+          "value": 1.09521474394923
+        },
+        "t_x_23": {
+          "reason": null,
+          "value": 0.010169824268002794
+        },
+        "t_x_34": {
+          "reason": null,
+          "value": 0.011138141481689345
+        },
+        "three_spin_sequence_taxonomy": "S3_S4_PERSIST_AFTER_S2_S3_REVERSAL"
+      },
+      "r_eff": {
+        "c_x_23": {
+          "reason": null,
+          "value": 0.01952155882157506
+        },
+        "c_x_34": {
+          "reason": null,
+          "value": 0.12733646668305615
+        },
+        "d_x_23": {
+          "reason": null,
+          "value": 1.402480260102137
+        },
+        "d_x_34": {
+          "reason": null,
+          "value": 1.323201628606669
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.002277479585917397
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.009134320925960226
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.018150290740480468
+        },
+        "direction_s2": "POSITIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "NEGATIVE",
+        "metric": "R_eff",
+        "primary_s3_s4_taxonomy": "S4_DIRECTION_PERSISTS",
+        "r_d_x": {
+          "reason": null,
+          "value": 0.9434725509151234
+        },
+        "r_delta_x": {
+          "reason": null,
+          "value": 0.7900567316381184
+        },
+        "t_x_23": {
+          "reason": null,
+          "value": 0.011411800511877623
+        },
+        "t_x_34": {
+          "reason": null,
+          "value": 0.009015969814520242
+        },
+        "three_spin_sequence_taxonomy": "S3_S4_PERSIST_AFTER_S2_S3_REVERSAL"
+      }
+    },
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 3.3306690738754696e-16
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.09375
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.07142857142857129
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "triangle",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 1.1102230246251565e-16
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_23": {
+          "reason": null,
+          "value": 0.03810261500220246
+        },
+        "c_x_34": {
+          "reason": null,
+          "value": 0.13032852654691932
+        },
+        "d_x_23": {
+          "reason": null,
+          "value": 1.3878668932597007
+        },
+        "d_x_34": {
+          "reason": null,
+          "value": 1.3191358859946456
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.004126671615421296
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.019478063957488134
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.022367678417702555
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "POSITIVE",
+        "metric": "M_TT",
+        "primary_s3_s4_taxonomy": "S4_DIRECTION_REVERSES",
+        "r_d_x": {
+          "reason": null,
+          "value": 0.9504772340929426
+        },
+        "r_delta_x": {
+          "reason": null,
+          "value": 2.725859742410621
+        },
+        "t_x_23": {
+          "reason": null,
+          "value": 0.015351392342066839
+        },
+        "t_x_34": {
+          "reason": null,
+          "value": 0.04184574237519069
+        },
+        "three_spin_sequence_taxonomy": "SECOND_DIRECTION_REVERSAL_AT_S4"
+      },
+      "r_eff": {
+        "c_x_23": {
+          "reason": null,
+          "value": 0.06720497447792737
+        },
+        "c_x_34": {
+          "reason": null,
+          "value": 0.13932501864761243
+        },
+        "d_x_23": {
+          "reason": null,
+          "value": 1.3676673156151988
+        },
+        "d_x_34": {
+          "reason": null,
+          "value": 1.3126074050379135
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0019610736818521657
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.008366750093282582
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.008452566387395777
+        },
+        "direction_s2": "POSITIVE",
+        "direction_s3": "POSITIVE",
+        "direction_s4": "NEGATIVE",
+        "metric": "R_eff",
+        "primary_s3_s4_taxonomy": "S4_DIRECTION_REVERSES",
+        "r_d_x": {
+          "reason": null,
+          "value": 0.9597417369351124
+        },
+        "r_delta_x": {
+          "reason": null,
+          "value": 2.6256893730481976
+        },
+        "t_x_23": {
+          "reason": null,
+          "value": 0.0064056764114304166
+        },
+        "t_x_34": {
+          "reason": null,
+          "value": 0.01681931648067836
+        },
+        "three_spin_sequence_taxonomy": "SECOND_DIRECTION_REVERSAL_AT_S4"
+      }
+    }
+  ],
+  "level2_reference": {
+    "campaign_id": "level2-energy-regime-v1",
+    "frozen_preregistration_commit": "2d4c859db7939da51ee7d919889a18f4c7e229ed",
+    "manifest_fingerprint": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4",
+    "repository_commit": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0"
+  },
+  "manifest_fingerprint": "3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba",
+  "repository": "ioio2995/cosmobox",
+  "repository_commit": "ffb49da84111f778e45aa95b6d9e80b45d68f34c",
+  "schema_version": "level3-s4-campaign-summary-v1"
+}

@@ -50,3 +50,7 @@ results/*
 results/level2/*
 !results/level2/level2-energy-regime-v1/
 !results/level2/level2-energy-regime-v1/**
+!results/level3/
+results/level3/*
+!results/level3/level3-s4-truncation-extension-v1/
+!results/level3/level3-s4-truncation-extension-v1/**
