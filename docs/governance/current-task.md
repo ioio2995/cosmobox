@@ -19,6 +19,7 @@ LEVEL3_A_SPIN_ENCODING_IMPLEMENTATION = c7e43771fdf3ed23720bfb245c8c8d3bb320a257
 LEVEL3_B_GOVERNANCE_OPENING = 6e87bc6d5f1140abff6d95f3c17a253bbac7f42b
 LEVEL3_B_GENERIC_EXECUTION_IMPLEMENTATION = ce2c7a16387490bb13ba1156249ea1129ec3bbc9
 LEVEL3_C_GOVERNANCE_OPENING = 8cbefa7b712915b15a07e68686e92480062634e6
+LEVEL3_D_GOVERNANCE_OPENING = fdade60527e5e51b896e90757c79b7c5c0fec9a0
 ```
 
 ## État scientifique
@@ -27,10 +28,10 @@ LEVEL3_C_GOVERNANCE_OPENING = 8cbefa7b712915b15a07e68686e92480062634e6
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = SOLVER_CAPABILITY
+LEVEL3 = EXECUTION_POLICY
 
 LAST_CLOSED_LEVEL = LEVEL2
-LAST_ACCEPTED_LOT = L3-C-S4-CAPABILITY-PREFLIGHT
+LAST_ACCEPTED_LOT = L3-D-FULL-SPECTRUM-SOLVER-CAPABILITY
 
 LEVEL2_PRIMARY_TEST = POSITIVE
 CROSS_GEOMETRY_STATUS = CROSS_GEOMETRY_RECURRENT
@@ -136,65 +137,50 @@ S4_OBSERVABLES_COMPUTED = NO
 NEW_PHYSICAL_RESULT_INSPECTED = NO
 ```
 
-La croissance descriptive de dimension est :
+### L3-D — capacité solveur spectre complet
 
 ```text
-triangle: D4/D3 = 1.3125
-ring4:    D4/D3 ~= 1.3241
-ring5:    D4/D3 ~= 1.3351
-```
-
-La capacité d'encodage uint64 reste suffisante pour les trois cas S=4.
-
-Point bloquant identifié avant toute campagne physique :
-
-```text
-SpectrumOptions.max_dense_dimension = 2000
-RING5_S4_DIMENSION = 2008
-```
-
-Le dispatcher spectral Level0 sélectionne le chemin dense uniquement pour `dimension <= max_dense_dimension`. Au-delà, le chemin sparse `eigsh` ne peut fournir au maximum que `dimension - 1` valeurs propres, alors que Level3 exige le spectre complet.
-
-Donc :
-
-```text
-TRIANGLE_S4_CURRENT_FULL_SPECTRUM_PATH = AVAILABLE
-RING4_S4_CURRENT_FULL_SPECTRUM_PATH = AVAILABLE
-RING5_S4_CURRENT_FULL_SPECTRUM_PATH = BLOCKED_BY_DENSE_POLICY_THRESHOLD
-```
-
-Ce blocage est numérique / logiciel, pas physique.
-
-## Lot courant — L3-D
-
-```text
-LOT = L3-D-FULL-SPECTRUM-SOLVER-CAPABILITY
-STATUS = OPEN
+STATUS = ACCEPTED
 TYPE = NUMERICAL_CAPABILITY_ONLY
+CODE_CHANGE_PERFORMED = NO
 
-CODE_CHANGE_AUTHORIZED = NO
-COMMIT_AUTHORIZED = NO
-PUSH_AUTHORIZED = NO
+SYNTHETIC_D1504_FULL_EIGENSYSTEM = COMPLETE
+SYNTHETIC_D2008_FULL_EIGENSYSTEM = COMPLETE
+SYNTHETIC_D2008_EIGH_WALL_TIME ~= 8.18 s
+SYNTHETIC_D2008_PEAK_MEMORY ~= 480 MiB
 
-SYNTHETIC_DENSE_BENCHMARK_AUTHORIZED = YES
+REAL_S4_HAMILTONIAN_BUILT = NO
+REAL_S4_DIAGONALIZATION = NO
+S4_OBSERVABLES_COMPUTED = NO
+NEW_PHYSICAL_RESULT_INSPECTED = NO
+```
+
+Une diagonalisation Hermitienne dense complète à `D=2008` est donc numériquement praticable dans l'environnement d'exécution testé. Ce résultat établit une capacité numérique, pas un résultat physique Level3.
+
+Le verrou restant est logiciel : `SpectrumOptions.max_dense_dimension = 2000` ferait basculer `D=2008` vers `eigsh`, qui ne peut fournir au maximum que `D-1` valeurs propres. Une demande Level3 de spectre complet ne doit jamais se transformer silencieusement en calcul spectral partiel.
+
+## Lot courant — L3-E
+
+```text
+LOT = L3-E-FULL-SPECTRUM-EXECUTION-POLICY
+STATUS = OPEN
+TYPE = SOFTWARE_IMPLEMENTATION
+
+CODE_CHANGE_AUTHORIZED = YES
+COMMIT_AUTHORIZED = YES
+PUSH_AUTHORIZED = YES
+
 REAL_S4_HAMILTONIAN_BUILD_AUTHORIZED = NO
 REAL_S4_DIAGONALIZATION_AUTHORIZED = NO
 S4_OBSERVABLES_AUTHORIZED = NO
 LEVEL3_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
 ```
 
-Objectif : déterminer si une diagonalisation dense complète de dimension comparable à `D=2008` est techniquement raisonnable sur l'environnement d'exécution courant, sans utiliser le Hamiltonien physique S=4 et sans produire aucune donnée physique S=4.
+Objectif : garantir dans la couche Level3 qu'une exécution déclarée en spectre complet utilise effectivement un chemin dense complet explicitement autorisé par la politique Level3, ou échoue explicitement avant diagonalisation. Aucun fallback silencieux vers `sparse_eigsh` n'est acceptable pour une demande de spectre complet.
 
-Le lot peut utiliser des matrices Hermitiennes synthétiques et contrôlées de dimensions autour de 2008 pour mesurer :
+La modification doit rester localisée à Level3 autant que possible. Les contrats historiques Level0/Level2, y compris leur dispatcher spectral général, restent inchangés sauf défaut bloquant démontré et soumis à STOP avant modification.
 
-```text
-wall time
-peak memory if safely measurable
-full eigenvalue/eigenvector completion
-numerical residual / reconstruction checks appropriate to the synthetic matrix
-```
-
-Le benchmark ne doit pas modifier `max_dense_dimension` ni aucun code. Il ne doit pas construire ou diagonaliser un Hamiltonien Cosmobox S=4.
+La politique Level3 ne doit pas coder `2008` comme seuil scientifique ni introduire une whitelist de dimensions liée aux résultats observés. Elle doit exprimer une propriété d'exécution : full spectrum demandé implique full eigensystem réellement produit.
 
 ## Invariants Level 3
 
@@ -205,6 +191,7 @@ Le benchmark ne doit pas modifier `max_dense_dimension` ni aucun code. Il ne doi
 - Aucun seuil de convergence scientifique n'est défini.
 - Aucun matching multiplet-par-multiplet inter-S.
 - Toute nouvelle donnée physique S>3 exige un cadrage scientifique séparé.
+- Une demande full-spectrum ne peut jamais être satisfaite par un résultat partiel.
 - Une limite de calcul est un résultat de capacité, pas une justification pour changer silencieusement de solveur ou de protocole.
 - PHASE_GEOMETRY reste CLOSED.
 - PHASE_GRAVITY reste CLOSED.
@@ -213,11 +200,11 @@ Le benchmark ne doit pas modifier `max_dense_dimension` ni aucun code. Il ne doi
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_D_FULL_SPECTRUM_SOLVER_CAPABILITY
-OPEN_METHODOLOGICAL_ITEM = DEFINE_LEVEL3_CONVERGENCE_PROTOCOL_AFTER_SOLVER_CAPABILITY
+NEXT_STEP = L3_E_FULL_SPECTRUM_EXECUTION_POLICY
+OPEN_METHODOLOGICAL_ITEM = DEFINE_LEVEL3_CONVERGENCE_PROTOCOL_AFTER_EXECUTION_POLICY
 ```
 
-Après le rapport L3-D, ChatGPT audite le benchmark. Lionel décide ensuite si une politique dense Level3 peut être cadrée explicitement avant tout résultat physique S=4.
+Après livraison de L3-E, ChatGPT audite le commit distant et Lionel accepte ou non le lot. Aucun calcul physique S=4 n'est autorisé par l'ouverture de L3-E.
 
 ## Rôles de collaboration
 
