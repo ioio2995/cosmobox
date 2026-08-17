@@ -18,6 +18,7 @@ LEVEL3_A_GOVERNANCE_OPENING = 6ccc360267593a63219812cc81cf30eac002cca4
 LEVEL3_A_SPIN_ENCODING_IMPLEMENTATION = c7e43771fdf3ed23720bfb245c8c8d3bb320a257
 LEVEL3_B_GOVERNANCE_OPENING = 6e87bc6d5f1140abff6d95f3c17a253bbac7f42b
 LEVEL3_B_GENERIC_EXECUTION_IMPLEMENTATION = ce2c7a16387490bb13ba1156249ea1129ec3bbc9
+LEVEL3_C_GOVERNANCE_OPENING = 8cbefa7b712915b15a07e68686e92480062634e6
 ```
 
 ## État scientifique
@@ -26,10 +27,10 @@ LEVEL3_B_GENERIC_EXECUTION_IMPLEMENTATION = ce2c7a16387490bb13ba1156249ea1129ec3
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = CAPABILITY_PREFLIGHT
+LEVEL3 = SOLVER_CAPABILITY
 
 LAST_CLOSED_LEVEL = LEVEL2
-LAST_ACCEPTED_LOT = L3-B-GENERIC-EXECUTION-LAYER
+LAST_ACCEPTED_LOT = L3-C-S4-CAPABILITY-PREFLIGHT
 
 LEVEL2_PRIMARY_TEST = POSITIVE
 CROSS_GEOMETRY_STATUS = CROSS_GEOMETRY_RECURRENT
@@ -117,65 +118,83 @@ REAL_S4_EXECUTION = NO
 NEW_PHYSICAL_RESULT_INSPECTED = NO
 ```
 
-La couche `src/cosmobox/level3/` permet désormais de représenter un spin générique et des comparaisons `S_a <-> S_b` sans modifier les contrats Level2.
-
-## Lot courant — L3-C
+### L3-C — préflight de capacité S=4
 
 ```text
-LOT = L3-C-S4-CAPABILITY-PREFLIGHT
-STATUS = OPEN
+STATUS = ACCEPTED
 TYPE = CAPABILITY_EXECUTION
+CODE_CHANGE_PERFORMED = NO
+
+TRIANGLE_S4_DIMENSION = 168
+RING4_S4_DIMENSION = 572
+RING5_S4_DIMENSION = 2008
+
+S4_BASIS_CONSTRUCTION = COMPLETE
+S4_HAMILTONIAN_BUILT = NO
+S4_DIAGONALIZATION = NO
+S4_OBSERVABLES_COMPUTED = NO
+NEW_PHYSICAL_RESULT_INSPECTED = NO
+```
+
+La croissance descriptive de dimension est :
+
+```text
+triangle: D4/D3 = 1.3125
+ring4:    D4/D3 ~= 1.3241
+ring5:    D4/D3 ~= 1.3351
+```
+
+La capacité d'encodage uint64 reste suffisante pour les trois cas S=4.
+
+Point bloquant identifié avant toute campagne physique :
+
+```text
+SpectrumOptions.max_dense_dimension = 2000
+RING5_S4_DIMENSION = 2008
+```
+
+Le dispatcher spectral Level0 sélectionne le chemin dense uniquement pour `dimension <= max_dense_dimension`. Au-delà, le chemin sparse `eigsh` ne peut fournir au maximum que `dimension - 1` valeurs propres, alors que Level3 exige le spectre complet.
+
+Donc :
+
+```text
+TRIANGLE_S4_CURRENT_FULL_SPECTRUM_PATH = AVAILABLE
+RING4_S4_CURRENT_FULL_SPECTRUM_PATH = AVAILABLE
+RING5_S4_CURRENT_FULL_SPECTRUM_PATH = BLOCKED_BY_DENSE_POLICY_THRESHOLD
+```
+
+Ce blocage est numérique / logiciel, pas physique.
+
+## Lot courant — L3-D
+
+```text
+LOT = L3-D-FULL-SPECTRUM-SOLVER-CAPABILITY
+STATUS = OPEN
+TYPE = NUMERICAL_CAPABILITY_ONLY
 
 CODE_CHANGE_AUTHORIZED = NO
 COMMIT_AUTHORIZED = NO
 PUSH_AUTHORIZED = NO
 
-S4_BASIS_CONSTRUCTION_AUTHORIZED = YES
-S4_HILBERT_DIMENSION_INSPECTION_AUTHORIZED = YES
-S4_MEMORY_COST_ESTIMATION_AUTHORIZED = YES
-S4_HAMILTONIAN_BUILD_AUTHORIZED = NO
-S4_DIAGONALIZATION_AUTHORIZED = NO
+SYNTHETIC_DENSE_BENCHMARK_AUTHORIZED = YES
+REAL_S4_HAMILTONIAN_BUILD_AUTHORIZED = NO
+REAL_S4_DIAGONALIZATION_AUTHORIZED = NO
 S4_OBSERVABLES_AUTHORIZED = NO
 LEVEL3_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
 ```
 
-Objectif : déterminer, avant toute donnée physique Level3, si les trois réalisations microscopiques de référence `triangle`, `ring4`, `ring5` restent accessibles en spectre complet à `S=4`.
+Objectif : déterminer si une diagonalisation dense complète de dimension comparable à `D=2008` est techniquement raisonnable sur l'environnement d'exécution courant, sans utiliser le Hamiltonien physique S=4 et sans produire aucune donnée physique S=4.
 
-Le préflight peut construire les bases physiques `S=4` avec les paramètres gelés :
-
-```text
-n_flavors = 2
-external_charges = 0
-geometry in {triangle, ring4, ring5}
-spin = 4
-```
-
-Il peut inspecter :
+Le lot peut utiliser des matrices Hermitiennes synthétiques et contrôlées de dimensions autour de 2008 pour mesurer :
 
 ```text
-physical_basis_dimension
-encoding_required_bits
-estimated_dense_matrix_elements = D^2
-estimated_dense_real_bytes = 8 * D^2
-estimated_dense_complex_bytes = 16 * D^2
+wall time
+peak memory if safely measurable
+full eigenvalue/eigenvector completion
+numerical residual / reconstruction checks appropriate to the synthetic matrix
 ```
 
-Ces estimations sont des métriques de capacité numérique, pas des observables physiques.
-
-Interdit pendant L3-C :
-
-```text
-build_hamiltonian_terms for a real S=4 case
-build_level0_report_with_eigenvectors for S=4
-any eigensolver / diagonalization at S=4
-adapter.build_case_multiplet_profile at S=4
-C_TT_conn at S=4
-rho_QQ at S=4
-M_TT / R_eff / A_QQ / M_QQ at S=4
-any inter-S scientific classification using S=4
-```
-
-Le lot doit s'arrêter après le rapport de capacité. Aucun protocole de convergence, seuil, campagne ou interprétation scientifique ne peut être défini à partir de ce préflight.
+Le benchmark ne doit pas modifier `max_dense_dimension` ni aucun code. Il ne doit pas construire ou diagonaliser un Hamiltonien Cosmobox S=4.
 
 ## Invariants Level 3
 
@@ -183,7 +202,7 @@ Le lot doit s'arrêter après le rapport de capacité. Aucun protocole de conver
 - Level 2 reste immuable et clos.
 - Aucune définition physique ne change.
 - Aucun nouvel observable n'est créé.
-- Aucun seuil de convergence n'est défini avant pré-enregistrement dédié.
+- Aucun seuil de convergence scientifique n'est défini.
 - Aucun matching multiplet-par-multiplet inter-S.
 - Toute nouvelle donnée physique S>3 exige un cadrage scientifique séparé.
 - Une limite de calcul est un résultat de capacité, pas une justification pour changer silencieusement de solveur ou de protocole.
@@ -194,11 +213,11 @@ Le lot doit s'arrêter après le rapport de capacité. Aucun protocole de conver
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_C_S4_CAPABILITY_PREFLIGHT
-OPEN_METHODOLOGICAL_ITEM = DEFINE_LEVEL3_CONVERGENCE_PROTOCOL_AFTER_CAPABILITY_PREFLIGHT
+NEXT_STEP = L3_D_FULL_SPECTRUM_SOLVER_CAPABILITY
+OPEN_METHODOLOGICAL_ITEM = DEFINE_LEVEL3_CONVERGENCE_PROTOCOL_AFTER_SOLVER_CAPABILITY
 ```
 
-Après le rapport L3-C, ChatGPT audite les dimensions et estimations. Lionel décide ensuite si un cadrage scientifique `S=4` peut être ouvert.
+Après le rapport L3-D, ChatGPT audite le benchmark. Lionel décide ensuite si une politique dense Level3 peut être cadrée explicitement avant tout résultat physique S=4.
 
 ## Rôles de collaboration
 
