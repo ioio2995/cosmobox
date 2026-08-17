@@ -5,11 +5,11 @@
 ```text
 ACTIVE_BRANCH = research/level2-energy-regime
 
-LEVEL3_Y_S6_NORMATIVE_CAMPAIGN_GOVERNANCE = 55ea89be3a744953ff677754ff2ca22dbf116428
 LEVEL3_Z_FROZEN_S6_REFERENCE_ARTIFACTS = 689a74dc9768f27843a4b9e8599947aa11c364b8
 LEVEL3_AA_S7_SCIENTIFIC_PREREGISTRATION = cc0ffdadbeb7d40fc443ab11150c9f47e3e12776
 LEVEL3_AA_S7_CAPABILITY_PREFLIGHT_GOVERNANCE = 754583baabe0750df4c507641f1a5b831d1c0792
 LEVEL3_AB_DENSE_CAPABILITY_3520 = 374736944a19ac1321a44b0dfbacba340ebd528a
+LEVEL3_AC_S7_CAMPAIGN_INFRASTRUCTURE = 941ba786d43df0c1f98f1a620c24954f7507a4cd
 ```
 
 ## État scientifique
@@ -18,13 +18,13 @@ LEVEL3_AB_DENSE_CAPABILITY_3520 = 374736944a19ac1321a44b0dfbacba340ebd528a
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S7_CAMPAIGN_INFRASTRUCTURE
+LEVEL3 = S7_EXECUTION_PREFLIGHT
 
 LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-Y-S6-NORMATIVE-CAMPAIGN
 LAST_FROZEN_REFERENCE_LOT = L3-Z-FREEZE-S6-REFERENCE-ARTIFACTS
 LAST_FROZEN_SCIENTIFIC_JALON = S7_FOURTH_EXTENSION_PREREGISTRATION
 LAST_ACCEPTED_CAPABILITY_PREFLIGHT = L3-AA-S7-CAPABILITY-PREFLIGHT
-LAST_ACCEPTED_SOFTWARE_LOT = L3-AB-EXTEND-DENSE-CAPABILITY-TO-3520
+LAST_ACCEPTED_SOFTWARE_LOT = L3-AC-S7-CAMPAIGN-INFRASTRUCTURE
 
 S5_TO_S6_DIRECTIONAL_CONTINUITY = OBSERVED_4_OF_6
 S5_TO_S6_DELTA_STEP_REDUCTION = OBSERVED_2_OF_6
@@ -43,23 +43,7 @@ S6_REFERENCE = results/level3/level3-s6-truncation-extension-v1/
 S2_TO_S6_RECOMPUTATION = FORBIDDEN
 ```
 
-Hashes normatifs S6 :
-
-```text
-manifest.json          = 45c01569c67b7386dc6c63be957a4f759158d5042ffc06c351f3e1982fc6599d
-campaign-summary.json  = 34fe0487006ece2a903fc4c4c9e733762aba0129d893849e30f7a53c2087810f
-cases/triangle-S6.json = 7b4f5aa82ddd1b84e8e1cf868d9b1a74027126f192b78facfd728ef72e686763
-cases/ring4-S6.json    = 79a38a3e9523cd119d7096ee3ac6003f4c48dc4978bdb25a3d2a5c3ea432eea1
-cases/ring5-S6.json    = 660797b62c3081cfa65320827101e9c27e1d42b73569bb49e8068b6db693fb5f
-```
-
 ## Contrat scientifique S=7 gelé
-
-Source normative :
-
-```text
-docs/levels/level3/s7-fourth-extension-preregistration.md
-```
 
 ```text
 LEVEL3_FOURTH_NEW_SPIN = 7
@@ -71,44 +55,44 @@ CONTROL_METRICS = A_QQ, M_QQ
 FULL_SPECTRUM = REQUIRED
 PRIMARY_CONTRAST = HIGH_MINUS_LOW
 INTER_S_BRANCH_MATCHING = FORBIDDEN
-PRIMARY_TAXONOMY = S7_DIRECTION_PERSISTS | S7_DIRECTION_REVERSES | S7_CONTRAST_UNRESOLVED | NOT_EVALUABLE
 SIX_SPIN_DIRECTIONAL_DESCRIPTOR = REVERSAL_COUNT_234567
 LAST_TWO_TRANSITIONS_DESCRIPTOR = LAST_TWO_TRANSITIONS_DIRECTIONALLY_CONTINUOUS_567
 PAIRWISE_BLOCK_DESCRIPTOR = PAIRWISE_BLOCK_RECURRENCE_23_45_67
-CONTINUOUS_DESCRIPTORS = T_X_56,T_X_67,R_DELTA_X_67_56,C_X_56,D_X_56,C_X_67,D_X_67,R_D_X_67_56
 S8_EXECUTION = FORBIDDEN
 AUTO_S8 = FORBIDDEN
 POST_S7_SCIENTIFIC_REVIEW_REQUIRED = YES
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 ```
 
-## Capacité S=7 acceptée
+## Capacité et infrastructure S=7 acceptées
 
 ```text
 TRIANGLE_S7_DIMENSION = 288
 RING4_S7_DIMENSION = 992
 RING5_S7_DIMENSION = 3520
-MAX_S7_DIMENSION = 3520
-S7_ENCODING_SUPPORTED = YES
-S7_FLUX_BITS_PER_EDGE = 4
 LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3520
-D3520_ACCEPTED_BY_GUARD = YES
-D3521_REJECTED_BY_GUARD = YES
-D3521_REJECTION_PRE_HAMILTONIAN = YES
-FULL_SPECTRUM_POLICY_UNCHANGED = YES
-SPARSE_FALLBACK_POSSIBLE = NO
+S7_CAMPAIGN_ID = level3-s7-truncation-extension-v1
+S7_MANIFEST_FINGERPRINT = f8d88b79480083c123adaeded1f089fb0acb7d41ac1945d0fc52a223bb4f8662
+S7_SCHEMAS_IMPLEMENTED = YES
+S6_FROZEN_REFERENCE_LOADER_IMPLEMENTED = YES
+S7_PLANNING_IMPLEMENTED = YES
+S7_GATES_IMPLEMENTED = YES
+S7_SERIALIZATION_IMPLEMENTED = YES
+S7_RUNNER_IMPLEMENTED = YES
+S7_NO_IMPLICIT_RESUME = YES
+S7_SUMMARY_WRITTEN_LAST = YES
 ```
 
-## Lot courant — L3-AC
+## Lot courant — L3-AD
 
 ```text
-LOT = L3-AC-S7-CAMPAIGN-INFRASTRUCTURE
+LOT = L3-AD-S7-CAMPAIGN-EXECUTION-PREFLIGHT
 STATUS = OPEN
-TYPE = SOFTWARE_IMPLEMENTATION
+TYPE = READ_ONLY_EXECUTION_PREFLIGHT
 
-CODE_CHANGE_AUTHORIZED = YES
-COMMIT_AUTHORIZED = YES
-PUSH_AUTHORIZED = YES
+CODE_CHANGE_AUTHORIZED = NO
+COMMIT_AUTHORIZED = NO
+PUSH_AUTHORIZED = NO
 
 REAL_S7_HAMILTONIAN_BUILD_AUTHORIZED = NO
 REAL_S7_DIAGONALIZATION_AUTHORIZED = NO
@@ -117,37 +101,21 @@ LEVEL3_S7_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
 S8_EXECUTION_AUTHORIZED = NO
 ```
 
-Objectif : implémenter l’infrastructure logicielle complète de la campagne normative S=7 conformément au pré-enregistrement gelé, sans produire aucune donnée physique S=7.
+Objectif : réaliser le dernier préflight d’exécution S=7 avant toute donnée physique S=7. Le lot doit vérifier le manifeste/fingerprint S7, les références gelées Level2/S4/S5/S6, le plan exact des trois cas, la capacité dense 3520, l’environnement numérique, l’absence de répertoire normatif S7 préexistant et un dry-run complet du vrai runner avec `run_case` strictement monkeypatché.
 
-La future campagne devra exécuter exactement :
-
-```text
-triangle:S7
-ring4:S7
-ring5:S7
-```
-
-et utiliser exclusivement les références gelées antérieures S2/S3, S4, S5 et S6, sans recomputation.
-
-L’infrastructure doit permettre, après une future campagne S7 COMPLETE :
+Le dry-run doit démontrer :
 
 ```text
-- comparaison primaire S6→S7 ;
-- direction_s2 ... direction_s7 ;
-- taxonomie S7 pré-enregistrée ;
-- REVERSAL_COUNT_234567 ;
-- LAST_TWO_TRANSITIONS_DIRECTIONALLY_CONTINUOUS_567 ;
-- PAIRWISE_BLOCK_RECURRENCE_23_45_67 ;
-- T_X_56, T_X_67, R_DELTA_X_67_56 ;
-- C_X_56, D_X_56, C_X_67, D_X_67, R_D_X_67_56 ;
-- complétude 3/3 avant toute comparaison normative ;
+- exactement 3 cas simulés : triangle:S7, ring4:S7, ring5:S7 ;
+- aucune comparaison S6→S7 avant 3/3 cas persistés ;
+- exactement 3 comparaisons après complétude 3/3 ;
 - campaign-summary.json écrit en dernier ;
-- NO_IMPLICIT_RESUME.
+- NO_IMPLICIT_RESUME ;
+- en cas d’échec synthétique du deuxième cas : aucun summary, aucune comparaison, troisième cas non exécuté ;
+- aucune primitive physique S7 réelle atteinte.
 ```
 
-Toute implémentation ou test S=7 dans ce lot doit être synthétique ou monkeypatché avant toute primitive physique réelle.
-
-## Invariants L3-AC
+## Invariants L3-AD
 
 ```text
 LEVEL2_REFERENCE = FROZEN
@@ -155,31 +123,29 @@ S4_REFERENCE = FROZEN_AND_VERSIONED
 S5_REFERENCE = FROZEN_AND_VERSIONED
 S6_REFERENCE = FROZEN_AND_VERSIONED
 S2_TO_S6_RECOMPUTATION = FORBIDDEN
-
 S7_PREREGISTRATION = FROZEN
-REAL_S7_EXECUTION = FORBIDDEN
+S7_CAMPAIGN_INFRASTRUCTURE = ACCEPTED
+S7_EXECUTION = FORBIDDEN
 S8_EXECUTION = FORBIDDEN
-AUTO_S8 = FORBIDDEN
-
+S7_MANIFEST_FINGERPRINT = f8d88b79480083c123adaeded1f089fb0acb7d41ac1945d0fc52a223bb4f8662
 LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3520
 FULL_SPECTRUM = REQUIRED
 SPARSE_FALLBACK = FORBIDDEN
 INTER_S_BRANCH_MATCHING = FORBIDDEN
-
 PHYSICAL_MODEL_CHANGE = NO
 NEW_OBSERVABLE = NO
 NEW_PRIMARY_METRIC = NO
 NEW_SCIENTIFIC_THRESHOLD = NO
 COMPOSITE_SCORE = FORBIDDEN
-
+AUTO_S8 = FORBIDDEN
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 ```
 
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_AC_S7_CAMPAIGN_INFRASTRUCTURE_IMPLEMENTATION
+NEXT_STEP = L3_AD_S7_CAMPAIGN_EXECUTION_PREFLIGHT
 S7_EXECUTION = FORBIDDEN
 ```
 
-Après livraison L3-AC, ChatGPT audite le commit distant. Un préflight d’exécution S7 distinct sera ensuite nécessaire. Aucun PASS logiciel n’autorise automatiquement une campagne physique S7.
+Après livraison L3-AD, ChatGPT audite le rapport. Seul un PASS suivi d’une autorisation explicite de Lionel pourra ouvrir la campagne normative physique S=7.
