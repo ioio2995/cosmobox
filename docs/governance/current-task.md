@@ -1,18 +1,10 @@
 # Contrat de continuité — état courant
 
-Ce document contient uniquement l'état actif du projet. Le contrat scientifique actif Level 3 est [`../levels/level3/s6-third-extension-preregistration.md`](../levels/level3/s6-third-extension-preregistration.md).
-
 ## État Git
 
 ```text
 ACTIVE_BRANCH = research/level2-energy-regime
-
-LEVEL3_S_FROZEN_S5_REFERENCE_ARTIFACTS = 7239efe1708535d09d779ee95eb024f9233d9242
-LEVEL3_T_S6_SCIENTIFIC_PREREGISTRATION = 1c19a01e051c3df6f547afe0816a795989fdac3b
-LEVEL3_U_S6_CAPABILITY_PREFLIGHT_GOVERNANCE = 2dd5765121964054de4a12395932600d69c17be6
-LEVEL3_V_DENSE_CAPABILITY_3016 = 1bda37eac844cc9b603de25ccf595581428a061b
-LEVEL3_W_S6_CAMPAIGN_INFRASTRUCTURE = d39c2547242619d424ae1f97b44636ecc737ffb3
-LEVEL3_X_S6_EXECUTION_PREFLIGHT_GOVERNANCE = d057d5c0b96fbef5d0d1c3f7517bd9fa2bf92f5d
+LEVEL3_Y_S6_NORMATIVE_CAMPAIGN_GOVERNANCE = 55ea89be3a744953ff677754ff2ca22dbf116428
 ```
 
 ## État scientifique
@@ -21,25 +13,19 @@ LEVEL3_X_S6_EXECUTION_PREFLIGHT_GOVERNANCE = d057d5c0b96fbef5d0d1c3f7517bd9fa2bf
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S6_NORMATIVE_CAMPAIGN_AUTHORIZED
+LEVEL3 = S6_CAMPAIGN_COMPLETE_PENDING_ARCHIVAL_FREEZE
 
-LAST_CLOSED_LEVEL = LEVEL2
-LAST_ACCEPTED_SOFTWARE_LOT = L3-W-S6-CAMPAIGN-INFRASTRUCTURE
-LAST_ACCEPTED_EXECUTION_PREFLIGHT = L3-X-S6-CAMPAIGN-EXECUTION-PREFLIGHT
-LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-R-S5-NORMATIVE-CAMPAIGN
+LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-Y-S6-NORMATIVE-CAMPAIGN
 LAST_FROZEN_REFERENCE_LOT = L3-S-FREEZE-S5-REFERENCE-ARTIFACTS
-LAST_FROZEN_SCIENTIFIC_JALON = L3-T-S6-SCIENTIFIC-PREREGISTRATION
-LAST_ACCEPTED_CAPABILITY_PREFLIGHT = L3-U-S6-CAPABILITY-PREFLIGHT
 
-S4_TO_S5_DIRECTIONAL_CONTINUITY = OBSERVED_6_OF_6
-S4_TO_S5_DELTA_STEP_REDUCTION = OBSERVED_6_OF_6
-DETAILED_PROFILE_STABILIZATION = NOT_OBSERVED_THROUGH_S5
+S5_TO_S6_DIRECTIONAL_CONTINUITY = OBSERVED_4_OF_6
+S5_TO_S6_DELTA_STEP_REDUCTION = OBSERVED_2_OF_6
+UNIFORM_LATE_STABILIZATION = NOT_SUPPORTED
+DETAILED_PROFILE_STABILIZATION = NOT_OBSERVED_THROUGH_S6
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
-PHASE_GEOMETRY = CLOSED
-PHASE_GRAVITY = CLOSED
 ```
 
-## Références scientifiques gelées
+## Références gelées
 
 ```text
 S2_S3_REFERENCE = results/level2/level2-energy-regime-v1/
@@ -48,138 +34,80 @@ S5_REFERENCE = results/level3/level3-s5-truncation-extension-v1/
 S2_S3_S4_S5_RECOMPUTATION = FORBIDDEN
 ```
 
-## Contrat scientifique S=6 gelé
+## Campagne S=6 complète
 
 ```text
-LEVEL3_THIRD_NEW_SPIN = 6
-LEVEL3_NEW_CASES = triangle:S6, ring4:S6, ring5:S6
-PRIMARY_PAIR = S5_TO_S6
-FULL_SPECTRUM = REQUIRED
-PRIMARY_METRICS = M_TT, R_eff
-CONTROL_METRICS = A_QQ, M_QQ
-PRIMARY_CONTRAST = HIGH_MINUS_LOW
-INTER_S_BRANCH_MATCHING = FORBIDDEN
-NUMERICAL_GUARD_M_TT = 1e-16
-NUMERICAL_GUARD_R_EFF = 1e-15
-FIVE_SPIN_DIRECTIONAL_DESCRIPTOR = REVERSAL_COUNT_23456
-TWO_STEP_DIRECTIONAL_DESCRIPTOR = LAST_TWO_TRANSITIONS_DIRECTIONALLY_CONTINUOUS
-S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
-```
-
-## Capacité, infrastructure et préflight S=6 acceptés
-
-```text
+CAMPAIGN_ID = level3-s6-truncation-extension-v1
+MANIFEST_FINGERPRINT = 2e0f06b69139abeb0b225a3d2b715242d6a0c26d2d1067b789f26b4829f847ca
+REPOSITORY_COMMIT = 55ea89be3a744953ff677754ff2ca22dbf116428
 TRIANGLE_S6_DIMENSION = 248
 RING4_S6_DIMENSION = 852
 RING5_S6_DIMENSION = 3016
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3016
-S6_CAMPAIGN_ID = level3-s6-truncation-extension-v1
-S6_MANIFEST_FINGERPRINT = 2e0f06b69139abeb0b225a3d2b715242d6a0c26d2d1067b789f26b4829f847ca
-
-L3_X_S6_CAMPAIGN_EXECUTION_PREFLIGHT = PASS
-S6_MANIFEST_FINGERPRINT_VERIFIED = YES
-S4_HISTORICAL_FINGERPRINT_VERIFIED = YES
-S5_HISTORICAL_FINGERPRINT_VERIFIED = YES
-LEVEL2_FROZEN_REFERENCE_VERIFICATION = PASS
-S4_FROZEN_REFERENCE_VERIFICATION = PASS
-S5_FROZEN_REFERENCE_VERIFICATION = PASS
-S6_CAMPAIGN_PLAN_EXACT = YES
-TRIANGLE_S6_DENSE_CAPABILITY = PASS
-RING4_S6_DENSE_CAPABILITY = PASS
-RING5_S6_DENSE_CAPABILITY = PASS
-S6_DRY_RUN = PASS
-S6_DRY_RUN_CASE_COUNT = 3
-S6_COMPARISON_BEFORE_3_OF_3 = NO
-S6_COMPARISON_COUNT = 3
-S6_SUMMARY_WRITTEN_LAST = YES
-S6_DRY_RUN_SCHEMAS = PASS
-S6_NO_IMPLICIT_RESUME_VERIFIED = YES
-S6_FAILURE_PATH_SUMMARY_ABSENT = YES
-S6_FAILURE_PATH_COMPARISON_ABSENT = YES
-S6_FAILURE_PATH_THIRD_CASE_NOT_RUN = YES
-REAL_PHYSICAL_PRIMITIVE_REACHED = NO
-REAL_S6_OUTPUT_DIRECTORY_TOUCHED = NO
+CAMPAIGN_STATUS = COMPLETE
 ```
 
-## Lot courant — L3-Y
+Résultat primaire S5→S6 :
 
 ```text
-LOT = L3-Y-S6-NORMATIVE-CAMPAIGN
+TRIANGLE_M_TT = S6_DIRECTION_REVERSES
+TRIANGLE_R_EFF = S6_DIRECTION_REVERSES
+RING4_M_TT = S6_DIRECTION_PERSISTS
+RING4_R_EFF = S6_DIRECTION_PERSISTS
+RING5_M_TT = S6_DIRECTION_PERSISTS
+RING5_R_EFF = S6_DIRECTION_PERSISTS
+```
+
+## Lot courant — L3-Z
+
+```text
+LOT = L3-Z-FREEZE-S6-REFERENCE-ARTIFACTS
 STATUS = OPEN
-TYPE = NORMATIVE_PHYSICAL_EXECUTION
+TYPE = ARCHIVAL_IMPLEMENTATION
 
-CODE_CHANGE_AUTHORIZED = NO
-COMMIT_AUTHORIZED = NO
-PUSH_AUTHORIZED = NO
+CODE_CHANGE_AUTHORIZED = YES
+COMMIT_AUTHORIZED = YES
+PUSH_AUTHORIZED = YES
 
-REAL_S6_HAMILTONIAN_BUILD_AUTHORIZED = YES
-REAL_S6_DIAGONALIZATION_AUTHORIZED = YES
-S6_OBSERVABLES_AUTHORIZED = YES
-LEVEL3_S6_NORMATIVE_CAMPAIGN_AUTHORIZED = YES
-
-AUTHORIZED_CASES = triangle:S6, ring4:S6, ring5:S6
+S6_RECOMPUTATION_AUTHORIZED = NO
+S6_ARTIFACT_CONTENT_MUTATION_AUTHORIZED = NO
+S7_PREREGISTRATION_AUTHORIZED = NO
 S7_EXECUTION_AUTHORIZED = NO
 ```
 
-Objectif : exécuter exactement une fois la campagne normative S=6 pré-enregistrée via `scripts.level3_s6_campaign.runner.run_campaign`, avec le manifeste gelé et le fingerprint vérifié. Les trois cas doivent être exécutés sans inspection ou interprétation scientifique intermédiaire. Le runner produit les trois case-results puis construit les comparaisons S5→S6 et `campaign-summary.json` en dernier.
+Objectif : versionner octet pour octet les artefacts existants de la campagne S=6 complète et ajouter `SHA256SUMS`, sans aucune recomputation, régénération, reformatage ni modification scientifique.
 
-Le répertoire normatif attendu est :
+Périmètre attendu :
 
 ```text
-results/level3/level3-s6-truncation-extension-v1/
+.gitignore
+results/level3/level3-s6-truncation-extension-v1/manifest.json
+results/level3/level3-s6-truncation-extension-v1/campaign-summary.json
+results/level3/level3-s6-truncation-extension-v1/cases/triangle-S6.json
+results/level3/level3-s6-truncation-extension-v1/cases/ring4-S6.json
+results/level3/level3-s6-truncation-extension-v1/cases/ring5-S6.json
+results/level3/level3-s6-truncation-extension-v1/SHA256SUMS
 ```
 
-Il reste un résultat généré pendant L3-Y et ne doit pas être ajouté à Git dans ce lot.
-
-## Invariants L3-Y
+## Invariants
 
 ```text
-LEVEL2 = CLOSED
 LEVEL2_REFERENCE = FROZEN
-LEVEL2_RECOMPUTATION = FORBIDDEN
 S4_REFERENCE = FROZEN_AND_VERSIONED
-S4_RECOMPUTATION = FORBIDDEN
 S5_REFERENCE = FROZEN_AND_VERSIONED
-S5_RECOMPUTATION = FORBIDDEN
-S6_PREREGISTRATION = FROZEN
-S6_MANIFEST_FINGERPRINT = 2e0f06b69139abeb0b225a3d2b715242d6a0c26d2d1067b789f26b4829f847ca
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3016
-FULL_SPECTRUM = REQUIRED
-SPARSE_FALLBACK = FORBIDDEN
-AUTHORIZED_SPIN = 6
-AUTHORIZED_GEOMETRIES = triangle, ring4, ring5
+S6_CAMPAIGN = COMPLETE
+S6_RECOMPUTATION = FORBIDDEN
+S6_ARTIFACT_REGENERATION = FORBIDDEN
+S6_ARTIFACT_CONTENT_CHANGE = FORBIDDEN
+S7_PREREGISTRATION = NOT_YET_FROZEN
 S7_EXECUTION = FORBIDDEN
-INTER_S_BRANCH_MATCHING = FORBIDDEN
-NEW_OBSERVABLE = NO
-NEW_PRIMARY_METRIC = NO
-NEW_SCIENTIFIC_THRESHOLD = NO
-COMPOSITE_SCORE = FORBIDDEN
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
-PHASE_GEOMETRY = CLOSED
-PHASE_GRAVITY = CLOSED
-NO_POST_HOC_PROTOCOL_CHANGE = YES
 ```
-
-Aucune modification de code, manifeste, schéma, seuil, convention ou pré-enregistrement n'est autorisée pendant l'exécution. En cas d'échec technique après entrée effective dans la campagne, STOP : aucun correctif, aucune reprise ni relance implicite n'est autorisé dans ce lot.
 
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_Y_S6_NORMATIVE_CAMPAIGN
-S6_NORMATIVE_EXECUTION = AUTHORIZED
+NEXT_STEP = L3_Z_FREEZE_S6_REFERENCE_ARTIFACTS
 S7_EXECUTION = FORBIDDEN
 ```
 
-Après le rapport L3-Y, ChatGPT audite les artefacts produits et réalise l'interprétation scientifique conformément au pré-enregistrement. Aucun lot suivant n'est ouvert automatiquement.
-
-## Rôles de collaboration
-
-```text
-ChatGPT: scientific lead / conceptual design / scientific documentation / interpretation / audit
-Claude: software execution / repository operations explicitement autorisées par mandat
-Lionel: intuition / direction / final decision
-```
-
-## Règle de progression
-
-Aucun lot suivant ne peut être ouvert implicitement par un PASS, une recommandation ou un rapport favorable. Toute nouvelle action de Claude exige un mandat explicite conforme à `docs/governance/collaboration-governance.md`.
+Après livraison L3-Z, ChatGPT audite le commit distant et les hashes avant toute décision sur S=7.
