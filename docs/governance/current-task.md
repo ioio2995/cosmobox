@@ -1,6 +1,6 @@
 # Contrat de continuité — état courant
 
-Ce document contient uniquement l'état actif du projet. Le contrat scientifique actif Level 3 est [`../levels/level3/s5-second-extension-preregistration.md`](../levels/level3/s5-second-extension-preregistration.md).
+Ce document contient uniquement l'état actif du projet. Le contrat scientifique actif Level 3 reste [`../levels/level3/s5-second-extension-preregistration.md`](../levels/level3/s5-second-extension-preregistration.md).
 
 ## État Git
 
@@ -13,6 +13,7 @@ LEVEL3_N_S5_CAPABILITY_PREFLIGHT_GOVERNANCE = 7793bfcef52924561b3d4947a39fdb857b
 LEVEL3_O_DENSE_CAPABILITY_2512 = 8f9c6e6a3d1b841ce862f81741cf8031693dc26f
 LEVEL3_P_S5_CAMPAIGN_INFRASTRUCTURE = 9b9cf69ad84b5655c80be3085c4c1f1bcd15982b
 LEVEL3_Q_S5_EXECUTION_PREFLIGHT_GOVERNANCE = 263663c0ac208dd0521901bd88f0f2b5696c6270
+LEVEL3_R_S5_NORMATIVE_CAMPAIGN_GOVERNANCE = 782f29eb9dcbc21ca2168e109997b0f59a12402f
 ```
 
 ## État scientifique
@@ -21,18 +22,19 @@ LEVEL3_Q_S5_EXECUTION_PREFLIGHT_GOVERNANCE = 263663c0ac208dd0521901bd88f0f2b5696
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S5_NORMATIVE_CAMPAIGN_AUTHORIZED
+LEVEL3 = S5_CAMPAIGN_COMPLETE_PENDING_ARCHIVAL_FREEZE
 
 LAST_CLOSED_LEVEL = LEVEL2
 LAST_ACCEPTED_SOFTWARE_LOT = L3-P-S5-CAMPAIGN-INFRASTRUCTURE
 LAST_ACCEPTED_EXECUTION_PREFLIGHT = L3-Q-S5-CAMPAIGN-EXECUTION-PREFLIGHT
-LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-K-S4-NORMATIVE-CAMPAIGN
+LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-R-S5-NORMATIVE-CAMPAIGN
 LAST_FROZEN_REFERENCE_LOT = L3-L-FREEZE-S4-REFERENCE-ARTIFACTS
 LAST_FROZEN_SCIENTIFIC_JALON = L3-M-S5-SCIENTIFIC-PREREGISTRATION
 LAST_ACCEPTED_CAPABILITY_PREFLIGHT = L3-N-S5-CAPABILITY-PREFLIGHT
 
-UNIFORM_TRUNCATION_STABILIZATION = NOT_OBSERVED_THROUGH_S4
-DETAILED_PROFILE_STABILIZATION = NOT_OBSERVED_THROUGH_S4
+S4_TO_S5_DIRECTIONAL_CONTINUITY = OBSERVED_6_OF_6
+S4_TO_S5_DELTA_STEP_REDUCTION = OBSERVED_6_OF_6
+DETAILED_PROFILE_STABILIZATION = NOT_OBSERVED
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 PHASE_GEOMETRY = CLOSED
 PHASE_GRAVITY = CLOSED
@@ -56,104 +58,85 @@ S4_REFERENCE_SHA256_VERIFIED = YES
 S2_S3_S4_RECOMPUTATION = FORBIDDEN
 ```
 
-## Contrat scientifique S=5 gelé
-
-Source normative :
+## Campagne normative S=5 — L3-R
 
 ```text
-docs/levels/level3/s5-second-extension-preregistration.md
-```
+L3_R_S5_NORMATIVE_CAMPAIGN = COMPLETE
+CAMPAIGN_ID = level3-s5-truncation-extension-v1
+MANIFEST_FINGERPRINT = 3160a8e6e0f9ae4a21c027a865e4d56527303ad644e3f45137baa2120f0c5d04
+REPOSITORY_COMMIT = 782f29eb9dcbc21ca2168e109997b0f59a12402f
+CAMPAIGN_PLAN = triangle:S5,ring4:S5,ring5:S5
 
-```text
-LEVEL3_SECOND_NEW_SPIN = 5
-LEVEL3_NEW_CASES = triangle:S5, ring4:S5, ring5:S5
-PRIMARY_PAIR = S4_TO_S5
-PHYSICAL_PARAMETERS = IDENTICAL_TO_LEVEL2_AND_S4
-FULL_SPECTRUM = REQUIRED
-PROFILE_DOMAIN = q in [0,1]
-PRIMARY_METRICS = M_TT, R_eff
-CONTROL_METRICS = A_QQ, M_QQ
-PRIMARY_CONTRAST = HIGH_MINUS_LOW
-INTER_S_BRANCH_MATCHING = FORBIDDEN
-NUMERICAL_GUARD_M_TT = 1e-16
-NUMERICAL_GUARD_R_EFF = 1e-15
-PHYSICAL_EFFECT_THRESHOLD = NOT_APPLICABLE
-P_VALUE = NOT_APPLICABLE
-COMPOSITE_SCORE = FORBIDDEN
-PRIMARY_TAXONOMY = S5_DIRECTION_PERSISTS | S5_DIRECTION_REVERSES | S5_CONTRAST_UNRESOLVED | NOT_EVALUABLE
-CONTINUOUS_DESCRIPTORS = T_X_34,T_X_45,R_DELTA_X_45_34,C_X_34,D_X_34,C_X_45,D_X_45,R_D_X_45_34
-FOUR_SPIN_DIRECTIONAL_DESCRIPTOR = REVERSAL_COUNT_2345
-S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
-```
-
-## Capacité, infrastructure et préflight S=5 acceptés
-
-```text
 TRIANGLE_S5_DIMENSION = 208
 RING4_S5_DIMENSION = 712
 RING5_S5_DIMENSION = 2512
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2512
-FULL_SPECTRUM_POLICY_UNCHANGED = YES
-SPARSE_FALLBACK_POSSIBLE = NO
 
-S5_CAMPAIGN_ID = level3-s5-truncation-extension-v1
-S5_MANIFEST_FINGERPRINT = 3160a8e6e0f9ae4a21c027a865e4d56527303ad644e3f45137baa2120f0c5d04
-S5_CAMPAIGN_PLAN = triangle:S5,ring4:S5,ring5:S5
-
-L3_Q_S5_CAMPAIGN_EXECUTION_PREFLIGHT = PASS
-S5_MANIFEST_FINGERPRINT_VERIFIED = YES
-S4_HISTORICAL_FINGERPRINT_VERIFIED = YES
-LEVEL2_FROZEN_REFERENCE_VERIFICATION = PASS
-S4_FROZEN_REFERENCE_VERIFICATION = PASS
-S5_CAMPAIGN_PLAN_EXACT = YES
-TRIANGLE_S5_DENSE_CAPABILITY = PASS
-RING4_S5_DENSE_CAPABILITY = PASS
-RING5_S5_DENSE_CAPABILITY = PASS
-S5_DRY_RUN = PASS
-S5_DRY_RUN_CASE_COUNT = 3
-S5_COMPARISON_BEFORE_3_OF_3 = NO
-S5_COMPARISON_COUNT = 3
-S5_SUMMARY_WRITTEN_LAST = YES
-S5_DRY_RUN_SCHEMAS = PASS
-S5_NO_IMPLICIT_RESUME_VERIFIED = YES
-S5_FAILURE_PATH_SUMMARY_ABSENT = YES
-S5_FAILURE_PATH_COMPARISON_ABSENT = YES
-S5_FAILURE_PATH_THIRD_CASE_NOT_RUN = YES
-REAL_PHYSICAL_PRIMITIVE_REACHED = NO
-REAL_S5_OUTPUT_DIRECTORY_TOUCHED = NO
+ALL_CASES_FULL_SPECTRUM = YES
+ALL_CASES_DENSE = YES
+ALL_CASES_WINDOW_TRUNCATED_FALSE = YES
+ALL_CASES_PARTIAL_SUBSPACE_ZERO = YES
+ALL_CASES_MULTIPLICITY_SUM_MATCH_DIMENSION = YES
+CAMPAIGN_STATUS = COMPLETE
 ```
 
-## Lot courant — L3-R
+Résultat scientifique primaire accepté pour S4→S5 :
 
 ```text
-LOT = L3-R-S5-NORMATIVE-CAMPAIGN
-STATUS = OPEN
-TYPE = NORMATIVE_PHYSICAL_EXECUTION
+TRIANGLE_M_TT = S5_DIRECTION_PERSISTS
+TRIANGLE_R_EFF = S5_DIRECTION_PERSISTS
+RING4_M_TT = S5_DIRECTION_PERSISTS
+RING4_R_EFF = S5_DIRECTION_PERSISTS
+RING5_M_TT = S5_DIRECTION_PERSISTS
+RING5_R_EFF = S5_DIRECTION_PERSISTS
 
-CODE_CHANGE_AUTHORIZED = NO
-COMMIT_AUTHORIZED = NO
-PUSH_AUTHORIZED = NO
-
-REAL_S5_HAMILTONIAN_BUILD_AUTHORIZED = YES
-REAL_S5_DIAGONALIZATION_AUTHORIZED = YES
-S5_OBSERVABLES_AUTHORIZED = YES
-LEVEL3_S5_NORMATIVE_CAMPAIGN_AUTHORIZED = YES
-
-AUTHORIZED_CASES = triangle:S5, ring4:S5, ring5:S5
-S6_EXECUTION_AUTHORIZED = NO
+S4_TO_S5_DIRECTIONAL_CONTINUITY = OBSERVED_6_OF_6
+S4_TO_S5_DELTA_STEP_REDUCTION = OBSERVED_6_OF_6
+DETAILED_PROFILE_STABILIZATION = NOT_OBSERVED
+S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 ```
 
-Objectif : exécuter exactement une fois la campagne normative S=5 pré-enregistrée via `scripts.level3_s5_campaign.runner.run_campaign`, avec le manifeste gelé et le fingerprint vérifié. Les trois cas doivent être exécutés sans inspection/interprétation scientifique intermédiaire. Le runner produit les trois case-results puis construit les comparaisons S4→S5 et `campaign-summary.json` en dernier.
-
-Le répertoire normatif attendu est :
+Les artefacts S=5 existent localement sous :
 
 ```text
 results/level3/level3-s5-truncation-extension-v1/
 ```
 
-Il reste un résultat généré pendant L3-R et ne doit pas être ajouté à Git dans ce lot.
+Ils ne sont pas encore versionnés. Ils doivent être gelés avant tout pré-enregistrement/exécution S=6.
 
-## Invariants L3-R
+## Lot courant — L3-S
+
+```text
+LOT = L3-S-FREEZE-S5-REFERENCE-ARTIFACTS
+STATUS = OPEN
+TYPE = ARCHIVAL_IMPLEMENTATION
+
+CODE_CHANGE_AUTHORIZED = YES
+COMMIT_AUTHORIZED = YES
+PUSH_AUTHORIZED = YES
+
+S5_RECOMPUTATION_AUTHORIZED = NO
+S5_ARTIFACT_CONTENT_MUTATION_AUTHORIZED = NO
+S6_PREREGISTRATION_AUTHORIZED = NO
+S6_EXECUTION_AUTHORIZED = NO
+```
+
+Objectif : intégrer dans Git, octet pour octet, les artefacts existants de la campagne S=5 complète afin qu'ils deviennent la référence normative reproductible pour toute future extension S=6.
+
+Périmètre attendu :
+
+```text
+.gitignore
+results/level3/level3-s5-truncation-extension-v1/manifest.json
+results/level3/level3-s5-truncation-extension-v1/campaign-summary.json
+results/level3/level3-s5-truncation-extension-v1/cases/triangle-S5.json
+results/level3/level3-s5-truncation-extension-v1/cases/ring4-S5.json
+results/level3/level3-s5-truncation-extension-v1/cases/ring5-S5.json
+results/level3/level3-s5-truncation-extension-v1/SHA256SUMS
+```
+
+`SHA256SUMS` peut être créé comme métadonnée archivistique après calcul des hashes des cinq artefacts existants. Aucun artefact scientifique ne doit être régénéré, reformatté ou réécrit.
+
+## Invariants L3-S
 
 ```text
 LEVEL2 = CLOSED
@@ -163,14 +146,16 @@ LEVEL2_RECOMPUTATION = FORBIDDEN
 S4_REFERENCE = FROZEN_AND_VERSIONED
 S4_RECOMPUTATION = FORBIDDEN
 
-S5_PREREGISTRATION = FROZEN
-S5_MANIFEST_FINGERPRINT = 3160a8e6e0f9ae4a21c027a865e4d56527303ad644e3f45137baa2120f0c5d04
-FULL_SPECTRUM = REQUIRED
-SPARSE_FALLBACK = FORBIDDEN
-AUTHORIZED_SPIN = 5
-AUTHORIZED_GEOMETRIES = triangle, ring4, ring5
+L3_R_S5_NORMATIVE_CAMPAIGN = COMPLETE
+S5_ARTIFACTS = FROZEN_PENDING_VERSIONING
+S5_RECOMPUTATION = FORBIDDEN
+S5_ARTIFACT_REGENERATION = FORBIDDEN
+S5_ARTIFACT_CONTENT_CHANGE = FORBIDDEN
+
+S6_PREREGISTRATION = NOT_YET_FROZEN
 S6_EXECUTION = FORBIDDEN
-INTER_S_BRANCH_MATCHING = FORBIDDEN
+
+PHYSICAL_MODEL_CHANGE = NO
 NEW_OBSERVABLE = NO
 NEW_PRIMARY_METRIC = NO
 NEW_SCIENTIFIC_THRESHOLD = NO
@@ -178,26 +163,22 @@ COMPOSITE_SCORE = FORBIDDEN
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 PHASE_GEOMETRY = CLOSED
 PHASE_GRAVITY = CLOSED
-NO_POST_HOC_PROTOCOL_CHANGE = YES
 ```
-
-Aucune modification de code, manifeste, schéma, seuil, convention ou pré-enregistrement n'est autorisée pendant l'exécution. En cas d'échec technique après entrée effective dans la campagne, STOP : aucun correctif, aucune reprise ni relance implicite n'est autorisé dans ce lot.
 
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_R_S5_NORMATIVE_CAMPAIGN
-S5_NORMATIVE_EXECUTION = AUTHORIZED
+NEXT_STEP = L3_S_FREEZE_S5_REFERENCE_ARTIFACTS
 S6_EXECUTION = FORBIDDEN
 ```
 
-Après le rapport L3-R, ChatGPT audite les artefacts produits et réalise l'interprétation scientifique conformément au pré-enregistrement. Aucun lot suivant n'est ouvert automatiquement.
+Après livraison L3-S, ChatGPT audite le commit distant. Le pré-enregistrement S=6 sera un lot scientifique distinct et devra être gelé avant toute exécution physique S=6.
 
 ## Rôles de collaboration
 
 ```text
 ChatGPT: scientific lead / conceptual design / scientific documentation / interpretation / audit
-Claude: software execution / repository operations explicitement autorisées par mandat
+Claude: software implementation / repository operations / execution explicitement autorisée par mandat
 Lionel: intuition / direction / final decision
 ```
 
