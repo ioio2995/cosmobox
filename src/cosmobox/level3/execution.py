@@ -95,20 +95,29 @@ from cosmobox.level2.orchestration import CaseMetricAnalysis
 # capacity guard, post-diagonalization completeness assertion
 # ---------------------------------------------------------------------------
 
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2512
 """Operational capacity limit for Level3's dense full-spectrum execution
 path -- NOT a physical threshold, NOT a maximum spin, NOT a convergence
-criterion, NOT a property of the model. It records what the L3-D synthetic
-capability preflight actually demonstrated (SYNTHETIC_D2008_FULL_EIGENSYSTEM
-= COMPLETE: a D=2008 dense Hermitian eigh completed in ~8.18s wall time at
-~480 MiB peak RSS in the tested environment, with no OOM and no LAPACK
-failure). It happens to equal the ring5 S=4 basis dimension found by the
-L3-C capability preflight, but that is a coincidence of what was tested,
+criterion, NOT a property of the model. It records the largest dimension a
+synthetic dense capability preflight has actually demonstrated so far,
+never a value chosen by assumption or extrapolation:
+
+- L3-D: SYNTHETIC_D2008_FULL_EIGENSYSTEM = COMPLETE -- a D=2008 dense
+  Hermitian eigh completed in ~8.18s wall time at ~480 MiB peak RSS in the
+  tested environment, with no OOM and no LAPACK failure.
+- L3-N: a D=2512 dense Hermitian eigh completed in ~15.571s wall time at
+  ~728.3 MiB peak RSS, full eigensystem produced (len(eigenvalues)=D,
+  eigenvectors.shape=(D,D)), orthonormality defect ~2.710e-13, max spectral
+  residual over a 20-sample ~2.461e-13 -- again no OOM, no LAPACK failure.
+
+D=2512 also happens to equal the ring5 S=5 basis dimension found by the
+L3-N capability preflight, but that is a coincidence of what was tested,
 not a rule keyed to any particular (geometry, spin) pair -- nothing in this
-module branches on 2008, 4, or any specific dimension/spin value. Raising
-this limit requires a new, separately-run and separately-authorized
-capability preflight, never an edit to this constant based on assumption
-or extrapolation."""
+module branches on 2512, 2008, 5, 4, or any specific dimension/spin value.
+A dimension above 2512 is simply NOT YET VALIDATED, not asserted
+impossible: raising this limit again requires a new, separately-run and
+separately-authorized capability preflight, never an edit to this constant
+based on assumption or extrapolation."""
 
 
 class FullSpectrumCapabilityExceeded(RuntimeError):

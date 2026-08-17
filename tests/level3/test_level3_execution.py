@@ -538,9 +538,92 @@ def test_run_case_never_reaches_a_sparse_spectrum_options_for_any_dimension():
     # concerns), the SpectrumOptions it returns can never let Level0's own
     # dispatcher fall onto the sparse path: max_dense_dimension always
     # covers the requested dimension exactly.
-    for dimension in (1, 2, 10, 2008, 2009, 50_000, 300_000):
+    for dimension in (1, 2, 10, 2008, 2009, 2512, 2513, 50_000, 300_000):
         options = full_spectrum_options(dimension)
         assert options.max_dense_dimension >= dimension
+
+
+# ---------------------------------------------------------------------------
+# L3-O: dense capability limit extended 2008 -> 2512 (L3-N synthetic
+# preflight). Explicit, literal-value tests alongside the symbolic ones
+# above -- both must agree, since the symbolic tests already exercise
+# whatever LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT currently is.
+# ---------------------------------------------------------------------------
+
+
+def test_level3_validated_dense_dimension_limit_is_2512():
+    assert LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT == 2512
+
+
+def test_dense_capability_guard_accepts_exactly_2512():
+    _check_dense_capability(2512)  # must not raise
+
+
+def test_dense_capability_guard_rejects_2513():
+    with pytest.raises(FullSpectrumCapabilityExceeded):
+        _check_dense_capability(2513)
+
+
+def test_run_case_rejects_2513_before_building_any_hamiltonian(monkeypatch):
+    # No 2513x2513 array is ever constructed: fake_basis.keys is a plain
+    # range tuple (length only matters, not content), and
+    # build_hamiltonian_terms is forbidden outright.
+    import cosmobox.level3.execution as level3_execution
+
+    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
+    fake_basis = SimpleNamespace(keys=tuple(range(2513)))
+
+    def fake_build_lattice(geometry):
+        return fake_lattice
+
+    def fake_build_basis(lattice, n_flavors, spin):
+        return fake_basis
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("build_hamiltonian_terms must not be called when capacity is exceeded")
+
+    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
+    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
+    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", forbidden)
+
+    with pytest.raises(FullSpectrumCapabilityExceeded):
+        run_case(CaseSpec(geometry="triangle", spin=2))
+
+
+def test_run_case_passes_the_guard_at_exactly_2512_and_reaches_hamiltonian_construction(monkeypatch):
+    # Confirms the guard lets dimension=2512 through -- without doing any
+    # real physics: a sentinel exception fired from build_hamiltonian_terms
+    # proves run_case got past _check_dense_capability, nothing more.
+    import cosmobox.level3.execution as level3_execution
+
+    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
+    fake_basis = SimpleNamespace(keys=tuple(range(2512)))
+
+    class _ReachedHamiltonianConstruction(Exception):
+        pass
+
+    def fake_build_lattice(geometry):
+        return fake_lattice
+
+    def fake_build_basis(lattice, n_flavors, spin):
+        return fake_basis
+
+    def sentinel_build_hamiltonian_terms(*args, **kwargs):
+        raise _ReachedHamiltonianConstruction
+
+    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
+    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
+    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", sentinel_build_hamiltonian_terms)
+
+    with pytest.raises(_ReachedHamiltonianConstruction):
+        run_case(CaseSpec(geometry="triangle", spin=2))
+
+
+@pytest.mark.parametrize("dimension", [208, 712, 2008, 2512])
+def test_dense_capability_guard_accepts_every_known_s2_through_s5_dimension(dimension: int):
+    # Non-regression: every dimension already accepted for S=2..S=4
+    # (<=2008) and the new S=5 ring5 dimension (2512) must still pass.
+    _check_dense_capability(dimension)  # must not raise
 
 
 def test_assert_full_eigensystem_accepts_a_genuinely_complete_spectrum():
