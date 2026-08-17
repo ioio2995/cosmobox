@@ -551,43 +551,8 @@ def test_run_case_never_reaches_a_sparse_spectrum_options_for_any_dimension():
 # ---------------------------------------------------------------------------
 
 
-def test_level3_validated_dense_dimension_limit_is_2512():
-    assert LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT == 2512
-
-
 def test_dense_capability_guard_accepts_exactly_2512():
     _check_dense_capability(2512)  # must not raise
-
-
-def test_dense_capability_guard_rejects_2513():
-    with pytest.raises(FullSpectrumCapabilityExceeded):
-        _check_dense_capability(2513)
-
-
-def test_run_case_rejects_2513_before_building_any_hamiltonian(monkeypatch):
-    # No 2513x2513 array is ever constructed: fake_basis.keys is a plain
-    # range tuple (length only matters, not content), and
-    # build_hamiltonian_terms is forbidden outright.
-    import cosmobox.level3.execution as level3_execution
-
-    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
-    fake_basis = SimpleNamespace(keys=tuple(range(2513)))
-
-    def fake_build_lattice(geometry):
-        return fake_lattice
-
-    def fake_build_basis(lattice, n_flavors, spin):
-        return fake_basis
-
-    def forbidden(*args, **kwargs):
-        raise AssertionError("build_hamiltonian_terms must not be called when capacity is exceeded")
-
-    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
-    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
-    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", forbidden)
-
-    with pytest.raises(FullSpectrumCapabilityExceeded):
-        run_case(CaseSpec(geometry="triangle", spin=2))
 
 
 def test_run_case_passes_the_guard_at_exactly_2512_and_reaches_hamiltonian_construction(monkeypatch):
@@ -623,6 +588,97 @@ def test_run_case_passes_the_guard_at_exactly_2512_and_reaches_hamiltonian_const
 def test_dense_capability_guard_accepts_every_known_s2_through_s5_dimension(dimension: int):
     # Non-regression: every dimension already accepted for S=2..S=4
     # (<=2008) and the new S=5 ring5 dimension (2512) must still pass.
+    _check_dense_capability(dimension)  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# L3-V: dense capability limit extended 2512 -> 3016 (L3-U synthetic
+# preflight, ring5 S=6 basis dimension). Explicit, literal-value tests
+# alongside the symbolic ones above -- both must agree, since the symbolic
+# tests already exercise whatever LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT
+# currently is. The former 2512/2513 boundary tests (L3-O) are superseded
+# by these -- 2513 is no longer rejected now that the limit is 3016, so
+# testing a rejection there would be false, not historical -- while the
+# "2512 is still accepted" regression above is left untouched since it
+# remains true.
+# ---------------------------------------------------------------------------
+
+
+def test_level3_validated_dense_dimension_limit_is_3016():
+    assert LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT == 3016
+
+
+def test_dense_capability_guard_accepts_exactly_3016():
+    _check_dense_capability(3016)  # must not raise
+
+
+def test_dense_capability_guard_rejects_3017():
+    with pytest.raises(FullSpectrumCapabilityExceeded):
+        _check_dense_capability(3017)
+
+
+def test_run_case_rejects_3017_before_building_any_hamiltonian(monkeypatch):
+    # No 3017x3017 array is ever constructed: fake_basis.keys is a plain
+    # range tuple (length only matters, not content), and
+    # build_hamiltonian_terms is forbidden outright.
+    import cosmobox.level3.execution as level3_execution
+
+    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
+    fake_basis = SimpleNamespace(keys=tuple(range(3017)))
+
+    def fake_build_lattice(geometry):
+        return fake_lattice
+
+    def fake_build_basis(lattice, n_flavors, spin):
+        return fake_basis
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("build_hamiltonian_terms must not be called when capacity is exceeded")
+
+    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
+    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
+    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", forbidden)
+
+    with pytest.raises(FullSpectrumCapabilityExceeded):
+        run_case(CaseSpec(geometry="triangle", spin=2))
+
+
+def test_run_case_passes_the_guard_at_exactly_3016_and_reaches_hamiltonian_construction(monkeypatch):
+    # Confirms the guard lets dimension=3016 through -- without doing any
+    # real physics: a sentinel exception fired from build_hamiltonian_terms
+    # proves run_case got past _check_dense_capability, nothing more.
+    import cosmobox.level3.execution as level3_execution
+
+    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
+    fake_basis = SimpleNamespace(keys=tuple(range(3016)))
+
+    class _ReachedHamiltonianConstruction(Exception):
+        pass
+
+    def fake_build_lattice(geometry):
+        return fake_lattice
+
+    def fake_build_basis(lattice, n_flavors, spin):
+        return fake_basis
+
+    def sentinel_build_hamiltonian_terms(*args, **kwargs):
+        raise _ReachedHamiltonianConstruction
+
+    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
+    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
+    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", sentinel_build_hamiltonian_terms)
+
+    with pytest.raises(_ReachedHamiltonianConstruction):
+        run_case(CaseSpec(geometry="triangle", spin=2))
+
+
+@pytest.mark.parametrize("dimension", [248, 852, 3016])
+def test_dense_capability_guard_accepts_every_known_s6_dimension(dimension: int):
+    # Non-regression: every dimension established by the L3-U capability
+    # preflight for S=6 (triangle=248, ring4=852, ring5=3016) must pass the
+    # guard now that LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT covers it. No
+    # S=6 physical case (Hamiltonian, diagonalization, observable) is
+    # built or executed by this test.
     _check_dense_capability(dimension)  # must not raise
 
 
