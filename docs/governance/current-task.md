@@ -1,6 +1,6 @@
 # Contrat de continuité — état courant
 
-Ce document contient uniquement l'état actif du projet. Le contrat scientifique actif Level 3 est [`../levels/level3/s6-third-extension-preregistration.md`](../levels/level3/s6-third-extension-preregistration.md).
+Ce document contient uniquement l'état actif du projet. Le contrat scientifique actif Level 3 est désormais [`../levels/level3/s6-third-extension-preregistration.md`](../levels/level3/s6-third-extension-preregistration.md).
 
 ## État Git
 
@@ -17,6 +17,7 @@ LEVEL3_R_S5_NORMATIVE_CAMPAIGN_GOVERNANCE = 782f29eb9dcbc21ca2168e109997b0f59a12
 LEVEL3_S_FROZEN_S5_REFERENCE_ARTIFACTS = 7239efe1708535d09d779ee95eb024f9233d9242
 LEVEL3_T_S6_SCIENTIFIC_PREREGISTRATION = 1c19a01e051c3df6f547afe0816a795989fdac3b
 LEVEL3_U_S6_CAPABILITY_PREFLIGHT_GOVERNANCE = 2dd5765121964054de4a12395932600d69c17be6
+LEVEL3_V_DENSE_CAPABILITY_3016 = 1bda37eac844cc9b603de25ccf595581428a061b
 ```
 
 ## État scientifique
@@ -25,10 +26,10 @@ LEVEL3_U_S6_CAPABILITY_PREFLIGHT_GOVERNANCE = 2dd5765121964054de4a12395932600d69
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S6_DENSE_CAPABILITY_EXTENSION
+LEVEL3 = S6_CAMPAIGN_INFRASTRUCTURE
 
 LAST_CLOSED_LEVEL = LEVEL2
-LAST_ACCEPTED_SOFTWARE_LOT = L3-P-S5-CAMPAIGN-INFRASTRUCTURE
+LAST_ACCEPTED_SOFTWARE_LOT = L3-V-EXTEND-DENSE-CAPABILITY-TO-3016
 LAST_ACCEPTED_EXECUTION_PREFLIGHT = L3-Q-S5-CAMPAIGN-EXECUTION-PREFLIGHT
 LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-R-S5-NORMATIVE-CAMPAIGN
 LAST_FROZEN_REFERENCE_LOT = L3-S-FREEZE-S5-REFERENCE-ARTIFACTS
@@ -78,51 +79,28 @@ P_VALUE = NOT_APPLICABLE
 COMPOSITE_SCORE = FORBIDDEN
 FIVE_SPIN_DIRECTIONAL_DESCRIPTOR = REVERSAL_COUNT_23456
 TWO_STEP_DIRECTIONAL_DESCRIPTOR = LAST_TWO_TRANSITIONS_DIRECTIONALLY_CONTINUOUS
+CONTINUOUS_DESCRIPTORS = T_X_45,T_X_56,R_DELTA_X_56_45,C_X_45,D_X_45,C_X_56,D_X_56,R_D_X_56_45
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 ```
 
-## Préflight capacité S=6 accepté — L3-U
+## Capacité S=6 acceptée
 
 ```text
-L3_U_S6_CAPABILITY_PREFLIGHT = PASS
-
 TRIANGLE_S6_DIMENSION = 248
 RING4_S6_DIMENSION = 852
 RING5_S6_DIMENSION = 3016
-MAX_S6_DIMENSION = 3016
-
 S6_ENCODING_SUPPORTED = YES
-TRIANGLE_S6_REQUIRED_KEY_BITS = 18
-RING4_S6_REQUIRED_KEY_BITS = 24
-RING5_S6_REQUIRED_KEY_BITS = 30
-
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2512
-TRIANGLE_S6_WITHIN_CURRENT_DENSE_LIMIT = YES
-RING4_S6_WITHIN_CURRENT_DENSE_LIMIT = YES
-RING5_S6_WITHIN_CURRENT_DENSE_LIMIT = NO
-
-DENSE_SYNTHETIC_BENCHMARK_PERFORMED = YES
-DENSE_SYNTHETIC_BENCHMARK_DIMENSION = 3016
-DENSE_SYNTHETIC_CAPABILITY = PASS
-DENSE_LIMIT_EXTENSION_REQUIRED = YES
-DENSE_LIMIT_EXTENSION_FEASIBLE = YES
-
-SYNTHETIC_D3016_EIGH_WALL_TIME_S = 22.8685
-SYNTHETIC_D3016_PEAK_RSS_MIB = 1028.34
-SYNTHETIC_D3016_ORTHONORMALITY_SAMPLE20 = 1.33e-15
-SYNTHETIC_D3016_MAX_RESIDUAL_SAMPLE20 = 3.07e-13
-
-REAL_S6_HAMILTONIAN_BUILT = NO
-REAL_S6_DIAGONALIZATION = NO
-S6_OBSERVABLES_COMPUTED = NO
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3016
+D3016_ACCEPTED_BY_GUARD = YES
+D3017_REJECTED_BY_GUARD = YES
+FULL_SPECTRUM_POLICY_UNCHANGED = YES
+SPARSE_FALLBACK_POSSIBLE = NO
 ```
 
-Le benchmark L3-U établit uniquement la capacité numérique dense de l'environnement courant à D=3016. Il ne constitue aucune donnée physique S=6.
-
-## Lot courant — L3-V
+## Lot courant — L3-W
 
 ```text
-LOT = L3-V-EXTEND-DENSE-CAPABILITY-TO-3016
+LOT = L3-W-S6-CAMPAIGN-INFRASTRUCTURE
 STATUS = OPEN
 TYPE = SOFTWARE_IMPLEMENTATION
 
@@ -130,30 +108,55 @@ CODE_CHANGE_AUTHORIZED = YES
 COMMIT_AUTHORIZED = YES
 PUSH_AUTHORIZED = YES
 
-TARGET_OPERATIONAL_DENSE_LIMIT = 3016
-
 REAL_S6_HAMILTONIAN_BUILD_AUTHORIZED = NO
 REAL_S6_DIAGONALIZATION_AUTHORIZED = NO
 S6_OBSERVABLES_AUTHORIZED = NO
 LEVEL3_S6_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
+S7_EXECUTION_AUTHORIZED = NO
 ```
 
-Objectif : mettre à jour uniquement la garde opérationnelle full-spectrum Level3 afin d'enregistrer la capacité dense synthétiquement validée à D=3016, sans modifier le modèle physique, le solveur Level0, le protocole scientifique, ni exécuter de cas physique S=6.
+Objectif : implémenter l'infrastructure logicielle complète de la campagne normative S=6 conformément au pré-enregistrement gelé, sans produire aucune donnée physique S=6.
 
-La constante concernée est dans :
+La future campagne doit exécuter exactement :
 
 ```text
-src/cosmobox/level3/execution.py
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2512
+triangle:S6
+ring4:S6
+ring5:S6
 ```
 
-Le lot doit la porter à 3016 et adapter uniquement la documentation locale/commentaires/tests directement liés à cette garde. Le comportement full-spectrum reste inchangé : dense complet ou échec explicite, jamais de fallback sparse.
+et utiliser exclusivement les références gelées antérieures :
 
-## Invariants L3-V
+```text
+S2/S3 depuis Level2
+S4 depuis la campagne Level3 S4 gelée
+S5 depuis la campagne Level3 S5 gelée
+```
+
+Aucune recomputation normative S2/S3/S4/S5 n'est autorisée.
+
+L'infrastructure doit permettre après une future exécution S6 complète :
+
+```text
+- comparaison primaire S5→S6 ;
+- direction_s2 ... direction_s6 ;
+- taxonomie S6 pré-enregistrée ;
+- REVERSAL_COUNT_23456 ;
+- LAST_TWO_TRANSITIONS_DIRECTIONALLY_CONTINUOUS ;
+- T_X_45, T_X_56, R_DELTA_X_56_45 ;
+- C_X_45, D_X_45, C_X_56, D_X_56, R_D_X_56_45 ;
+- complétude 3/3 avant toute comparaison normative ;
+- campaign-summary.json écrit en dernier ;
+- NO_IMPLICIT_RESUME.
+```
+
+Toute implémentation ou test S=6 dans ce lot doit être synthétique ou monkeypatché avant toute primitive physique réelle.
+
+## Invariants L3-W
 
 ```text
 LEVEL2 = CLOSED
-LEVEL2_ARTIFACTS = FROZEN_REFERENCE
+LEVEL2_REFERENCE = FROZEN
 LEVEL2_RECOMPUTATION = FORBIDDEN
 
 S4_REFERENCE = FROZEN_AND_VERSIONED
@@ -166,12 +169,12 @@ S6_PREREGISTRATION = FROZEN
 REAL_S6_EXECUTION = FORBIDDEN
 S7_EXECUTION = FORBIDDEN
 
-TARGET_OPERATIONAL_DENSE_LIMIT = 3016
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3016
 FULL_SPECTRUM = REQUIRED
 SPARSE_FALLBACK = FORBIDDEN
+INTER_S_BRANCH_MATCHING = FORBIDDEN
 
 PHYSICAL_MODEL_CHANGE = NO
-LEVEL0_SOLVER_CHANGE = NO
 NEW_OBSERVABLE = NO
 NEW_PRIMARY_METRIC = NO
 NEW_SCIENTIFIC_THRESHOLD = NO
@@ -185,11 +188,11 @@ PHASE_GRAVITY = CLOSED
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_V_EXTEND_DENSE_CAPABILITY_TO_3016
+NEXT_STEP = L3_W_S6_CAMPAIGN_INFRASTRUCTURE_IMPLEMENTATION
 S6_EXECUTION = FORBIDDEN
 ```
 
-Après livraison L3-V, ChatGPT audite le commit distant. Une nouvelle autorisation explicite sera nécessaire avant l'infrastructure de campagne S=6 ou toute donnée physique S=6.
+Après livraison L3-W, ChatGPT audite le commit distant. Un préflight d'exécution S6 distinct sera ensuite nécessaire. Aucun PASS logiciel n'autorise automatiquement une campagne physique S6.
 
 ## Rôles de collaboration
 
