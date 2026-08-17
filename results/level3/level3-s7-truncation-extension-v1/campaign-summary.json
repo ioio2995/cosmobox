@@ -1,0 +1,621 @@
+{
+  "branch": "research/level2-energy-regime",
+  "campaign_id": "level3-s7-truncation-extension-v1",
+  "campaign_status": "COMPLETE",
+  "frozen_preregistration_commit": "cc0ffdadbeb7d40fc443ab11150c9f47e3e12776",
+  "geometries": [
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.03472222222222243
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.026223776223776363
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.021067415730337324
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.017605633802816878
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": -0.015120967741935165
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "ring4",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.034741636495151496
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.023097563037031532
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.05155770008652544
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.06041461015956956
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.06474281975406132
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": 0.07003146920280401
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_56": {
+          "reason": null,
+          "value": 0.10493909311946484
+        },
+        "c_x_67": {
+          "reason": null,
+          "value": 0.1389869740943195
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3380906050716723
+        },
+        "d_x_67": {
+          "reason": null,
+          "value": 1.3123722712921992
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.007742838926974305
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.005857982377896448
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.02040937556731595
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.024002328924935146
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.017141998370443307
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": 0.030544128373147184
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "POSITIVE",
+        "direction_s5": "POSITIVE",
+        "direction_s6": "POSITIVE",
+        "direction_s7": "POSITIVE",
+        "last_two_transitions_directionally_continuous_567": "YES",
+        "metric": "M_TT",
+        "pairwise_block_recurrence_23_45_67": "NO",
+        "primary_s6_s7_taxonomy": "S7_DIRECTION_PERSISTS",
+        "r_d_x_67_56": {
+          "reason": null,
+          "value": 0.9807798263570534
+        },
+        "r_delta_x_67_56": {
+          "reason": null,
+          "value": 1.9535691314362045
+        },
+        "reversal_count_234567": 1,
+        "t_x_56": {
+          "reason": null,
+          "value": 0.006860330554491839
+        },
+        "t_x_67": {
+          "reason": null,
+          "value": 0.013402130002703877
+        }
+      },
+      "r_eff": {
+        "c_x_56": {
+          "reason": null,
+          "value": 0.022945005484438515
+        },
+        "c_x_67": {
+          "reason": null,
+          "value": -0.02155363963446354
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3979980302842638
+        },
+        "d_x_67": {
+          "reason": null,
+          "value": 1.4294424405085524
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.0020882959675153634
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.0021358495740230188
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.01456570479028163
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.01809462533402406
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": -0.025303329519379525
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": -0.026171719818302353
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "NEGATIVE",
+        "direction_s5": "NEGATIVE",
+        "direction_s6": "NEGATIVE",
+        "direction_s7": "NEGATIVE",
+        "last_two_transitions_directionally_continuous_567": "YES",
+        "metric": "R_eff",
+        "pairwise_block_recurrence_23_45_67": "NO",
+        "primary_s6_s7_taxonomy": "S7_DIRECTION_PERSISTS",
+        "r_d_x_67_56": {
+          "reason": null,
+          "value": 1.0224924567439446
+        },
+        "r_delta_x_67_56": {
+          "reason": null,
+          "value": 0.12046413288631944
+        },
+        "reversal_count_234567": 0,
+        "t_x_56": {
+          "reason": null,
+          "value": 0.007208704185355463
+        },
+        "t_x_67": {
+          "reason": null,
+          "value": 0.0008683902989228276
+        }
+      }
+    },
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.015999999999999903
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.01196808510638303
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.008964143426294813
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.0071656050955414274
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.005968169761273123
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": -0.005113636363636376
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "ring5",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.020202352134593093
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.046124103926328375
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.07162742518780663
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.08253733329086804
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.08106298805310302
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": 0.09016970008400693
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_56": {
+          "reason": null,
+          "value": 0.11210148134601557
+        },
+        "c_x_67": {
+          "reason": null,
+          "value": 0.09846649326771163
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3328860830052787
+        },
+        "d_x_67": {
+          "reason": null,
+          "value": 1.342968744399145
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.005818691260019174
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.004351133007983621
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.015489274489672966
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.0199306997477227
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.01711523186576633
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": 0.021019110974617283
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "POSITIVE",
+        "direction_s4": "POSITIVE",
+        "direction_s5": "POSITIVE",
+        "direction_s6": "POSITIVE",
+        "direction_s7": "POSITIVE",
+        "last_two_transitions_directionally_continuous_567": "YES",
+        "metric": "M_TT",
+        "pairwise_block_recurrence_23_45_67": "NO",
+        "primary_s6_s7_taxonomy": "S7_DIRECTION_PERSISTS",
+        "r_d_x_67_56": {
+          "reason": null,
+          "value": 1.0075645334754586
+        },
+        "r_delta_x_67_56": {
+          "reason": null,
+          "value": 1.3865827182295132
+        },
+        "reversal_count_234567": 1,
+        "t_x_56": {
+          "reason": null,
+          "value": 0.002815467881956371
+        },
+        "t_x_67": {
+          "reason": null,
+          "value": 0.003903879108850955
+        }
+      },
+      "r_eff": {
+        "c_x_56": {
+          "reason": null,
+          "value": 0.049725787646787874
+        },
+        "c_x_67": {
+          "reason": null,
+          "value": 0.08447306385952612
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3790190130754818
+        },
+        "d_x_67": {
+          "reason": null,
+          "value": 1.3534686912280225
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.002277479585917397
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.009134320925960226
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.018150290740480468
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.022833426281724134
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": -0.02196454701016648
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": -0.02332285392884359
+        },
+        "direction_s2": "POSITIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "NEGATIVE",
+        "direction_s5": "NEGATIVE",
+        "direction_s6": "NEGATIVE",
+        "direction_s7": "NEGATIVE",
+        "last_two_transitions_directionally_continuous_567": "YES",
+        "metric": "R_eff",
+        "pairwise_block_recurrence_23_45_67": "NO",
+        "primary_s6_s7_taxonomy": "S7_DIRECTION_PERSISTS",
+        "r_d_x_67_56": {
+          "reason": null,
+          "value": 0.9814721032812469
+        },
+        "r_delta_x_67_56": {
+          "reason": null,
+          "value": 1.5632861355318683
+        },
+        "reversal_count_234567": 1,
+        "t_x_56": {
+          "reason": null,
+          "value": 0.0008688792715576543
+        },
+        "t_x_67": {
+          "reason": null,
+          "value": 0.0013583069186771102
+        }
+      }
+    },
+    {
+      "a_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 3.3306690738754696e-16
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.09375
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.07142857142857129
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.05769230769230782
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.048387096774193394
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": -0.04166666666666663
+        },
+        "metric": "A_QQ"
+      },
+      "geometry": "triangle",
+      "m_qq": {
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.0
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 1.1102230246251565e-16
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 1.1879386363489175e-14
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 3.9968028886505635e-15
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": 0.0
+        },
+        "metric": "M_QQ"
+      },
+      "m_tt": {
+        "c_x_56": {
+          "reason": null,
+          "value": 0.08466964268714904
+        },
+        "c_x_67": {
+          "reason": null,
+          "value": 0.031581875563224206
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.353074120102096
+        },
+        "d_x_67": {
+          "reason": null,
+          "value": 1.3917244722524509
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": -0.004126671615421296
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": -0.019478063957488134
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": 0.022367678417702555
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": 0.01497707126260038
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": -0.0094460497176658
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": 0.017700768507311587
+        },
+        "direction_s2": "NEGATIVE",
+        "direction_s3": "NEGATIVE",
+        "direction_s4": "POSITIVE",
+        "direction_s5": "POSITIVE",
+        "direction_s6": "NEGATIVE",
+        "direction_s7": "POSITIVE",
+        "last_two_transitions_directionally_continuous_567": "NO",
+        "metric": "M_TT",
+        "pairwise_block_recurrence_23_45_67": "NO",
+        "primary_s6_s7_taxonomy": "S7_DIRECTION_REVERSES",
+        "r_d_x_67_56": {
+          "reason": null,
+          "value": 1.028564844731077
+        },
+        "r_delta_x_67_56": {
+          "reason": null,
+          "value": 1.1115212608131428
+        },
+        "reversal_count_234567": 3,
+        "t_x_56": {
+          "reason": null,
+          "value": 0.02442312098026618
+        },
+        "t_x_67": {
+          "reason": null,
+          "value": 0.027146818224977387
+        }
+      },
+      "r_eff": {
+        "c_x_56": {
+          "reason": null,
+          "value": 0.1218920403158594
+        },
+        "c_x_67": {
+          "reason": null,
+          "value": 0.06814838761285097
+        },
+        "d_x_56": {
+          "reason": null,
+          "value": 1.3253383495264563
+        },
+        "d_x_67": {
+          "reason": null,
+          "value": 1.3652227648288444
+        },
+        "delta_hl_s2": {
+          "reason": null,
+          "value": 0.0019610736818521657
+        },
+        "delta_hl_s3": {
+          "reason": null,
+          "value": 0.008366750093282582
+        },
+        "delta_hl_s4": {
+          "reason": null,
+          "value": -0.008452566387395777
+        },
+        "delta_hl_s5": {
+          "reason": null,
+          "value": -0.004370144100328099
+        },
+        "delta_hl_s6": {
+          "reason": null,
+          "value": 0.005189530857312552
+        },
+        "delta_hl_s7": {
+          "reason": null,
+          "value": -0.007036393280724917
+        },
+        "direction_s2": "POSITIVE",
+        "direction_s3": "POSITIVE",
+        "direction_s4": "NEGATIVE",
+        "direction_s5": "NEGATIVE",
+        "direction_s6": "POSITIVE",
+        "direction_s7": "NEGATIVE",
+        "last_two_transitions_directionally_continuous_567": "NO",
+        "metric": "R_eff",
+        "pairwise_block_recurrence_23_45_67": "NO",
+        "primary_s6_s7_taxonomy": "S7_DIRECTION_REVERSES",
+        "r_d_x_67_56": {
+          "reason": null,
+          "value": 1.0300937608246519
+        },
+        "r_delta_x_67_56": {
+          "reason": null,
+          "value": 1.2789058406495082
+        },
+        "reversal_count_234567": 3,
+        "t_x_56": {
+          "reason": null,
+          "value": 0.009559674957640651
+        },
+        "t_x_67": {
+          "reason": null,
+          "value": 0.01222592413803747
+        }
+      }
+    }
+  ],
+  "level2_reference": {
+    "campaign_id": "level2-energy-regime-v1",
+    "frozen_preregistration_commit": "2d4c859db7939da51ee7d919889a18f4c7e229ed",
+    "manifest_fingerprint": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4",
+    "repository_commit": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0"
+  },
+  "level3_s4_reference": {
+    "campaign_id": "level3-s4-truncation-extension-v1",
+    "frozen_preregistration_commit": "1c1d71f07dd6a7399b3965b2bb0acfa5c665991e",
+    "manifest_fingerprint": "3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba",
+    "repository_commit": "ffb49da84111f778e45aa95b6d9e80b45d68f34c"
+  },
+  "level3_s5_reference": {
+    "campaign_id": "level3-s5-truncation-extension-v1",
+    "frozen_preregistration_commit": "496ba9484a6d7df9beb738607a5ffe23a75219ad",
+    "manifest_fingerprint": "3160a8e6e0f9ae4a21c027a865e4d56527303ad644e3f45137baa2120f0c5d04",
+    "repository_commit": "782f29eb9dcbc21ca2168e109997b0f59a12402f"
+  },
+  "level3_s6_reference": {
+    "campaign_id": "level3-s6-truncation-extension-v1",
+    "frozen_preregistration_commit": "1c19a01e051c3df6f547afe0816a795989fdac3b",
+    "manifest_fingerprint": "2e0f06b69139abeb0b225a3d2b715242d6a0c26d2d1067b789f26b4829f847ca",
+    "repository_commit": "55ea89be3a744953ff677754ff2ca22dbf116428"
+  },
+  "manifest_fingerprint": "f8d88b79480083c123adaeded1f089fb0acb7d41ac1945d0fc52a223bb4f8662",
+  "repository": "ioio2995/cosmobox",
+  "repository_commit": "8680f18f42386f0ef3ee6b902590e7afbdab1c83",
+  "schema_version": "level3-s7-campaign-summary-v1"
+}
