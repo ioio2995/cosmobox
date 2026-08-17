@@ -1,6 +1,6 @@
 # Contrat de continuité — état courant
 
-Ce document contient uniquement l'état actif du projet. La clôture scientifique de Level 2 est figée dans [`../levels/level2/synthesis-and-closure.md`](../levels/level2/synthesis-and-closure.md). Le contrat scientifique actif Level 3 est désormais [`../levels/level3/s5-second-extension-preregistration.md`](../levels/level3/s5-second-extension-preregistration.md).
+Ce document contient uniquement l'état actif du projet. La clôture scientifique de Level 2 est figée dans [`../levels/level2/synthesis-and-closure.md`](../levels/level2/synthesis-and-closure.md). Le contrat scientifique actif Level 3 est [`../levels/level3/s5-second-extension-preregistration.md`](../levels/level3/s5-second-extension-preregistration.md).
 
 ## État Git
 
@@ -17,6 +17,7 @@ LEVEL3_J_EXECUTION_PREFLIGHT_GOVERNANCE = f43529b624cb12339156efaa76f30e0e7e1860
 LEVEL3_K_S4_NORMATIVE_CAMPAIGN_GOVERNANCE = ffb49da84111f778e45aa95b6d9e80b45d68f34c
 LEVEL3_L_FROZEN_S4_REFERENCE_ARTIFACTS = 9b946b36cd302b595f16ed734c62121afbad62ff
 LEVEL3_M_S5_SCIENTIFIC_PREREGISTRATION = 496ba9484a6d7df9beb738607a5ffe23a75219ad
+LEVEL3_N_S5_CAPABILITY_PREFLIGHT_GOVERNANCE = 7793bfcef52924561b3d4947a39fdb857b23c614
 ```
 
 ## État scientifique
@@ -25,7 +26,7 @@ LEVEL3_M_S5_SCIENTIFIC_PREREGISTRATION = 496ba9484a6d7df9beb738607a5ffe23a75219a
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S5_PREREGISTERED_CAPABILITY_PREFLIGHT
+LEVEL3 = S5_DENSE_CAPABILITY_EXTENSION
 
 LAST_CLOSED_LEVEL = LEVEL2
 LAST_ACCEPTED_SOFTWARE_LOT = L3-I-S4-CAMPAIGN-INFRASTRUCTURE
@@ -33,6 +34,7 @@ LAST_ACCEPTED_EXECUTION_PREFLIGHT = L3-J-S4-CAMPAIGN-EXECUTION-PREFLIGHT
 LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-K-S4-NORMATIVE-CAMPAIGN
 LAST_FROZEN_REFERENCE_LOT = L3-L-FREEZE-S4-REFERENCE-ARTIFACTS
 LAST_FROZEN_SCIENTIFIC_JALON = L3-M-S5-SCIENTIFIC-PREREGISTRATION
+LAST_ACCEPTED_CAPABILITY_PREFLIGHT = L3-N-S5-CAPABILITY-PREFLIGHT
 
 LEVEL2_PRIMARY_TEST = POSITIVE
 CROSS_GEOMETRY_STATUS = CROSS_GEOMETRY_RECURRENT
@@ -69,21 +71,6 @@ S4_REFERENCE_SHA256_VERIFIED = YES
 S4_RECOMPUTATION = FORBIDDEN
 ```
 
-## Résultat S=4 accepté
-
-```text
-TRIANGLE_M_TT = S4_DIRECTION_REVERSES
-TRIANGLE_R_EFF = S4_DIRECTION_REVERSES
-RING4_M_TT = S4_DIRECTION_REVERSES
-RING4_R_EFF = S4_DIRECTION_PERSISTS
-RING5_M_TT = S4_DIRECTION_PERSISTS
-RING5_R_EFF = S4_DIRECTION_PERSISTS
-
-UNIFORM_TRUNCATION_STABILIZATION = NOT_OBSERVED
-DETAILED_PROFILE_STABILIZATION = NOT_OBSERVED
-S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
-```
-
 ## Contrat scientifique S=5 gelé
 
 Source normative :
@@ -98,59 +85,70 @@ Contrat principal :
 LEVEL3_SECOND_NEW_SPIN = 5
 LEVEL3_NEW_CASES = triangle:S5, ring4:S5, ring5:S5
 PRIMARY_PAIR = S4_TO_S5
-
 PHYSICAL_PARAMETERS = IDENTICAL_TO_LEVEL2_AND_S4
 FULL_SPECTRUM = REQUIRED
 PRIMARY_METRICS = M_TT, R_eff
 CONTROL_METRICS = A_QQ, M_QQ
 PRIMARY_CONTRAST = HIGH_MINUS_LOW
 INTER_S_BRANCH_MATCHING = FORBIDDEN
-
 NUMERICAL_GUARD_M_TT = 1e-16
 NUMERICAL_GUARD_R_EFF = 1e-15
 PHYSICAL_EFFECT_THRESHOLD = NOT_APPLICABLE
 P_VALUE = NOT_APPLICABLE
 COMPOSITE_SCORE = FORBIDDEN
-
-PRIMARY_TAXONOMY =
-  S5_DIRECTION_PERSISTS |
-  S5_DIRECTION_REVERSES |
-  S5_CONTRAST_UNRESOLVED |
-  NOT_EVALUABLE
-
-CONTINUOUS_DESCRIPTORS =
-  T_X_34,
-  T_X_45,
-  R_DELTA_X_45_34,
-  C_X_34,
-  D_X_34,
-  C_X_45,
-  D_X_45,
-  R_D_X_45_34
-
-FOUR_SPIN_DIRECTIONAL_DESCRIPTOR = REVERSAL_COUNT_2345
-
-S2_S3_REFERENCE = FROZEN_LEVEL2_ARTIFACTS
-S4_REFERENCE = FROZEN_LEVEL3_S4_ARTIFACTS
-S2_S3_S4_RECOMPUTATION = FORBIDDEN
-
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 ```
 
-## Lot courant — L3-N
+## Préflight capacité S=5 accepté — L3-N
 
 ```text
-LOT = L3-N-S5-CAPABILITY-PREFLIGHT
+L3_N_S5_CAPABILITY_PREFLIGHT = PASS
+
+TRIANGLE_S5_DIMENSION = 208
+RING4_S5_DIMENSION = 712
+RING5_S5_DIMENSION = 2512
+MAX_S5_DIMENSION = 2512
+
+S5_ENCODING_SUPPORTED = YES
+TRIANGLE_S5_REQUIRED_KEY_BITS = 18
+RING4_S5_REQUIRED_KEY_BITS = 24
+RING5_S5_REQUIRED_KEY_BITS = 30
+
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
+TRIANGLE_S5_WITHIN_CURRENT_DENSE_LIMIT = YES
+RING4_S5_WITHIN_CURRENT_DENSE_LIMIT = YES
+RING5_S5_WITHIN_CURRENT_DENSE_LIMIT = NO
+
+DENSE_SYNTHETIC_BENCHMARK_PERFORMED = YES
+DENSE_SYNTHETIC_BENCHMARK_DIMENSION = 2512
+DENSE_SYNTHETIC_CAPABILITY = PASS
+DENSE_LIMIT_EXTENSION_REQUIRED = YES
+DENSE_LIMIT_EXTENSION_FEASIBLE = YES
+
+SYNTHETIC_D2512_EIGH_WALL_TIME_S = 15.571
+SYNTHETIC_D2512_PEAK_RSS_MIB = 728.3
+SYNTHETIC_D2512_ORTHONORMALITY_FRO = 2.710e-13
+SYNTHETIC_D2512_MAX_RESIDUAL_SAMPLE20 = 2.461e-13
+
+REAL_S5_HAMILTONIAN_BUILT = NO
+REAL_S5_DIAGONALIZATION = NO
+S5_OBSERVABLES_COMPUTED = NO
+```
+
+Le préflight établit uniquement une capacité numérique opérationnelle à D=2512. Il ne constitue aucune donnée physique S=5 et aucune preuve de convergence.
+
+## Lot courant — L3-O
+
+```text
+LOT = L3-O-EXTEND-DENSE-CAPABILITY-TO-2512
 STATUS = OPEN
-TYPE = READ_ONLY_CAPABILITY_AUDIT
+TYPE = SOFTWARE_IMPLEMENTATION
 
-CODE_CHANGE_AUTHORIZED = NO
-COMMIT_AUTHORIZED = NO
-PUSH_AUTHORIZED = NO
+CODE_CHANGE_AUTHORIZED = YES
+COMMIT_AUTHORIZED = YES
+PUSH_AUTHORIZED = YES
 
-S5_BASIS_CAPABILITY_INSPECTION_AUTHORIZED = YES
-S5_ENCODING_CAPABILITY_INSPECTION_AUTHORIZED = YES
-SYNTHETIC_DENSE_SOLVER_BENCHMARK_AUTHORIZED = YES
+TARGET_OPERATIONAL_DENSE_LIMIT = 2512
 
 REAL_S5_HAMILTONIAN_BUILD_AUTHORIZED = NO
 REAL_S5_DIAGONALIZATION_AUTHORIZED = NO
@@ -158,23 +156,18 @@ S5_OBSERVABLES_AUTHORIZED = NO
 LEVEL3_S5_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
 ```
 
-Objectif : établir si les trois cas S=5 pré-enregistrés sont exécutables dans le contrat full-spectrum actuel, sans produire aucune donnée physique S=5.
+Objectif : mettre à jour uniquement la garde opérationnelle full-spectrum Level3 afin d'enregistrer la capacité dense synthétiquement validée à D=2512, sans modifier le modèle physique, le solveur Level0, le protocole scientifique, ni exécuter de cas physique S=5.
 
-Le préflight doit établir exactement :
+La constante concernée est actuellement dans :
 
 ```text
-- dimensions Hilbert S5 pour triangle/ring4/ring5 ;
-- capacité d'encodage S5 et bits requis ;
-- comparaison avec LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008 ;
-- taille mémoire brute d'une matrice complexe dense pour chaque dimension ;
-- capacité machine actuelle ;
-- benchmark synthétique full eigensystem à la plus grande dimension S5 si celle-ci dépasse 2008 ;
-- verdict sur l'extension éventuelle de la limite opérationnelle dense.
+src/cosmobox/level3/execution.py
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
 ```
 
-Aucune construction d'Hamiltonien physique S5, diagonalisation physique S5 ou observable S5 n'est autorisée.
+Le lot doit la porter à 2512 et adapter uniquement la documentation locale/commentaires/tests directement liés à cette garde. Le comportement full-spectrum reste inchangé : dense complet ou échec explicite, jamais de fallback sparse.
 
-## Invariants L3-N
+## Invariants L3-O
 
 ```text
 LEVEL2 = CLOSED
@@ -185,14 +178,15 @@ S4_REFERENCE = FROZEN_AND_VERSIONED
 S4_RECOMPUTATION = FORBIDDEN
 
 S5_PREREGISTRATION = FROZEN
-S5_EXECUTION = FORBIDDEN
+REAL_S5_EXECUTION = FORBIDDEN
 S6_EXECUTION = FORBIDDEN
 
+TARGET_OPERATIONAL_DENSE_LIMIT = 2512
 FULL_SPECTRUM = REQUIRED
 SPARSE_FALLBACK = FORBIDDEN
-INTER_S_BRANCH_MATCHING = FORBIDDEN
 
 PHYSICAL_MODEL_CHANGE = NO
+LEVEL0_SOLVER_CHANGE = NO
 NEW_OBSERVABLE = NO
 NEW_PRIMARY_METRIC = NO
 NEW_SCIENTIFIC_THRESHOLD = NO
@@ -206,11 +200,11 @@ PHASE_GRAVITY = CLOSED
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_N_S5_CAPABILITY_PREFLIGHT
+NEXT_STEP = L3_O_EXTEND_DENSE_CAPABILITY_TO_2512
 S5_EXECUTION = FORBIDDEN
 ```
 
-Après le rapport L3-N, ChatGPT audite la capacité réelle. Si le plus grand cas S5 dépasse la limite dense actuellement validée, une extension opérationnelle séparée de cette limite pourra être autorisée uniquement après benchmark synthétique concluant. Aucun PASS de préflight n'autorise automatiquement une campagne physique S5.
+Après livraison L3-O, ChatGPT audite le commit distant. Une nouvelle autorisation explicite sera nécessaire avant tout préflight d'exécution de campagne S=5 ou toute donnée physique S=5.
 
 ## Rôles de collaboration
 
