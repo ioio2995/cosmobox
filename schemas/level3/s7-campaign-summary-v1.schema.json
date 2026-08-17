@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level3-s7-campaign-summary-v1.schema.json",
+  "title": "Cosmobox Level3 S7 campaign summary (v1)",
+  "description": "The Level3 S7 campaign-level finalization marker: for each of the three geometries, the S6<->S7 primary taxonomy and continuous descriptors for M_TT/R_eff, the six-spin (S2,S3,S4,S5,S6,S7) directional sequence with REVERSAL_COUNT_234567, LAST_TWO_TRANSITIONS_DIRECTIONALLY_CONTINUOUS_567, and PAIRWISE_BLOCK_RECURRENCE_23_45_67, and a descriptive-only S2/S3/S4/S5/S6/S7 comparison for the control metrics. delta_hl_s2..s6/direction_s2..s6/t_x_56/c_x_56/d_x_56 are all read from the frozen Level3 S6 reference (which itself already embeds the S2/S3/S4/S5 values pinned from the frozen Level2, Level3 S4, and Level3 S5 references) -- none is ever recomputed. This document is written ONLY when the campaign is fully complete (3/3 S7 cases, 3/3 geometry comparisons, same repository_commit/manifest_fingerprint/campaign_id, all cases full-spectrum with zero partial subspaces, all four frozen references verified): its mere existence on disk is the completeness marker.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "manifest_fingerprint",
+    "repository",
+    "repository_commit",
+    "branch",
+    "frozen_preregistration_commit",
+    "campaign_status",
+    "level2_reference",
+    "level3_s4_reference",
+    "level3_s5_reference",
+    "level3_s6_reference",
+    "geometries"
+  ],
+  "properties": {
+    "schema_version": {"const": "level3-s7-campaign-summary-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "manifest_fingerprint": {"type": "string", "minLength": 1},
+    "repository": {"const": "ioio2995/cosmobox"},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "branch": {"type": "string", "minLength": 1},
+    "frozen_preregistration_commit": {"const": "cc0ffdadbeb7d40fc443ab11150c9f47e3e12776"},
+    "campaign_status": {
+      "const": "COMPLETE",
+      "description": "Always COMPLETE: an incomplete or failed campaign never produces this document at all."
+    },
+    "level2_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level2-energy-regime-v1"},
+        "manifest_fingerprint": {"const": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4"},
+        "repository_commit": {"const": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0"},
+        "frozen_preregistration_commit": {"const": "2d4c859db7939da51ee7d919889a18f4c7e229ed"}
+      },
+      "description": "Identifies without ambiguity which frozen Level2 campaign supplied the S=2/S=3 reference data."
+    },
+    "level3_s4_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level3-s4-truncation-extension-v1"},
+        "manifest_fingerprint": {"const": "3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba"},
+        "repository_commit": {"const": "ffb49da84111f778e45aa95b6d9e80b45d68f34c"},
+        "frozen_preregistration_commit": {"const": "1c1d71f07dd6a7399b3965b2bb0acfa5c665991e"}
+      },
+      "description": "Identifies without ambiguity which frozen Level3 S4 campaign supplied the S=4 reference data."
+    },
+    "level3_s5_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level3-s5-truncation-extension-v1"},
+        "manifest_fingerprint": {"const": "3160a8e6e0f9ae4a21c027a865e4d56527303ad644e3f45137baa2120f0c5d04"},
+        "repository_commit": {"const": "782f29eb9dcbc21ca2168e109997b0f59a12402f"},
+        "frozen_preregistration_commit": {"const": "496ba9484a6d7df9beb738607a5ffe23a75219ad"}
+      },
+      "description": "Identifies without ambiguity which frozen Level3 S5 campaign supplied the S=5 reference data."
+    },
+    "level3_s6_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level3-s6-truncation-extension-v1"},
+        "manifest_fingerprint": {"const": "2e0f06b69139abeb0b225a3d2b715242d6a0c26d2d1067b789f26b4829f847ca"},
+        "repository_commit": {"const": "55ea89be3a744953ff677754ff2ca22dbf116428"},
+        "frozen_preregistration_commit": {"const": "1c19a01e051c3df6f547afe0816a795989fdac3b"}
+      },
+      "description": "Identifies without ambiguity which frozen Level3 S6 campaign supplied the S=6 reference data."
+    },
+    "geometries": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/geometryS7Comparison"},
+      "description": "Exactly triangle, ring4, ring5 -- no more, no fewer."
+    }
+  },
+  "$defs": {
+    "available": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "reason"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "reason": {"type": ["string", "null"]}
+      },
+      "description": "value is None if and only if reason is set."
+    },
+    "reversalCount": {
+      "oneOf": [
+        {"type": "integer", "minimum": 0, "maximum": 5},
+        {"const": "NOT_EVALUABLE"}
+      ],
+      "description": "REVERSAL_COUNT_234567: 0, 1, 2, 3, 4, or 5 when all six directions (S2,S3,S4,S5,S6,S7) are resolved, else the literal string NOT_EVALUABLE. Descriptive only -- never a convergence criterion."
+    },
+    "lastTwoTransitionsDirectionallyContinuous567": {
+      "enum": ["YES", "NO", "NOT_EVALUABLE"],
+      "description": "YES iff sign(S5)=sign(S6)=sign(S7); NO iff the three signs are resolved and at least one of S5->S6 or S6->S7 changes sign; NOT_EVALUABLE iff any of the three signs is not resolved. Purely descriptive -- never a convergence criterion (docs/levels/level3/s7-fourth-extension-preregistration.md section 12)."
+    },
+    "pairwiseBlockRecurrence234567": {
+      "enum": ["YES", "NO", "NOT_EVALUABLE"],
+      "description": "YES iff all six directions (S2..S7) are resolved and sign(S2)=sign(S3), sign(S4)=sign(S5), sign(S6)=sign(S7), sign(S2)!=sign(S4), sign(S2)=sign(S6) -- i.e. the pattern A,A|B,B|A,A. NO iff all six are resolved but at least one of those (in)equalities fails. NOT_EVALUABLE iff at least one direction is not resolved. Purely descriptive -- never periodicity, parity, or convergence (docs/levels/level3/s7-fourth-extension-preregistration.md section 13)."
+    },
+    "primaryS6S7Comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "delta_hl_s2", "delta_hl_s3", "delta_hl_s4", "delta_hl_s5", "delta_hl_s6", "delta_hl_s7",
+        "direction_s2", "direction_s3", "direction_s4", "direction_s5", "direction_s6", "direction_s7",
+        "primary_s6_s7_taxonomy",
+        "reversal_count_234567",
+        "last_two_transitions_directionally_continuous_567",
+        "pairwise_block_recurrence_23_45_67",
+        "t_x_56", "t_x_67", "r_delta_x_67_56",
+        "c_x_56", "d_x_56", "c_x_67", "d_x_67", "r_d_x_67_56"
+      ],
+      "properties": {
+        "metric": {"enum": ["M_TT", "R_eff"]},
+        "delta_hl_s2": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level3 S6 campaign-summary (itself pinned from the frozen Level2 campaign-summary) -- never recomputed."},
+        "delta_hl_s3": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level3 S6 campaign-summary -- never recomputed."},
+        "delta_hl_s4": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level3 S6 campaign-summary -- never recomputed from a re-executed S4 case."},
+        "delta_hl_s5": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level3 S6 campaign-summary -- never recomputed from a re-executed S5 case."},
+        "delta_hl_s6": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level3 S6 campaign-summary -- never recomputed from a re-executed S6 case."},
+        "delta_hl_s7": {"$ref": "#/$defs/available"},
+        "direction_s2": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "direction_s3": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "direction_s4": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "direction_s5": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "direction_s6": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "direction_s7": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "primary_s6_s7_taxonomy": {
+          "enum": ["S7_DIRECTION_PERSISTS", "S7_DIRECTION_REVERSES", "S7_CONTRAST_UNRESOLVED", "NOT_EVALUABLE"]
+        },
+        "reversal_count_234567": {"$ref": "#/$defs/reversalCount"},
+        "last_two_transitions_directionally_continuous_567": {"$ref": "#/$defs/lastTwoTransitionsDirectionallyContinuous567"},
+        "pairwise_block_recurrence_23_45_67": {"$ref": "#/$defs/pairwiseBlockRecurrence234567"},
+        "t_x_56": {"$ref": "#/$defs/available", "description": "abs(delta_hl_s6 - delta_hl_s5), pinned from the frozen Level3 S6 campaign-summary."},
+        "t_x_67": {"$ref": "#/$defs/available", "description": "abs(delta_hl_s7 - delta_hl_s6)."},
+        "r_delta_x_67_56": {"$ref": "#/$defs/available", "description": "t_x_67 / t_x_56, only when t_x_56 > 0. No threshold associated."},
+        "c_x_56": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level3 S6 campaign-summary."},
+        "d_x_56": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level3 S6 campaign-summary."},
+        "c_x_67": {"$ref": "#/$defs/available", "description": "Computed with the same profiles.cross_profile_correlation primitive as C_X_56, on the S6<->S7 pair."},
+        "d_x_67": {"$ref": "#/$defs/available", "description": "Computed with the same profiles.cross_profile_distance primitive as D_X_56, on the S6<->S7 pair."},
+        "r_d_x_67_56": {"$ref": "#/$defs/available", "description": "d_x_67 / d_x_56, only when d_x_56 > 0. No threshold associated."}
+      },
+      "description": "Mirrors the S6<->S7 primary comparison contract of docs/levels/level3/s7-fourth-extension-preregistration.md sections 10-14 exactly."
+    },
+    "controlS6S7Comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "delta_hl_s2", "delta_hl_s3", "delta_hl_s4", "delta_hl_s5", "delta_hl_s6", "delta_hl_s7"],
+      "properties": {
+        "metric": {"enum": ["A_QQ", "M_QQ"]},
+        "delta_hl_s2": {"$ref": "#/$defs/available"},
+        "delta_hl_s3": {"$ref": "#/$defs/available"},
+        "delta_hl_s4": {"$ref": "#/$defs/available"},
+        "delta_hl_s5": {"$ref": "#/$defs/available"},
+        "delta_hl_s6": {"$ref": "#/$defs/available"},
+        "delta_hl_s7": {"$ref": "#/$defs/available"}
+      },
+      "description": "Deliberately has NO primary_s6_s7_taxonomy/reversal_count_234567/last_two_transitions_directionally_continuous_567/pairwise_block_recurrence_23_45_67/shape-descriptor property -- additionalProperties:false makes it a schema error to include one (control channel never creates or overrides a primary result)."
+    },
+    "geometryS7Comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry", "m_tt", "r_eff", "a_qq", "m_qq"],
+      "properties": {
+        "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+        "m_tt": {"allOf": [{"$ref": "#/$defs/primaryS6S7Comparison"}, {"properties": {"metric": {"const": "M_TT"}}}]},
+        "r_eff": {"allOf": [{"$ref": "#/$defs/primaryS6S7Comparison"}, {"properties": {"metric": {"const": "R_eff"}}}]},
+        "a_qq": {"allOf": [{"$ref": "#/$defs/controlS6S7Comparison"}, {"properties": {"metric": {"const": "A_QQ"}}}]},
+        "m_qq": {"allOf": [{"$ref": "#/$defs/controlS6S7Comparison"}, {"properties": {"metric": {"const": "M_QQ"}}}]}
+      }
+    }
+  }
+}

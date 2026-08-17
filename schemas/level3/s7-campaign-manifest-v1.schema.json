@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level3-s7-campaign-manifest-v1.schema.json",
+  "title": "Cosmobox Level3 S7 campaign manifest (v1)",
+  "description": "Machine-readable transcription of the Level3 S7 fourth-extension scientific contract (docs/levels/level3/s7-fourth-extension-preregistration.md, frozen at commit cc0ffdadbeb7d40fc443ab11150c9f47e3e12776). Fixes exactly the three new (geometry, S=7) cases, the reference-Hamiltonian/full-spectrum requirement, the primary/control metric split, and pins the frozen Level2 (S2/S3), frozen Level3 S4, frozen Level3 S5, AND frozen Level3 S6 reference campaign identities that supply the comparison data -- no scientific degree of freedom beyond what is already frozen.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "campaign_id",
+    "schema_version",
+    "branch",
+    "frozen_preregistration_commit",
+    "cases",
+    "physical_parameters",
+    "full_spectrum_required",
+    "primary_metrics",
+    "control_metrics",
+    "primary_contrast",
+    "numerical_guard_reference",
+    "level2_reference",
+    "level3_s4_reference",
+    "level3_s5_reference",
+    "level3_s6_reference",
+    "expected_s7_dimensions",
+    "validated_dense_capability",
+    "forbidden_extensions"
+  ],
+  "properties": {
+    "manifest_version": {"const": "level3-s7-reference-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "schema_version": {"type": "string", "minLength": 1},
+    "branch": {"type": "string", "minLength": 1},
+    "frozen_preregistration_commit": {
+      "const": "cc0ffdadbeb7d40fc443ab11150c9f47e3e12776",
+      "description": "The exact commit that froze docs/levels/level3/s7-fourth-extension-preregistration.md."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["geometry", "spin"],
+        "properties": {
+          "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+          "spin": {"const": 7}
+        }
+      },
+      "description": "Exactly the three new Level3 S7 cases, geometry-major order -- never S=2/S=3/S=4/S=5/S=6 (those come from the frozen references), never S=8."
+    },
+    "physical_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n_flavors", "j", "h", "t", "g_e", "k", "external_charges"],
+      "properties": {
+        "n_flavors": {"const": 2},
+        "j": {"const": 1.0},
+        "h": {"const": 0.0},
+        "t": {"const": 1.0},
+        "g_e": {"const": 1.0},
+        "k": {"const": 1.0},
+        "external_charges": {"const": 0.0}
+      },
+      "description": "Documentary only -- not consumed by execution; identical to Level2, S4, S5, and S6."
+    },
+    "full_spectrum_required": {"const": true},
+    "primary_metrics": {
+      "type": "array",
+      "items": {"enum": ["M_TT", "R_eff"]},
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true
+    },
+    "control_metrics": {
+      "type": "array",
+      "items": {"enum": ["A_QQ", "M_QQ"]},
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true
+    },
+    "primary_contrast": {"const": "HIGH_MINUS_LOW"},
+    "numerical_guard_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["guard_m_tt", "guard_r_eff", "guard_scope"],
+      "properties": {
+        "guard_m_tt": {"const": 1e-16},
+        "guard_r_eff": {"const": 1e-15},
+        "guard_scope": {"const": "DELTA_HL_ONLY"}
+      },
+      "description": "The frozen L2-C1 numerical zero-resolution guards, reused unchanged for the S6<->S7 taxonomy."
+    },
+    "level2_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level2-energy-regime-v1"},
+        "manifest_fingerprint": {"const": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4"},
+        "repository_commit": {"const": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0"},
+        "frozen_preregistration_commit": {"const": "2d4c859db7939da51ee7d919889a18f4c7e229ed"}
+      },
+      "description": "The frozen Level2 campaign identity Level3 S7 pins as its exclusive S=2/S=3 source."
+    },
+    "level3_s4_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level3-s4-truncation-extension-v1"},
+        "manifest_fingerprint": {"const": "3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba"},
+        "repository_commit": {"const": "ffb49da84111f778e45aa95b6d9e80b45d68f34c"},
+        "frozen_preregistration_commit": {"const": "1c1d71f07dd6a7399b3965b2bb0acfa5c665991e"}
+      },
+      "description": "The frozen Level3 S4 campaign identity Level3 S7 pins as its exclusive S=4 source."
+    },
+    "level3_s5_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level3-s5-truncation-extension-v1"},
+        "manifest_fingerprint": {"const": "3160a8e6e0f9ae4a21c027a865e4d56527303ad644e3f45137baa2120f0c5d04"},
+        "repository_commit": {"const": "782f29eb9dcbc21ca2168e109997b0f59a12402f"},
+        "frozen_preregistration_commit": {"const": "496ba9484a6d7df9beb738607a5ffe23a75219ad"}
+      },
+      "description": "The frozen Level3 S5 campaign identity Level3 S7 pins as its exclusive S=5 source."
+    },
+    "level3_s6_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level3-s6-truncation-extension-v1"},
+        "manifest_fingerprint": {"const": "2e0f06b69139abeb0b225a3d2b715242d6a0c26d2d1067b789f26b4829f847ca"},
+        "repository_commit": {"const": "55ea89be3a744953ff677754ff2ca22dbf116428"},
+        "frozen_preregistration_commit": {"const": "1c19a01e051c3df6f547afe0816a795989fdac3b"}
+      },
+      "description": "The frozen Level3 S6 campaign identity Level3 S7 pins as its exclusive S=6 source."
+    },
+    "expected_s7_dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["triangle", "ring4", "ring5"],
+      "properties": {
+        "triangle": {"const": 288},
+        "ring4": {"const": 992},
+        "ring5": {"const": 3520}
+      },
+      "description": "Hilbert-space dimensions established by the L3-AA capability preflight -- reference data, cross-checked by the campaign's gates against the real run_case(...).dimension."
+    },
+    "validated_dense_capability": {
+      "const": 3520,
+      "description": "Must equal cosmobox.level3.execution.LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT (L3-AB) -- an operational capacity limit, never a physical or convergence threshold."
+    },
+    "forbidden_extensions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string"},
+      "description": "Documentary marker only -- the real enforcement is in code, never solely in this JSON field."
+    }
+  }
+}
