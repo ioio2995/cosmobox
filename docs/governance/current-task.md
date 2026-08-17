@@ -1,25 +1,19 @@
 # Contrat de continuité — état courant
 
-Ce document contient uniquement l'état actif du projet. L'historique jusqu'à la clôture de Level 1 est archivé dans [`../archive/current-task-through-level1.md`](../archive/current-task-through-level1.md). La clôture scientifique de Level 2 est figée dans [`../levels/level2/synthesis-and-closure.md`](../levels/level2/synthesis-and-closure.md).
+Ce document contient uniquement l'état actif du projet. La clôture scientifique de Level 2 est figée dans [`../levels/level2/synthesis-and-closure.md`](../levels/level2/synthesis-and-closure.md). Le contrat scientifique actif Level 3 est [`../levels/level3/s4-first-campaign-preregistration.md`](../levels/level3/s4-first-campaign-preregistration.md).
 
 ## État Git
 
 ```text
-BASE_BRANCH = main
-BASE_COMMIT = 24e457b182c7fec41f3cb93f3101f02fef1f65cb
 ACTIVE_BRANCH = research/level2-energy-regime
 
-LEVEL2_FROZEN_PREREGISTRATION = 2d4c859db7939da51ee7d919889a18f4c7e229ed
-LEVEL2_NORMATIVE_AUTHORIZATION = 1feb03f41f9e73078efbc760dd2cba2b667e2ed0
-LEVEL2_SYNTHESIS = 10b8da8756112b9055c52b58e169707818cf6429
-LEVEL2_CLOSURE_GOVERNANCE = bf3dd8c7399181d527ea4956ed06379480246809
-
-LEVEL3_A_GOVERNANCE_OPENING = 6ccc360267593a63219812cc81cf30eac002cca4
 LEVEL3_A_SPIN_ENCODING_IMPLEMENTATION = c7e43771fdf3ed23720bfb245c8c8d3bb320a257
-LEVEL3_B_GOVERNANCE_OPENING = 6e87bc6d5f1140abff6d95f3c17a253bbac7f42b
 LEVEL3_B_GENERIC_EXECUTION_IMPLEMENTATION = ce2c7a16387490bb13ba1156249ea1129ec3bbc9
 LEVEL3_C_GOVERNANCE_OPENING = 8cbefa7b712915b15a07e68686e92480062634e6
 LEVEL3_D_GOVERNANCE_OPENING = fdade60527e5e51b896e90757c79b7c5c0fec9a0
+LEVEL3_E_GOVERNANCE_OPENING = 2f03736021d626f00ec2f58c6d4dd67b84be1d44
+LEVEL3_E_FULL_SPECTRUM_POLICY_IMPLEMENTATION = d8281b48b836a3ce14bb05cd739ea6b22f4a7ea4
+LEVEL3_F_S4_SCIENTIFIC_PREREGISTRATION = 1c1d71f07dd6a7399b3965b2bb0acfa5c665991e
 ```
 
 ## État scientifique
@@ -28,10 +22,11 @@ LEVEL3_D_GOVERNANCE_OPENING = fdade60527e5e51b896e90757c79b7c5c0fec9a0
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = EXECUTION_POLICY
+LEVEL3 = S4_PREREGISTERED
 
 LAST_CLOSED_LEVEL = LEVEL2
-LAST_ACCEPTED_LOT = L3-D-FULL-SPECTRUM-SOLVER-CAPABILITY
+LAST_ACCEPTED_SOFTWARE_LOT = L3-E-FULL-SPECTRUM-EXECUTION-POLICY
+LAST_FROZEN_SCIENTIFIC_JALON = L3-F-S4-SCIENTIFIC-PREREGISTRATION
 
 LEVEL2_PRIMARY_TEST = POSITIVE
 CROSS_GEOMETRY_STATUS = CROSS_GEOMETRY_RECURRENT
@@ -40,7 +35,7 @@ PHASE_GEOMETRY = CLOSED
 PHASE_GRAVITY = CLOSED
 ```
 
-## Référence Level 2
+## Référence scientifique Level 2
 
 ```text
 CAMPAIGN_ID = level2-energy-regime-v1
@@ -49,150 +44,120 @@ REPOSITORY_COMMIT = 1feb03f41f9e73078efbc760dd2cba2b667e2ed0
 CAMPAIGN_STATUS = COMPLETE
 ```
 
-Résultat primaire figé :
+Level 2 reste immuable et clos.
+
+## Capacités Level 3 établies
 
 ```text
-triangle:
-  M_TT  = SAME_INTER_S_DIRECTION
-  R_eff = SAME_INTER_S_DIRECTION
-
-ring4:
-  M_TT  = SAME_INTER_S_DIRECTION
-  R_eff = SAME_INTER_S_DIRECTION
-
-ring5:
-  M_TT  = OPPOSITE_INTER_S_DIRECTION
-  R_eff = OPPOSITE_INTER_S_DIRECTION
-```
-
-Limites figées :
-
-```text
-NO_UNIVERSALITY_CLAIM
-S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
-PHASE_GEOMETRY = CLOSED
-PHASE_GRAVITY = CLOSED
-LEVEL2_RESULT_RETRY = FORBIDDEN
-LEVEL2_POST_HOC_METRIC = FORBIDDEN
-```
-
-## Question scientifique Level 3
-
-> Les observables relationnelles admettent-elles une stabilisation lorsque la troncature du champ de jauge est progressivement relâchée, c'est-à-dire lorsque `S` augmente au-delà de 3 ?
-
-```text
-LEVEL3_WORKING_NAME = TRUNCATION_CONVERGENCE
-S_ROLE = GAUGE_FIELD_TRUNCATION_PARAMETER
-S_IS_NEW_PHYSICAL_FIELD = NO
-S_IS_SPACETIME_DIMENSION = NO
-PHYSICAL_MODEL_CHANGE = NO
-```
-
-## Lots Level 3 acceptés
-
-### L3-A — généralisation de l'encodage spin
-
-```text
-STATUS = ACCEPTED
-IMPLEMENTATION_COMMIT = c7e43771fdf3ed23720bfb245c8c8d3bb320a257
 LEVEL0_SPIN_ENCODING_GENERIC = YES
-```
-
-Politique d'encodage :
-
-```text
-flux_bits_per_edge(spin) = max(3, (2*spin).bit_length())
-```
-
-L'encodage historique `S=1,2,3` reste bit-à-bit inchangé.
-
-### L3-B — couche d'exécution générique
-
-```text
-STATUS = ACCEPTED
-IMPLEMENTATION_COMMIT = ce2c7a16387490bb13ba1156249ea1129ec3bbc9
 LEVEL3_CASESPEC_GENERIC = YES
 LEVEL3_RUN_CASE_IMPLEMENTED = YES
 LEVEL3_SPIN_PAIR_COMPARISON = YES
-LEVEL2_FILES_MODIFIED = NO
-REAL_S4_EXECUTION = NO
-NEW_PHYSICAL_RESULT_INSPECTED = NO
-```
-
-### L3-C — préflight de capacité S=4
-
-```text
-STATUS = ACCEPTED
-TYPE = CAPABILITY_EXECUTION
-CODE_CHANGE_PERFORMED = NO
+LEVEL3_FULL_SPECTRUM_POLICY = IMPLEMENTED
+LEVEL3_SPARSE_FALLBACK_POSSIBLE = NO
 
 TRIANGLE_S4_DIMENSION = 168
 RING4_S4_DIMENSION = 572
 RING5_S4_DIMENSION = 2008
-
-S4_BASIS_CONSTRUCTION = COMPLETE
-S4_HAMILTONIAN_BUILT = NO
-S4_DIAGONALIZATION = NO
-S4_OBSERVABLES_COMPUTED = NO
-NEW_PHYSICAL_RESULT_INSPECTED = NO
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
 ```
 
-### L3-D — capacité solveur spectre complet
+Le benchmark L3-D a établi qu'un eigensystème Hermitien dense complet à `D=2008` est praticable dans l'environnement testé. L3-E garantit qu'une demande Level3 de spectre complet produit un eigensystème complet ou échoue explicitement avant toute observable.
+
+Aucun Hamiltonien physique `S=4` n'a encore été construit ou diagonalisé.
+
+## Contrat scientifique Level 3 gelé
+
+Source normative :
 
 ```text
-STATUS = ACCEPTED
-TYPE = NUMERICAL_CAPABILITY_ONLY
-CODE_CHANGE_PERFORMED = NO
-
-SYNTHETIC_D1504_FULL_EIGENSYSTEM = COMPLETE
-SYNTHETIC_D2008_FULL_EIGENSYSTEM = COMPLETE
-SYNTHETIC_D2008_EIGH_WALL_TIME ~= 8.18 s
-SYNTHETIC_D2008_PEAK_MEMORY ~= 480 MiB
-
-REAL_S4_HAMILTONIAN_BUILT = NO
-REAL_S4_DIAGONALIZATION = NO
-S4_OBSERVABLES_COMPUTED = NO
-NEW_PHYSICAL_RESULT_INSPECTED = NO
+docs/levels/level3/s4-first-campaign-preregistration.md
 ```
 
-Une diagonalisation Hermitienne dense complète à `D=2008` est donc numériquement praticable dans l'environnement d'exécution testé. Ce résultat établit une capacité numérique, pas un résultat physique Level3.
-
-Le verrou restant est logiciel : `SpectrumOptions.max_dense_dimension = 2000` ferait basculer `D=2008` vers `eigsh`, qui ne peut fournir au maximum que `D-1` valeurs propres. Une demande Level3 de spectre complet ne doit jamais se transformer silencieusement en calcul spectral partiel.
-
-## Lot courant — L3-E
+Contrat :
 
 ```text
-LOT = L3-E-FULL-SPECTRUM-EXECUTION-POLICY
+LEVEL3_FIRST_NEW_SPIN = 4
+LEVEL3_NEW_CASES = triangle:S4, ring4:S4, ring5:S4
+FULL_SPECTRUM = REQUIRED
+PRIMARY_PAIR = S3_TO_S4
+PRIMARY_METRICS = M_TT, R_eff
+CONTROL_METRICS = A_QQ, M_QQ
+PRIMARY_CONTRAST = HIGH_MINUS_LOW
+PROFILE_DOMAIN = q in [0,1]
+PROFILE_REPRESENTATION = multiplicity-weighted exact step function
+INTER_S_BRANCH_MATCHING = FORBIDDEN
+PHYSICAL_EFFECT_THRESHOLD = NOT_APPLICABLE
+P_VALUE = NOT_APPLICABLE
+COMPOSITE_SCORE = FORBIDDEN
+NUMERICAL_GUARD_M_TT = 1e-16
+NUMERICAL_GUARD_R_EFF = 1e-15
+S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
+```
+
+Taxonomie primaire `S3 <-> S4` :
+
+```text
+S4_DIRECTION_PERSISTS
+S4_DIRECTION_REVERSES
+S4_CONTRAST_UNRESOLVED
+NOT_EVALUABLE
+```
+
+La campagne publiera aussi la séquence `S=2,3,4` et les descripteurs continus pré-enregistrés `T_X_23`, `T_X_34`, `R_DELTA_X`, `C_X_34`, `D_X_34`, `R_D_X`, sans seuil de convergence.
+
+Quelle que soit l'issue de `S=4` :
+
+```text
+S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
+PHASE_GEOMETRY = CLOSED
+PHASE_GRAVITY = CLOSED
+```
+
+## Lot courant — L3-G
+
+```text
+LOT = L3-G-S4-CAMPAIGN-INFRASTRUCTURE-AUDIT
 STATUS = OPEN
-TYPE = SOFTWARE_IMPLEMENTATION
+TYPE = SOFTWARE_AUDIT_ONLY
 
-CODE_CHANGE_AUTHORIZED = YES
-COMMIT_AUTHORIZED = YES
-PUSH_AUTHORIZED = YES
-
+CODE_CHANGE_AUTHORIZED = NO
+COMMIT_AUTHORIZED = NO
+PUSH_AUTHORIZED = NO
 REAL_S4_HAMILTONIAN_BUILD_AUTHORIZED = NO
 REAL_S4_DIAGONALIZATION_AUTHORIZED = NO
 S4_OBSERVABLES_AUTHORIZED = NO
 LEVEL3_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
 ```
 
-Objectif : garantir dans la couche Level3 qu'une exécution déclarée en spectre complet utilise effectivement un chemin dense complet explicitement autorisé par la politique Level3, ou échoue explicitement avant diagonalisation. Aucun fallback silencieux vers `sparse_eigsh` n'est acceptable pour une demande de spectre complet.
+Objectif : auditer l'infrastructure minimale nécessaire pour matérialiser le pré-enregistrement scientifique gelé dans des contrats Level 3 dédiés : manifeste, schéma, sérialisation, runner, provenance et contrôles de campagne.
 
-La modification doit rester localisée à Level3 autant que possible. Les contrats historiques Level0/Level2, y compris leur dispatcher spectral général, restent inchangés sauf défaut bloquant démontré et soumis à STOP avant modification.
+L'audit doit déterminer comment :
 
-La politique Level3 ne doit pas coder `2008` comme seuil scientifique ni introduire une whitelist de dimensions liée aux résultats observés. Elle doit exprimer une propriété d'exécution : full spectrum demandé implique full eigensystem réellement produit.
+```text
+- exécuter uniquement les trois nouveaux cas S=4 ;
+- réutiliser les artefacts Level 2 gelés comme référence normative S2/S3 ;
+- produire les comparaisons S3<->S4 sans recomputer silencieusement la provenance Level2 ;
+- sérialiser la taxonomie S4_DIRECTION_* ;
+- sérialiser les descripteurs T_X_23/T_X_34/R_DELTA_X/C_X_34/D_X_34/R_D_X ;
+- garantir full spectrum / provenance / atomicité / reprise sans inspection partielle post-hoc ;
+- empêcher toute ouverture implicite de S=5.
+```
+
+Aucun code ni aucune exécution physique ne sont autorisés pendant cet audit.
 
 ## Invariants Level 3
 
 ```text
 - Level 2 reste immuable et clos.
+- Les artefacts Level2 gelés sont les références normatives S2/S3.
 - Aucune définition physique ne change.
 - Aucun nouvel observable n'est créé.
 - Aucun seuil de convergence scientifique n'est défini.
 - Aucun matching multiplet-par-multiplet inter-S.
-- Toute nouvelle donnée physique S>3 exige un cadrage scientifique séparé.
+- Aucune donnée physique S>3 hors des trois cas S4 pré-enregistrés.
+- Aucune exécution S4 avant implémentation, audit et autorisation explicite de campagne.
 - Une demande full-spectrum ne peut jamais être satisfaite par un résultat partiel.
-- Une limite de calcul est un résultat de capacité, pas une justification pour changer silencieusement de solveur ou de protocole.
 - PHASE_GEOMETRY reste CLOSED.
 - PHASE_GRAVITY reste CLOSED.
 ```
@@ -200,11 +165,11 @@ La politique Level3 ne doit pas coder `2008` comme seuil scientifique ni introdu
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_E_FULL_SPECTRUM_EXECUTION_POLICY
-OPEN_METHODOLOGICAL_ITEM = DEFINE_LEVEL3_CONVERGENCE_PROTOCOL_AFTER_EXECUTION_POLICY
+NEXT_STEP = L3_G_S4_CAMPAIGN_INFRASTRUCTURE_AUDIT
+REAL_S4_EXECUTION = FORBIDDEN
 ```
 
-Après livraison de L3-E, ChatGPT audite le commit distant et Lionel accepte ou non le lot. Aucun calcul physique S=4 n'est autorisé par l'ouverture de L3-E.
+Après audit Claude, ChatGPT arbitre l'architecture. Lionel autorise ensuite explicitement l'implémentation éventuelle. Aucune implémentation et aucune exécution `S=4` ne sont autorisées implicitement par l'ouverture de l'audit.
 
 ## Rôles de collaboration
 
