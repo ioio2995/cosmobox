@@ -164,7 +164,7 @@ def build_basis(
     validate_spin(spin)
     n_nodes = len(lattice.nodes)
     n_edges = len(lattice.edges)
-    validate_capacity(n_nodes, n_flavors, n_edges)
+    validate_capacity(n_nodes, n_flavors, n_edges, spin)
 
     q2_ext = doubled_external_charges(normalize_external_charges(n_nodes, external_charges))
     target_q2_tot = -sum(q2_ext)

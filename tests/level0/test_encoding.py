@@ -9,6 +9,7 @@ from cosmobox.level0.encoding import (
     decode,
     encode,
     flux_bit_offset,
+    flux_bits_per_edge,
     occupation_bit,
     required_bits,
     validate_canonical_key,
@@ -58,25 +59,42 @@ def test_occupation_bit_layout() -> None:
 
 
 def test_flux_bit_offset_layout() -> None:
-    # N*M = 6 occupation bits, then 3 bits per edge.
-    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=0) == 6
-    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=1) == 9
-    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=2) == 12
+    # N*M = 6 occupation bits, then 3 bits per edge (spin=2, historical width).
+    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=0, spin=2) == 6
+    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=1, spin=2) == 9
+    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=2, spin=2) == 12
+
+
+@pytest.mark.parametrize(
+    ("spin", "expected_bits"),
+    [(1, 3), (2, 3), (3, 3), (4, 4), (5, 4), (6, 4), (7, 4), (8, 5), (15, 5), (16, 6)],
+)
+def test_flux_bits_per_edge_preserves_historical_width_and_widens_only_when_needed(
+    spin: int, expected_bits: int
+) -> None:
+    assert flux_bits_per_edge(spin) == expected_bits
+
+
+def test_flux_bit_offset_widens_beyond_historical_three_bits_for_spin_four() -> None:
+    # N*M = 6 occupation bits, then 4 bits per edge (spin=4 needs v_e in [0,8]).
+    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=0, spin=4) == 6
+    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=1, spin=4) == 10
+    assert flux_bit_offset(n_nodes=3, n_flavors=2, edge_index=2, spin=4) == 14
 
 
 def test_required_bits_and_capacity_boundary() -> None:
-    assert required_bits(n_nodes=61, n_flavors=1, n_edges=1) == 64
-    validate_capacity(n_nodes=61, n_flavors=1, n_edges=1)  # must not raise
+    assert required_bits(n_nodes=61, n_flavors=1, n_edges=1, spin=2) == 64
+    validate_capacity(n_nodes=61, n_flavors=1, n_edges=1, spin=2)  # must not raise
 
-    assert required_bits(n_nodes=62, n_flavors=1, n_edges=1) == 65
+    assert required_bits(n_nodes=62, n_flavors=1, n_edges=1, spin=2) == 65
     with pytest.raises(ValueError):
-        validate_capacity(n_nodes=62, n_flavors=1, n_edges=1)
+        validate_capacity(n_nodes=62, n_flavors=1, n_edges=1, spin=2)
 
 
 @pytest.mark.parametrize("n_flavors", [0, -1])
 def test_required_bits_rejects_non_positive_n_flavors(n_flavors: int) -> None:
     with pytest.raises(ValueError):
-        required_bits(n_nodes=3, n_flavors=n_flavors, n_edges=2)
+        required_bits(n_nodes=3, n_flavors=n_flavors, n_edges=2, spin=2)
 
 
 @pytest.mark.parametrize("n_flavors", [0, -1])
@@ -119,25 +137,46 @@ def test_encode_rejects_flux_outside_spin_range() -> None:
         encode(lattice, 1, 1, occupations=[0, 0, 0], flux=[2, 0, 0])
 
 
-@pytest.mark.parametrize("spin", [0, 4, -1])
+@pytest.mark.parametrize("spin", [0, -1])
 def test_encode_rejects_unsupported_spin(spin: int) -> None:
     lattice = build_lattice("triangle")
     with pytest.raises(ValueError):
         encode(lattice, 1, spin, occupations=[0, 0, 0], flux=[0, 0, 0])
 
 
-@pytest.mark.parametrize("spin", [0, 4, -1])
+@pytest.mark.parametrize("spin", [0, -1])
 def test_decode_rejects_unsupported_spin(spin: int) -> None:
     lattice = build_lattice("triangle")
     with pytest.raises(ValueError):
         decode(lattice, 1, spin, np.uint64(0))
 
 
+def test_encode_and_decode_accept_spin_beyond_the_historical_ceiling() -> None:
+    # S=4 was rejected before the L3-A spin generalization (SUPPORTED_SPINS
+    # was exactly (1, 2, 3)); it is now a plain, generic case.
+    lattice = build_lattice("triangle")
+    key = encode(lattice, 1, 4, occupations=[0, 0, 0], flux=[4, -4, 0])
+    occupations, flux = decode(lattice, 1, 4, key)
+    assert occupations == (0, 0, 0)
+    assert flux == (4, -4, 0)
+
+
+def test_round_trip_at_spin_four_does_not_bleed_into_the_next_edge_field() -> None:
+    # The historical risk this guards against: widening SUPPORTED_SPINS
+    # without widening the per-edge bit field would silently overflow
+    # v_e=E_e+S=8 (spin=4) out of a 3-bit field into the next edge's bits.
+    lattice = build_lattice("triangle")
+    for flux in itertools.product((-4, 4), repeat=3):
+        key = encode(lattice, 1, 4, occupations=[0, 0, 0], flux=list(flux))
+        _, decoded_flux = decode(lattice, 1, 4, key)
+        assert decoded_flux == flux
+
+
 def test_decode_rejects_key_with_non_canonical_high_bits() -> None:
     lattice = build_lattice("chain3")  # N*M + 3*L = 3*1 + 3*2 = 9 bits with n_flavors=1
     n_flavors = 1
     spin = 1
-    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges))
+    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges), spin)
     key = np.uint64(1 << bits)  # one bit above the canonical range
     with pytest.raises(ValueError):
         decode(lattice, n_flavors, spin, key)
@@ -148,7 +187,7 @@ def test_decode_rejects_flux_field_exceeding_two_spin() -> None:
     n_flavors = 1
     spin = 1  # 2*spin = 2, but we store 5 in the 3-bit field of edge 0
     n_nodes = len(lattice.nodes)
-    offset = flux_bit_offset(n_nodes, n_flavors, edge_index=0)
+    offset = flux_bit_offset(n_nodes, n_flavors, edge_index=0, spin=spin)
     key = np.uint64(5 << offset)
     with pytest.raises(ValueError):
         decode(lattice, n_flavors, spin, key)
@@ -159,7 +198,7 @@ def test_unused_bits_are_zero_in_a_canonical_key() -> None:
     n_flavors = 1
     spin = 1
     key = encode(lattice, n_flavors, spin, occupations=[1, 0, 1], flux=[1, -1, 0])
-    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges))
+    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges), spin)
     assert int(key) < (1 << bits)
 
 
@@ -190,7 +229,7 @@ def test_validate_canonical_key_accepts_a_valid_key() -> None:
 def test_validate_canonical_key_rejects_non_canonical_high_bits() -> None:
     lattice = build_lattice("chain3")
     n_flavors, spin = 1, 1
-    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges))
+    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges), spin)
     key = np.uint64(1 << bits)
     with pytest.raises(ValueError):
         validate_canonical_key(lattice, n_flavors, spin, key)
@@ -199,7 +238,7 @@ def test_validate_canonical_key_rejects_non_canonical_high_bits() -> None:
 def test_validate_canonical_key_rejects_flux_field_exceeding_two_spin() -> None:
     lattice = build_lattice("chain3")
     n_flavors, spin = 1, 1
-    offset = flux_bit_offset(len(lattice.nodes), n_flavors, edge_index=0)
+    offset = flux_bit_offset(len(lattice.nodes), n_flavors, edge_index=0, spin=spin)
     key = np.uint64(5 << offset)
     with pytest.raises(ValueError):
         validate_canonical_key(lattice, n_flavors, spin, key)

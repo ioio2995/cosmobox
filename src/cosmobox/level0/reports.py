@@ -438,7 +438,7 @@ def _build_level0_report_impl(
     validate_spin(spin)
     n_nodes = len(lattice.nodes)
     n_edges = len(lattice.edges)
-    validate_capacity(n_nodes, n_flavors, n_edges)
+    validate_capacity(n_nodes, n_flavors, n_edges, spin)
 
     dimension = len(basis.keys)
 

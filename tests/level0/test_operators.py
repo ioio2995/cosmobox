@@ -395,7 +395,7 @@ def test_link_raise_rejects_out_of_range_edge_index() -> None:
 def test_every_public_operator_rejects_non_canonical_key(op_call) -> None:
     lattice = build_lattice("chain3")
     n_flavors, spin = 1, 1
-    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges))
+    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges), spin)
     non_canonical_key = np.uint64(1 << bits)
     with pytest.raises(ValueError):
         op_call(lattice, n_flavors, spin, non_canonical_key)

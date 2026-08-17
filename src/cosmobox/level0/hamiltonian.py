@@ -200,7 +200,7 @@ def build_hopping_term(
     aid). Both directions are generated explicitly from the composed
     operator primitives -- never restored by symmetrizing the matrix.
     """
-    validate_capacity(len(lattice.nodes), n_flavors, len(lattice.edges))
+    validate_capacity(len(lattice.nodes), n_flavors, len(lattice.edges), spin)
     validate_key_index(keys, key_index)
 
     dim = len(keys)
@@ -302,7 +302,7 @@ def build_magnetic_term(
     with no plaquette (chain3) naturally yields the zero matrix -- the loop
     over lattice.plaquettes is simply empty, no special case needed.
     """
-    validate_capacity(len(lattice.nodes), n_flavors, len(lattice.edges))
+    validate_capacity(len(lattice.nodes), n_flavors, len(lattice.edges), spin)
     validate_key_index(keys, key_index)
 
     dim = len(keys)

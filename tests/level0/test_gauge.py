@@ -164,7 +164,7 @@ def test_deliberately_shifted_interior_flux_is_rejected() -> None:
 def test_is_physical_propagates_valueerror_on_non_canonical_key() -> None:
     lattice = build_lattice("chain3")
     n_flavors, spin = 1, 1
-    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges))
+    bits = required_bits(len(lattice.nodes), n_flavors, len(lattice.edges), spin)
     non_canonical_key = np.uint64(1 << bits)  # one bit above the canonical range
     with pytest.raises(ValueError):
         is_physical(lattice, n_flavors, spin, non_canonical_key)

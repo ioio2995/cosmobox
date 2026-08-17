@@ -23,7 +23,7 @@ from math import sqrt
 
 import numpy as np
 
-from .encoding import flux_bit_offset, occupation_bit, validate_canonical_key
+from .encoding import flux_bit_offset, flux_bits_per_edge, occupation_bit, validate_canonical_key
 from .lattice import Lattice
 
 
@@ -50,16 +50,18 @@ def _read_occupation_bit(key_int: int, node: int, flavor: int, n_flavors: int) -
 
 
 def _read_flux_field(key_int: int, lattice: Lattice, n_flavors: int, spin: int, edge_index: int) -> int:
-    offset = flux_bit_offset(len(lattice.nodes), n_flavors, edge_index)
-    stored_value = (key_int >> offset) & 0b111
+    offset = flux_bit_offset(len(lattice.nodes), n_flavors, edge_index, spin)
+    field_mask = (1 << flux_bits_per_edge(spin)) - 1
+    stored_value = (key_int >> offset) & field_mask
     return stored_value - spin
 
 
 def _set_flux_field(
     key_int: int, lattice: Lattice, n_flavors: int, spin: int, edge_index: int, new_value: int
 ) -> int:
-    offset = flux_bit_offset(len(lattice.nodes), n_flavors, edge_index)
-    cleared = key_int & ~(0b111 << offset)
+    offset = flux_bit_offset(len(lattice.nodes), n_flavors, edge_index, spin)
+    field_mask = (1 << flux_bits_per_edge(spin)) - 1
+    cleared = key_int & ~(field_mask << offset)
     stored_value = new_value + spin
     return cleared | (stored_value << offset)
 
