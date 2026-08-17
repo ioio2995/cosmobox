@@ -31,10 +31,10 @@ LEVEL0  = CLOSED
 LEVEL1B = CLOSED
 LEVEL1C = CLOSED
 LEVEL1  = CLOSED
-LEVEL2  = L2_E_ACCEPTED
+LEVEL2  = NORMATIVE_CAMPAIGN_AUTHORIZED
 
 LAST_CLOSED_LEVEL = LEVEL1
-LAST_ACCEPTED_LOT = L2-E-CAMPAIGN-LAYER
+LAST_ACCEPTED_LOT = L2-FINAL-REAL-PREFLIGHT
 
 LEVEL1C_PHYSICAL_VERDICT = INCONCLUSIVE
 LEVEL1C_STOP_REASON      = INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE
@@ -51,8 +51,9 @@ LEVEL2_E_CAMPAIGN_AND_PROVENANCE_AUDIT = ACCEPTED
 LEVEL2_E_CAMPAIGN_INFRASTRUCTURE = ACCEPTED
 LEVEL2_E1_RAW_OBSERVABLE_RETENTION = ACCEPTED
 LEVEL2_E2_CASE_RESULT_AND_END_TO_END_RUNNER = ACCEPTED
+LEVEL2_FINAL_REAL_PREFLIGHT = ACCEPTED
 LEVEL2_IMPLEMENTATION = CAMPAIGN_LAYER_COMPLETE
-LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
+LEVEL2_NORMATIVE_CAMPAIGN = AUTHORIZED_NOT_STARTED
 ```
 
 ## Documents scientifiques actifs
@@ -119,8 +120,6 @@ WINDOW_TRUNCATED = false
 PARTIAL_SUBSPACES = 0
 MULTIPLICITY_COVERAGE = COMPLETE
 ```
-
-Aucune observable Level2 n'a été inspectée pendant ce préflight.
 
 ## Arbitrage L2-D3 — métriques de contrôle
 
@@ -216,7 +215,27 @@ NEW_SCIENTIFIC_METRIC = NO
 NEW_NUMERICAL_TOLERANCE = NO
 ```
 
-La couche de campagne est désormais complète et revue. Aucun résultat physique Level2 n'a été calculé pendant son implémentation.
+## Résultat du préflight réel final
+
+Le préflight final a été rejoué sur le HEAD de gouvernance `ed28c4163b751bbd91ffed2fef3770d6af800c95`, avec worktree propre, sans modification du dépôt et sans calcul d'observable Level2.
+
+```text
+triangle S=2 : D=88,   eigenpairs=88,   groupes=22,  PASS
+triangle S=3 : D=128,  eigenpairs=128,  groupes=32,  PASS
+ring4    S=2 : D=292,  eigenpairs=292,  groupes=106, PASS
+ring4    S=3 : D=432,  eigenpairs=432,  groupes=158, PASS
+ring5    S=2 : D=1000, eigenpairs=1000, groupes=226, PASS
+ring5    S=3 : D=1504, eigenpairs=1504, groupes=342, PASS
+
+ALL_6_CASES_PASS = YES
+L2_FINAL_REAL_PREFLIGHT = PASS
+REAL_LEVEL2_DIAGONALIZATION = YES
+REAL_LEVEL2_OBSERVABLE_COMPUTATION = NO
+PHYSICAL_RESULT_INSPECTED = NO
+NORMATIVE_CAMPAIGN_EXECUTED = NO
+```
+
+Ce résultat est accepté comme dernière barrière technique avant la première campagne normative Level2.
 
 ### Validation normative
 
@@ -259,16 +278,34 @@ NOT_EVALUABLE
 
 `SAME_INTER_S_DIRECTION` ne constitue pas une preuve de convergence `S -> infinity`.
 
+## Autorisation de la première campagne normative Level2
+
+La première campagne normative Level2 est explicitement autorisée à partir du présent HEAD de gouvernance.
+
+Elle doit utiliser exclusivement :
+
+```text
+experiments/level2/preregistered-manifest-v1.json
+scripts/level2_campaign/runner.run_campaign
+```
+
+Aucun paramètre, seuil, métrique, garde, cas, branche inter-S ou règle de classification ne peut être modifié avant ou pendant l'exécution.
+
+La campagne doit produire les artefacts normatifs sous :
+
+```text
+results/level2/level2-energy-regime-v1/
+```
+
+Le résultat physique doit être rapporté tel quel. Toute défaillance technique arrête la campagne ; aucune correction post-hoc ou reprise implicite n'est autorisée.
+
 ## Étape suivante
 
 ```text
-NEXT_STEP = L2_FINAL_REAL_PREFLIGHT
+NEXT_STEP = L2_FIRST_NORMATIVE_CAMPAIGN
 OPEN_METHODOLOGICAL_ITEM = NONE
+NORMATIVE_CAMPAIGN_AUTHORIZED = YES
 ```
-
-La couche de campagne L2-E est acceptée. Avant toute première campagne normative Level2, un dernier préflight réel strictement non interprétatif doit être rejoué sur le HEAD final de la branche. Il doit vérifier uniquement les invariants spectraux L2-A1 déjà connus et ne doit calculer ni inspecter aucune observable Level2.
-
-La campagne normative reste fermée jusqu'à acceptation explicite de ce préflight final.
 
 ## Rôles de collaboration
 
@@ -293,6 +330,7 @@ intuition / direction / final decision
 - Aucune nouvelle métrique ne sera ajoutée après ouverture de la campagne pour améliorer le résultat.
 - Aucun matching multiplet-par-multiplet S=2 vers S=3 n'est autorisé dans Level 2.
 - Aucun élargissement post-hoc des gardes numériques n'est autorisé.
+- Aucun résultat physique Level2 ne doit être filtré, corrigé ou réinterprété pour obtenir une conclusion préférée.
 ```
 
 ## Archive
