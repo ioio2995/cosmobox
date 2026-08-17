@@ -13,6 +13,7 @@ LEVEL3_E_FULL_SPECTRUM_POLICY_IMPLEMENTATION = d8281b48b836a3ce14bb05cd739ea6b22
 LEVEL3_F_S4_SCIENTIFIC_PREREGISTRATION = 1c1d71f07dd6a7399b3965b2bb0acfa5c665991e
 LEVEL3_H_FROZEN_LEVEL2_REFERENCE_ARTIFACTS = d1515a8118e415e78e0b8f9fc98ce93b63ec26f2
 LEVEL3_I_S4_CAMPAIGN_INFRASTRUCTURE = c215f5d9470daa01005dd93054f9dac991d849c7
+LEVEL3_J_EXECUTION_PREFLIGHT_GOVERNANCE = f43529b624cb12339156efaa76f30e0e7e186078
 ```
 
 ## État scientifique
@@ -21,12 +22,12 @@ LEVEL3_I_S4_CAMPAIGN_INFRASTRUCTURE = c215f5d9470daa01005dd93054f9dac991d849c7
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S4_EXECUTION_PREFLIGHT
+LEVEL3 = S4_NORMATIVE_CAMPAIGN_AUTHORIZED
 
 LAST_CLOSED_LEVEL = LEVEL2
 LAST_ACCEPTED_SOFTWARE_LOT = L3-I-S4-CAMPAIGN-INFRASTRUCTURE
+LAST_ACCEPTED_EXECUTION_PREFLIGHT = L3-J-S4-CAMPAIGN-EXECUTION-PREFLIGHT
 LAST_FROZEN_SCIENTIFIC_JALON = L3-F-S4-SCIENTIFIC-PREREGISTRATION
-LAST_ACCEPTED_AUDIT = L3-G-S4-CAMPAIGN-INFRASTRUCTURE-AUDIT
 
 LEVEL2_PRIMARY_TEST = POSITIVE
 CROSS_GEOMETRY_STATUS = CROSS_GEOMETRY_RECURRENT
@@ -43,9 +44,8 @@ MANIFEST_FINGERPRINT = 82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5
 REPOSITORY_COMMIT = 1feb03f41f9e73078efbc760dd2cba2b667e2ed0
 CAMPAIGN_STATUS = COMPLETE
 LEVEL2_ARTIFACTS_VERSIONED = YES
-LEVEL2_ARTIFACT_BYTES_CHANGED = NO
-LEVEL2_RECOMPUTATION_PERFORMED = NO
 LEVEL2_REFERENCE_SHA256_VERIFIED = YES
+LEVEL2_RECOMPUTATION = FORBIDDEN
 ```
 
 Les artefacts gelés sont versionnés sous :
@@ -54,7 +54,7 @@ Les artefacts gelés sont versionnés sous :
 results/level2/level2-energy-regime-v1/
 ```
 
-avec `SHA256SUMS`. Ils constituent la référence normative reproductible S=2/S=3 pour Level3. Level2 reste immuable et clos.
+Ils constituent la seule référence normative S=2/S=3 pour Level3.
 
 ## Contrat scientifique Level 3 gelé
 
@@ -94,20 +94,16 @@ NOT_EVALUABLE
 
 La séquence S=2,3,4 et les descripteurs continus `T_X_23`, `T_X_34`, `R_DELTA_X`, `C_X_23`, `D_X_23`, `C_X_34`, `D_X_34`, `R_D_X` sont pré-enregistrés sans seuil de convergence.
 
-## Capacités et infrastructure Level 3 établies
+## Infrastructure et préflight acceptés
 
 ```text
-LEVEL0_SPIN_ENCODING_GENERIC = YES
-LEVEL3_CASESPEC_GENERIC = YES
-LEVEL3_RUN_CASE_IMPLEMENTED = YES
-LEVEL3_SPIN_PAIR_COMPARISON = YES
 LEVEL3_FULL_SPECTRUM_POLICY = IMPLEMENTED
 LEVEL3_SPARSE_FALLBACK_POSSIBLE = NO
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
 
 TRIANGLE_S4_DIMENSION = 168
 RING4_S4_DIMENSION = 572
 RING5_S4_DIMENSION = 2008
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
 
 LEVEL3_MANIFEST_IMPLEMENTED = YES
 LEVEL3_SCHEMAS_IMPLEMENTED = YES
@@ -119,65 +115,63 @@ LEVEL3_ATOMIC_OUTPUTS_IMPLEMENTED = YES
 LEVEL3_RUNNER_IMPLEMENTED = YES
 LEVEL3_NO_IMPLICIT_RESUME = YES
 LEVEL3_CAMPAIGN_COMPLETE_REQUIRES_SUMMARY = YES
+
+L3_J_S4_CAMPAIGN_EXECUTION_PREFLIGHT = PASS
+LEVEL3_MANIFEST_FINGERPRINT = 3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba
+LEVEL2_FROZEN_REFERENCE_VERIFICATION = PASS
+LEVEL3_CAMPAIGN_PLAN = triangle:S4,ring4:S4,ring5:S4
+LEVEL3_DENSE_CAPABILITY_COVERS_ALL_S4_CASES = YES
+LEVEL3_RESOURCE_PREFLIGHT = PASS
+LEVEL3_DRY_RUN = PASS
+REAL_RUN_CASE_REACHED = NO
 ```
 
-Aucun Hamiltonien physique S=4 n'a encore été construit ou diagonalisé. Aucune observable S=4 n'a été inspectée.
+Aucune donnée physique S=4 n'a encore été inspectée avant l'ouverture du lot courant.
 
-## Lot courant — L3-J
+## Lot courant — L3-K
 
 ```text
-LOT = L3-J-S4-CAMPAIGN-EXECUTION-PREFLIGHT
+LOT = L3-K-S4-NORMATIVE-CAMPAIGN
 STATUS = OPEN
-TYPE = EXECUTION_PREFLIGHT_ONLY
+TYPE = NORMATIVE_PHYSICAL_EXECUTION
 
 CODE_CHANGE_AUTHORIZED = NO
 COMMIT_AUTHORIZED = NO
 PUSH_AUTHORIZED = NO
 
-DRY_RUN_MONKEYPATCHED_AUTHORIZED = YES
-RESOURCE_INSPECTION_AUTHORIZED = YES
-MANIFEST_FINGERPRINT_VERIFICATION_AUTHORIZED = YES
-LEVEL2_REFERENCE_INTEGRITY_VERIFICATION_AUTHORIZED = YES
-OUTPUT_PATH_PREFLIGHT_AUTHORIZED = YES
+REAL_S4_HAMILTONIAN_BUILD_AUTHORIZED = YES
+REAL_S4_DIAGONALIZATION_AUTHORIZED = YES
+S4_OBSERVABLES_AUTHORIZED = YES
+LEVEL3_NORMATIVE_CAMPAIGN_AUTHORIZED = YES
 
-REAL_S4_HAMILTONIAN_BUILD_AUTHORIZED = NO
-REAL_S4_DIAGONALIZATION_AUTHORIZED = NO
-S4_OBSERVABLES_AUTHORIZED = NO
-LEVEL3_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
+AUTHORIZED_CASES = triangle:S4, ring4:S4, ring5:S4
+S5_EXECUTION_AUTHORIZED = NO
 ```
 
-Objectif : effectuer le dernier préflight d'exécution avant toute donnée physique S=4. Le lot doit vérifier l'environnement réel dans lequel la future campagne serait lancée, sans atteindre une vraie exécution `run_case(..., spin=4)` :
+Objectif : exécuter exactement une fois la campagne normative Level3 pré-enregistrée via `scripts.level3_campaign.runner.run_campaign`, avec le manifeste gelé et le fingerprint validé. Les trois cas doivent être exécutés sans inspection/interprétation intermédiaire. Le runner produit les case-results puis `campaign-summary.json` en dernier.
+
+Le répertoire de sortie normatif attendu est :
 
 ```text
-- HEAD / branche / worktree ;
-- manifeste Level3 et fingerprint canonique ;
-- identité de pré-enregistrement ;
-- SHA256SUMS et provenance de la référence Level2 ;
-- planning exact des trois cas S4 ;
-- dimensions attendues et garde dense ;
-- chemins de sortie et politique NO_IMPLICIT_RESUME ;
-- espace disque, RAM visible, CPU et environnement numérique ;
-- dry-run complet du runner avec run_case strictement monkeypatché ;
-- ordre 3/3 avant comparaison ;
-- écriture campaign-summary en dernier ;
-- absence de résultat normatif dans le dépôt après le dry-run.
+results/level3/level3-s4-truncation-extension-v1/
 ```
 
-Le dry-run doit utiliser un répertoire temporaire hors du dépôt et des `CaseExecutionResult` synthétiques conformes. Il doit échouer si le vrai `cosmobox.level3.execution.run_case` est atteint.
+Ce répertoire reste un résultat généré et n'est pas autorisé à être ajouté à Git pendant L3-K. L'intégration/archivage éventuel des résultats sera décidée après revue scientifique.
 
-## Invariants L3-J
+## Invariants L3-K
 
 ```text
 LEVEL2 = CLOSED
 LEVEL2_ARTIFACTS = FROZEN_REFERENCE
 LEVEL2_RECOMPUTATION = FORBIDDEN
 LEVEL3_S4_PREREGISTRATION = FROZEN
-LEVEL3_CAMPAIGN_INFRASTRUCTURE = ACCEPTED
-REAL_S4_EXECUTION = FORBIDDEN
-S5_EXECUTION = FORBIDDEN
+LEVEL3_MANIFEST_FINGERPRINT = 3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba
 FULL_SPECTRUM = REQUIRED
+SPARSE_FALLBACK = FORBIDDEN
+AUTHORIZED_SPIN = 4
+AUTHORIZED_GEOMETRIES = triangle, ring4, ring5
+S5_EXECUTION = FORBIDDEN
 INTER_S_BRANCH_MATCHING = FORBIDDEN
-PHYSICAL_MODEL_CHANGE = NO
 NEW_OBSERVABLE = NO
 NEW_PRIMARY_METRIC = NO
 NEW_SCIENTIFIC_THRESHOLD = NO
@@ -185,25 +179,29 @@ COMPOSITE_SCORE = FORBIDDEN
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 PHASE_GEOMETRY = CLOSED
 PHASE_GRAVITY = CLOSED
+NO_POST_HOC_PROTOCOL_CHANGE = YES
 ```
+
+Aucune modification de code, manifeste, schéma, seuil, convention ou pré-enregistrement n'est autorisée pendant l'exécution. En cas d'échec technique, la campagne s'arrête ; aucun correctif ni relance implicite n'est autorisé dans ce lot.
 
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_J_S4_CAMPAIGN_EXECUTION_PREFLIGHT
-REAL_S4_EXECUTION = FORBIDDEN
+NEXT_STEP = L3_K_S4_NORMATIVE_CAMPAIGN
+S4_NORMATIVE_EXECUTION = AUTHORIZED
+S5_EXECUTION = FORBIDDEN
 ```
 
-Après le rapport L3-J, ChatGPT audite le préflight. Lionel décide ensuite explicitement si la campagne normative réelle S=4 peut être autorisée. Aucun PASS de préflight ne lance automatiquement cette campagne.
+Après le rapport L3-K, ChatGPT audite les artefacts produits et réalise l'interprétation scientifique conformément au pré-enregistrement. Aucun lot suivant n'est ouvert automatiquement.
 
 ## Rôles de collaboration
 
 ```text
 ChatGPT:
-scientific lead / conceptual design / scientific documentation / audit
+scientific lead / conceptual design / scientific documentation / interpretation / audit
 
 Claude:
-software implementation / repository operations / execution
+software execution / repository operations explicitly authorized by mandate
 
 Lionel:
 intuition / direction / final decision
