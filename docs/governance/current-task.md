@@ -20,6 +20,8 @@ LEVEL2_D4_REAL_PREFLIGHT = 1d55f490b1bf8cf4738964e773516292b39e7767
 LEVEL2_E_CAMPAIGN_INFRASTRUCTURE = 41bf85e3ee22e7ba28fde294c072157fd8eef21e
 LEVEL2_E1_RAW_OBSERVABLE_RETENTION = 59dc708e481cd0b7bfb8117d3f69c6cefb1e2924
 LEVEL2_E1_IMMUTABILITY_CORRECTIVE = 7258dda1571e85f7cdfe42d86fa21dc6315e2be6
+LEVEL2_E2_END_TO_END_RUNNER = d2374128fa0562efbb257845d6d4d134ba132af9
+LEVEL2_E2_PROVENANCE_CORRECTIVE = d058b81eb583200956e282fb934a974dbf18e27f
 ```
 
 ## État scientifique
@@ -29,10 +31,10 @@ LEVEL0  = CLOSED
 LEVEL1B = CLOSED
 LEVEL1C = CLOSED
 LEVEL1  = CLOSED
-LEVEL2  = L2_E1_ACCEPTED
+LEVEL2  = L2_E_ACCEPTED
 
 LAST_CLOSED_LEVEL = LEVEL1
-LAST_ACCEPTED_LOT = L2-E1-RAW-OBSERVABLE-RETENTION
+LAST_ACCEPTED_LOT = L2-E-CAMPAIGN-LAYER
 
 LEVEL1C_PHYSICAL_VERDICT = INCONCLUSIVE
 LEVEL1C_STOP_REASON      = INTER_J0_BRANCH_IDENTIFIABILITY_FAILURE
@@ -46,9 +48,10 @@ LEVEL2_D3_ORCHESTRATION = ACCEPTED
 LEVEL2_D4_EXECUTION = ACCEPTED
 LEVEL2_D4_REAL_PREFLIGHT = ACCEPTED
 LEVEL2_E_CAMPAIGN_AND_PROVENANCE_AUDIT = ACCEPTED
-LEVEL2_E_CAMPAIGN_INFRASTRUCTURE = PARTIAL_ACCEPTED
+LEVEL2_E_CAMPAIGN_INFRASTRUCTURE = ACCEPTED
 LEVEL2_E1_RAW_OBSERVABLE_RETENTION = ACCEPTED
-LEVEL2_IMPLEMENTATION = CAMPAIGN_LAYER_IN_PROGRESS
+LEVEL2_E2_CASE_RESULT_AND_END_TO_END_RUNNER = ACCEPTED
+LEVEL2_IMPLEMENTATION = CAMPAIGN_LAYER_COMPLETE
 LEVEL2_NORMATIVE_CAMPAIGN = NOT_STARTED
 ```
 
@@ -139,17 +142,18 @@ CONTROL_ANALYSIS:
 
 ## Décision L2-E — campagne et provenance
 
-L'audit L2-E est accepté. La couche de campagne normative doit utiliser :
-
 ```text
 SEEDS_REQUIRED = NO
 MANIFEST_FINGERPRINT = SHA256_CANONICAL_JSON
+REPOSITORY_IDENTITY = ioio2995/cosmobox
 REPOSITORY_COMMIT_CAPTURE = ONCE_AT_CAMPAIGN_START_AFTER_CLEAN_WORKTREE_CHECK
 ALL_6_CASES_REQUIRED = YES
 ALL_3_GEOMETRY_COMPARISONS_REQUIRED = YES
 MIXED_COMMIT = FORBIDDEN
 MIXED_MANIFEST_FINGERPRINT = FORBIDDEN
 PARTIAL_CAMPAIGN_COMPLETE_STATUS = FORBIDDEN
+NO_IMPLICIT_RESUME = YES
+ARTIFACT_OVERWRITE = FORBIDDEN
 ```
 
 Trois schémas Level2 sont gelés :
@@ -175,54 +179,53 @@ RHO_QQ_NULL_REASON_PRESERVATION = EXACT
 RHO_QQ_IMPUTATION = FORBIDDEN
 ```
 
-## Résultat L2-E — infrastructure de campagne
+## Résultat L2-E — couche de campagne complète
 
 ```text
-LOT = L2-E-CAMPAIGN-INFRASTRUCTURE
-STATUS = PARTIAL_ACCEPTED
-COMMIT = 41bf85e3ee22e7ba28fde294c072157fd8eef21e
-
-MANIFEST = IMPLEMENTED_AND_REVIEWED
-FINGERPRINT = IMPLEMENTED_AND_REVIEWED
-PROVENANCE = IMPLEMENTED_AND_REVIEWED
-SCHEMAS = IMPLEMENTED_AND_REVIEWED
-CAMPAIGN_SUMMARY_SERIALIZATION = IMPLEMENTED_AND_REVIEWED
-GATES = IMPLEMENTED_AND_REVIEWED
-ATOMIC_FINALIZATION = IMPLEMENTED_AND_REVIEWED
-
-CASE_RESULT_SERIALIZATION = PENDING
-END_TO_END_RUNNER = PENDING
-```
-
-Le STOP de ce lot a correctement identifié que les observables sources étaient calculées en D2 puis perdues avant sérialisation. Aucun contournement par recomputation n'a été accepté.
-
-## Résultat L2-E1 — rétention des observables sources
-
-```text
-LOT = L2-E1-RAW-OBSERVABLE-RETENTION
+LOT = L2-E-CAMPAIGN-LAYER
 STATUS = ACCEPTED
-IMPLEMENTATION_COMMIT = 59dc708e481cd0b7bfb8117d3f69c6cefb1e2924
-CORRECTIVE_COMMIT = 7258dda1571e85f7cdfe42d86fa21dc6315e2be6
 
-C_TT_CONN_RETENTION = PASS
-C_TT_CONN_FULL_MATRIX_WITH_DIAGONAL = PASS
-C_TT_CONN_STRONG_IMMUTABILITY = PASS
-RHO_QQ_RETENTION = PASS
-RHO_QQ_ORDERED_PAIR_COVERAGE = PASS
-RHO_QQ_NULL_SEMANTICS = PASS
-NO_RECOMPUTATION = PASS
-SCALAR_METRICS_CHANGED = NO
+INFRASTRUCTURE_COMMIT = 41bf85e3ee22e7ba28fde294c072157fd8eef21e
+RAW_OBSERVABLE_RETENTION_COMMIT = 59dc708e481cd0b7bfb8117d3f69c6cefb1e2924
+RAW_OBSERVABLE_IMMUTABILITY_CORRECTIVE = 7258dda1571e85f7cdfe42d86fa21dc6315e2be6
+END_TO_END_RUNNER_COMMIT = d2374128fa0562efbb257845d6d4d134ba132af9
+PROVENANCE_NO_OVERWRITE_CORRECTIVE = d058b81eb583200956e282fb934a974dbf18e27f
+
+MANIFEST = PASS
+FINGERPRINT = PASS
+PROVENANCE = PASS
+REPOSITORY_IDENTITY = PASS
+SCHEMAS = PASS
+CASE_RESULT_SERIALIZATION = PASS
+CAMPAIGN_SUMMARY_SERIALIZATION = PASS
+C_TT_CONN_RETENTION_AND_PERSISTENCE = PASS
+RHO_QQ_RETENTION_AND_PERSISTENCE = PASS
+CASE_ARTIFACT_ATOMIC_WRITE = PASS
+CASE_ARTIFACT_RELOAD_VALIDATION = PASS
+END_TO_END_RUNNER = PASS
+CAMPAIGN_COMPLETENESS_GATE = PASS
+CAMPAIGN_FINALIZATION = PASS
+MANIFEST_NO_OVERWRITE = PASS
+CASE_NO_OVERWRITE = PASS
+SUMMARY_NO_OVERWRITE = PASS
+
+REAL_LEVEL2_DIAGONALIZATION_DURING_IMPLEMENTATION = NO
+REAL_LEVEL2_OBSERVABLE_COMPUTATION_DURING_IMPLEMENTATION = NO
+NORMATIVE_CAMPAIGN_EXECUTED = NO
+NEW_SCIENTIFIC_METRIC = NO
+NEW_NUMERICAL_TOLERANCE = NO
 ```
 
-`MultipletProfileEntry` transporte désormais les observables sources exactes déjà utilisées pour calculer les métriques réduites. `CaseExecutionResult.entries` les transporte sans duplication supplémentaire.
+La couche de campagne est désormais complète et revue. Aucun résultat physique Level2 n'a été calculé pendant son implémentation.
 
 ### Validation normative
 
-La finalisation de campagne doit porter uniquement sur le protocole et la structure :
+La finalisation de campagne porte uniquement sur le protocole et la structure :
 
 ```text
 6/6 cases present
 3/3 geometry comparisons present
+same repository
 same repository_commit
 same manifest_fingerprint
 same campaign_id
@@ -259,13 +262,13 @@ NOT_EVALUABLE
 ## Étape suivante
 
 ```text
-NEXT_STEP = L2_E2_CASE_RESULT_AND_END_TO_END_RUNNER
+NEXT_STEP = L2_FINAL_REAL_PREFLIGHT
 OPEN_METHODOLOGICAL_ITEM = NONE
 ```
 
-L2-E2 doit terminer la couche de campagne en branchant la sérialisation/persistance de `case-result` sur les observables brutes désormais retenues, puis l'orchestration end-to-end du runner. Tous les tests doivent rester synthétiques ; aucune diagonalisation réelle, aucun calcul réel d'observable et aucune campagne normative ne sont autorisés pendant ce lot.
+La couche de campagne L2-E est acceptée. Avant toute première campagne normative Level2, un dernier préflight réel strictement non interprétatif doit être rejoué sur le HEAD final de la branche. Il doit vérifier uniquement les invariants spectraux L2-A1 déjà connus et ne doit calculer ni inspecter aucune observable Level2.
 
-La première campagne normative Level2 ne pourra être ouverte qu'après revue et acceptation explicite de L2-E2, puis rejeu du préflight technique spectral sur le HEAD final de la couche de campagne.
+La campagne normative reste fermée jusqu'à acceptation explicite de ce préflight final.
 
 ## Rôles de collaboration
 
