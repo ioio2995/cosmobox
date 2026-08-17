@@ -1,0 +1,1748 @@
+{
+  "branch": "research/level2-energy-regime",
+  "campaign_id": "level2-energy-regime-v1",
+  "dimension": 88,
+  "frozen_preregistration_commit": "2d4c859db7939da51ee7d919889a18f4c7e229ed",
+  "full_spectrum": true,
+  "geometry": "triangle",
+  "group_count": 22,
+  "manifest_fingerprint": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4",
+  "multiplet_entries": [
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.5046289438278687,
+          -0.12731447191393436,
+          -0.12731447191393447
+        ],
+        [
+          -0.12731447191393436,
+          0.5046289438278687,
+          -0.1273144719139343
+        ],
+        [
+          -0.12731447191393447,
+          -0.1273144719139343,
+          0.5046289438278687
+        ]
+      ],
+      "energy": -3.708647241739273,
+      "epsilon": 3.342394345871501e-16,
+      "m_qq": {
+        "reason": null,
+        "value": 0.4999999999999999
+      },
+      "m_tt": 0.12731447191393439,
+      "multiplicity": 4,
+      "q_end": 0.045454545454545456,
+      "q_midpoint": 0.022727272727272728,
+      "q_start": 0.0,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9306819193903474
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        }
+      ]
+    },
+    {
+      "a_qq": 0.0,
+      "c_tt_conn": [
+        [
+          0.75,
+          0.25,
+          0.25
+        ],
+        [
+          0.25,
+          0.75,
+          0.25
+        ],
+        [
+          0.25,
+          0.25,
+          0.75
+        ]
+      ],
+      "energy": -1.6123692158025529,
+      "epsilon": 0.19721791438118944,
+      "m_qq": {
+        "reason": "NO_NUMERIC_RHO_QQ_PAIR",
+        "value": null
+      },
+      "m_tt": 0.25,
+      "multiplicity": 4,
+      "q_end": 0.09090909090909091,
+      "q_midpoint": 0.06818181818181818,
+      "q_start": 0.045454545454545456,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9015991144200476
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.538043001214261,
+          -0.14402150060713031,
+          -0.14402150060713056
+        ],
+        [
+          -0.14402150060713031,
+          0.5380430012142611,
+          -0.14402150060713037
+        ],
+        [
+          -0.14402150060713056,
+          -0.14402150060713037,
+          0.538043001214261
+        ]
+      ],
+      "energy": -1.3060703915434106,
+      "epsilon": 0.22603451912082329,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.1440215006071304,
+      "multiplicity": 4,
+      "q_end": 0.13636363636363635,
+      "q_midpoint": 0.11363636363636363,
+      "q_start": 0.09090909090909091,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9215151407744294
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000001
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000002
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000001
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000002
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.3715171538025041,
+          -0.06075857690125226,
+          -0.060758576901252
+        ],
+        [
+          -0.06075857690125226,
+          0.37151715380250416,
+          -0.060758576901252026
+        ],
+        [
+          -0.060758576901252,
+          -0.060758576901252026,
+          0.37151715380250433
+        ]
+      ],
+      "energy": -1.1458044818228312,
+      "epsilon": 0.2411123418477838,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.06075857690125209,
+      "multiplicity": 4,
+      "q_end": 0.18181818181818182,
+      "q_midpoint": 0.1590909090909091,
+      "q_start": 0.13636363636363635,
+      "r_eff": {
+        "reason": null,
+        "value": 0.971767870717394
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000002
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000002
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999999
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.2500000000000001,
+          -5.548029083366946e-31,
+          -5.128870249561101e-31
+        ],
+        [
+          -5.548029083366946e-31,
+          0.24999999999999994,
+          -4.130745765059177e-31
+        ],
+        [
+          -5.128870249561101e-31,
+          -4.130745765059177e-31,
+          0.2500000000000002
+        ]
+      ],
+      "energy": -0.1866111317131066,
+      "epsilon": 0.3313532877797601,
+      "m_qq": {
+        "reason": null,
+        "value": 0.4999999999999999
+      },
+      "m_tt": 4.971552317009003e-31,
+      "multiplicity": 4,
+      "q_end": 0.22727272727272727,
+      "q_midpoint": 0.20454545454545453,
+      "q_start": 0.18181818181818182,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9999999999999999
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000001
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999998
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000001
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.49999999999999994
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999998
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999994
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.5417436258067257,
+          -0.14587181290336265,
+          -0.1458718129033627
+        ],
+        [
+          -0.14587181290336265,
+          0.5417436258067257,
+          -0.14587181290336287
+        ],
+        [
+          -0.1458718129033627,
+          -0.14587181290336287,
+          0.5417436258067256
+        ]
+      ],
+      "energy": 0.1456638468676365,
+      "epsilon": 0.36261373008080755,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5000000000000001
+      },
+      "m_tt": 0.14587181290336276,
+      "multiplicity": 4,
+      "q_end": 0.2727272727272727,
+      "q_midpoint": 0.25,
+      "q_start": 0.22727272727272727,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9205331881828113
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999995
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000006
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999995
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000006
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        }
+      ]
+    },
+    {
+      "a_qq": 0.0,
+      "c_tt_conn": [
+        [
+          0.7499999999999999,
+          0.24999999999999994,
+          0.24999999999999994
+        ],
+        [
+          0.24999999999999994,
+          0.7499999999999999,
+          0.24999999999999994
+        ],
+        [
+          0.24999999999999994,
+          0.24999999999999994,
+          0.7499999999999999
+        ]
+      ],
+      "energy": 0.6850925944443707,
+      "epsilon": 0.413363206647401,
+      "m_qq": {
+        "reason": "NO_NUMERIC_RHO_QQ_PAIR",
+        "value": null
+      },
+      "m_tt": 0.24999999999999994,
+      "multiplicity": 4,
+      "q_end": 0.3181818181818182,
+      "q_midpoint": 0.2954545454545454,
+      "q_start": 0.2727272727272727,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9015991144200476
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.4046410759541941,
+          -0.07732053797709676,
+          -0.07732053797709684
+        ],
+        [
+          -0.07732053797709676,
+          0.4046410759541929,
+          -0.07732053797709673
+        ],
+        [
+          -0.07732053797709684,
+          -0.07732053797709673,
+          0.40464107595419374
+        ]
+      ],
+      "energy": 1.5327910115625318,
+      "epsilon": 0.49311470515083744,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.07732053797709679,
+      "multiplicity": 4,
+      "q_end": 0.36363636363636365,
+      "q_midpoint": 0.34090909090909094,
+      "q_start": 0.3181818181818182,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9610952424694221
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999986
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.500000000000001
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999986
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.500000000000001
+        }
+      ]
+    },
+    {
+      "a_qq": 0.0,
+      "c_tt_conn": [
+        [
+          0.7499999999999996,
+          0.24999999999999986,
+          0.2499999999999999
+        ],
+        [
+          0.24999999999999986,
+          0.7499999999999996,
+          0.24999999999999986
+        ],
+        [
+          0.2499999999999999,
+          0.24999999999999986,
+          0.7499999999999996
+        ]
+      ],
+      "energy": 1.542494257747556,
+      "epsilon": 0.49402758691158705,
+      "m_qq": {
+        "reason": "NO_NUMERIC_RHO_QQ_PAIR",
+        "value": null
+      },
+      "m_tt": 0.24999999999999986,
+      "multiplicity": 4,
+      "q_end": 0.4090909090909091,
+      "q_midpoint": 0.38636363636363635,
+      "q_start": 0.36363636363636365,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9015991144200476
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.25,
+          -4.555558115950103e-30,
+          -3.72449542612207e-30
+        ],
+        [
+          -4.555558115950103e-30,
+          0.25000000000000033,
+          -2.7753155612037953e-30
+        ],
+        [
+          -3.72449542612207e-30,
+          -2.7753155612037953e-30,
+          0.24999999999999972
+        ]
+      ],
+      "energy": 1.776616907470258,
+      "epsilon": 0.516053854475536,
+      "m_qq": {
+        "reason": null,
+        "value": 0.49999999999999994
+      },
+      "m_tt": 3.7562105190942555e-30,
+      "multiplicity": 4,
+      "q_end": 0.45454545454545453,
+      "q_midpoint": 0.4318181818181818,
+      "q_start": 0.4090909090909091,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9999999999999999
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999995
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000004
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999995
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.49999999999999994
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000004
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999994
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.3125100060133814,
+          -0.031255003006690846,
+          -0.0312550030066909
+        ],
+        [
+          -0.031255003006690846,
+          0.31251000601338197,
+          -0.03125500300669092
+        ],
+        [
+          -0.0312550030066909,
+          -0.03125500300669092,
+          0.3125100060133821
+        ]
+      ],
+      "energy": 2.1959643746716786,
+      "epsilon": 0.5555060797334631,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.03125500300669089,
+      "multiplicity": 4,
+      "q_end": 0.5,
+      "q_midpoint": 0.4772727272727273,
+      "q_start": 0.45454545454545453,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9896619052352341
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.49999999999999944
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999944
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.32936060943457185,
+          -0.039680304717286036,
+          -0.03968030471728586
+        ],
+        [
+          -0.039680304717286036,
+          0.329360609434572,
+          -0.03968030471728599
+        ],
+        [
+          -0.03968030471728586,
+          -0.03968030471728599,
+          0.3293606094345719
+        ]
+      ],
+      "energy": 2.6808687609813493,
+      "epsilon": 0.6011259023710404,
+      "m_qq": {
+        "reason": null,
+        "value": 0.4999999999999999
+      },
+      "m_tt": 0.03968030471728596,
+      "multiplicity": 4,
+      "q_end": 0.5454545454545454,
+      "q_midpoint": 0.5227272727272727,
+      "q_start": 0.5,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9848969429594886
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999998
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999998
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.45175239350221663,
+          -0.10087619675110845,
+          -0.10087619675110826
+        ],
+        [
+          -0.10087619675110845,
+          0.45175239350221674,
+          -0.10087619675110829
+        ],
+        [
+          -0.10087619675110826,
+          -0.10087619675110829,
+          0.45175239350221674
+        ]
+      ],
+      "energy": 3.2113005123801694,
+      "epsilon": 0.6510289412037312,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.10087619675110833,
+      "multiplicity": 4,
+      "q_end": 0.5909090909090909,
+      "q_midpoint": 0.5681818181818181,
+      "q_start": 0.5454545454545454,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9462692084545097
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999994
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.49999999999999994
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.2500000000000002,
+          -3.7357464204074457e-31,
+          -5.907008495437053e-31
+        ],
+        [
+          -3.7357464204074457e-31,
+          0.2500000000000003,
+          -5.205703930641427e-31
+        ],
+        [
+          -5.907008495437053e-31,
+          -5.205703930641427e-31,
+          0.25000000000000017
+        ]
+      ],
+      "energy": 3.527859959863939,
+      "epsilon": 0.6808108657566603,
+      "m_qq": {
+        "reason": null,
+        "value": 0.49999999999999983
+      },
+      "m_tt": 5.031497593369465e-31,
+      "multiplicity": 4,
+      "q_end": 0.6363636363636364,
+      "q_midpoint": 0.6136363636363636,
+      "q_start": 0.5909090909090909,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9999999999999999
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999998
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999998
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.49999999999999983
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999983
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.39827193625154883,
+          -0.07413596812577429,
+          -0.07413596812577433
+        ],
+        [
+          -0.07413596812577429,
+          0.3982719362515489,
+          -0.07413596812577455
+        ],
+        [
+          -0.07413596812577433,
+          -0.07413596812577455,
+          0.3982719362515489
+        ]
+      ],
+      "energy": 4.082138718464636,
+      "epsilon": 0.7329574319108216,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.07413596812577439,
+      "multiplicity": 4,
+      "q_end": 0.6818181818181818,
+      "q_midpoint": 0.6590909090909091,
+      "q_start": 0.6363636363636364,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9631433934228243
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000001
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000003
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.49999999999999983
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000001
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999983
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.5028776065606315,
+          -0.12643880328031573,
+          -0.1264388032803158
+        ],
+        [
+          -0.12643880328031573,
+          0.502877606560632,
+          -0.12643880328031584
+        ],
+        [
+          -0.1264388032803158,
+          -0.12643880328031584,
+          0.5028776065606314
+        ]
+      ],
+      "energy": 4.690203232163731,
+      "epsilon": 0.7901641638982739,
+      "m_qq": {
+        "reason": null,
+        "value": 0.4999999999999999
+      },
+      "m_tt": 0.1264388032803158,
+      "multiplicity": 4,
+      "q_end": 0.7272727272727273,
+      "q_midpoint": 0.7045454545454546,
+      "q_start": 0.6818181818181818,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9311772924931937
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999956
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000006
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.49999999999999956
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.49999999999999967
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000006
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999967
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.2500000000000003,
+          -3.56928163915278e-30,
+          -8.034793293867612e-30
+        ],
+        [
+          -3.56928163915278e-30,
+          0.25,
+          -4.393650448268682e-30
+        ],
+        [
+          -8.034793293867612e-30,
+          -4.393650448268682e-30,
+          0.25000000000000006
+        ]
+      ],
+      "energy": 4.8821342643789105,
+      "epsilon": 0.8082210425232322,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 5.674558395632935e-30,
+      "multiplicity": 4,
+      "q_end": 0.7727272727272727,
+      "q_midpoint": 0.75,
+      "q_start": 0.7272727272727273,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9999999999999999
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.49999999999999994
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000002
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.49999999999999994
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000002
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.48666885598903253,
+          -0.1183344279945162,
+          -0.11833442799451621
+        ],
+        [
+          -0.1183344279945162,
+          0.4866688559890327,
+          -0.11833442799451599
+        ],
+        [
+          -0.11833442799451621,
+          -0.11833442799451599,
+          0.4866688559890324
+        ]
+      ],
+      "energy": 5.107372757493918,
+      "epsilon": 0.8294114883042274,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.11833442799451613,
+      "multiplicity": 4,
+      "q_end": 0.8181818181818182,
+      "q_midpoint": 0.7954545454545454,
+      "q_start": 0.7727272727272727,
+      "r_eff": {
+        "reason": null,
+        "value": 0.935831673648939
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999996
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000004
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999996
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000004
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5
+        }
+      ]
+    },
+    {
+      "a_qq": 0.0,
+      "c_tt_conn": [
+        [
+          0.75,
+          0.25,
+          0.25
+        ],
+        [
+          0.25,
+          0.75,
+          0.25000000000000006
+        ],
+        [
+          0.25,
+          0.25000000000000006,
+          0.75
+        ]
+      ],
+      "energy": 5.31490740555563,
+      "epsilon": 0.8489363556863943,
+      "m_qq": {
+        "reason": "NO_NUMERIC_RHO_QQ_PAIR",
+        "value": null
+      },
+      "m_tt": 0.25,
+      "multiplicity": 4,
+      "q_end": 0.8636363636363636,
+      "q_midpoint": 0.8409090909090909,
+      "q_start": 0.8181818181818182,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9015991144200476
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        }
+      ]
+    },
+    {
+      "a_qq": 0.0,
+      "c_tt_conn": [
+        [
+          0.75,
+          0.25,
+          0.25
+        ],
+        [
+          0.25,
+          0.75,
+          0.25000000000000006
+        ],
+        [
+          0.25,
+          0.25000000000000006,
+          0.75
+        ]
+      ],
+      "energy": 5.319874958054998,
+      "epsilon": 0.8494037032096631,
+      "m_qq": {
+        "reason": "NO_NUMERIC_RHO_QQ_PAIR",
+        "value": null
+      },
+      "m_tt": 0.25,
+      "multiplicity": 4,
+      "q_end": 0.9090909090909091,
+      "q_midpoint": 0.8863636363636364,
+      "q_start": 0.8636363636363636,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9015991144200476
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": "zero_local_charge_variance",
+          "value": null
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.46099941523665594,
+          -0.10549970761832939,
+          -0.10549970761832701
+        ],
+        [
+          -0.10549970761832939,
+          0.4609994152366556,
+          -0.10549970761832766
+        ],
+        [
+          -0.10549970761832701,
+          -0.10549970761832766,
+          0.46099941523665666
+        ]
+      ],
+      "energy": 6.843618629353362,
+      "epsilon": 0.9927575642848022,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.10549970761832801,
+      "multiplicity": 4,
+      "q_end": 0.9545454545454546,
+      "q_midpoint": 0.9318181818181819,
+      "q_start": 0.9090909090909091,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9434527712893813
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000019
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999986
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000019
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.4999999999999995
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.4999999999999986
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.4999999999999995
+        }
+      ]
+    },
+    {
+      "a_qq": 1.0,
+      "c_tt_conn": [
+        [
+          0.44698537640640934,
+          -0.09849268820320309,
+          -0.09849268820320556
+        ],
+        [
+          -0.09849268820320309,
+          0.4469853764064095,
+          -0.09849268820320492
+        ],
+        [
+          -0.09849268820320556,
+          -0.09849268820320492,
+          0.44698537640640845
+        ]
+      ],
+      "energy": 6.920600271166506,
+      "epsilon": 0.9999999999999997,
+      "m_qq": {
+        "reason": null,
+        "value": 0.5
+      },
+      "m_tt": 0.09849268820320452,
+      "multiplicity": 4,
+      "q_end": 1.0,
+      "q_midpoint": 0.9772727272727273,
+      "q_start": 0.9545454545454546,
+      "r_eff": {
+        "reason": null,
+        "value": 0.9477348716492485
+      },
+      "rho_qq": [
+        {
+          "i": 0,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.49999999999999845
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000011
+        },
+        {
+          "i": 1,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.49999999999999845
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "null_reason": null,
+          "value": -0.5000000000000006
+        },
+        {
+          "i": 2,
+          "j": 0,
+          "null_reason": null,
+          "value": -0.5000000000000011
+        },
+        {
+          "i": 2,
+          "j": 1,
+          "null_reason": null,
+          "value": -0.5000000000000006
+        }
+      ]
+    }
+  ],
+  "numerical_guard_reference": {
+    "guard_m_tt": 1e-16,
+    "guard_r_eff": 1e-15,
+    "guard_scope": "DELTA_HL_ONLY"
+  },
+  "partial_subspace_count": 0,
+  "regime_analyses": {
+    "A_QQ": {
+      "delta_hl": {
+        "reason": null,
+        "value": 3.3306690738754696e-16
+      },
+      "delta_hm": {
+        "reason": null,
+        "value": -0.13636363636363602
+      },
+      "delta_ml": {
+        "reason": null,
+        "value": 0.13636363636363635
+      },
+      "high": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.7272727272727275
+      },
+      "low": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.7272727272727272
+      },
+      "mid": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.8636363636363635
+      }
+    },
+    "M_QQ": {
+      "delta_hl": {
+        "reason": null,
+        "value": 0.0
+      },
+      "delta_hm": {
+        "reason": null,
+        "value": 0.0
+      },
+      "delta_ml": {
+        "reason": null,
+        "value": 0.0
+      },
+      "high": {
+        "evaluable_weight_fraction": 0.7272727272727275,
+        "reason": null,
+        "value": 0.5
+      },
+      "low": {
+        "evaluable_weight_fraction": 0.7272727272727272,
+        "reason": null,
+        "value": 0.5
+      },
+      "mid": {
+        "evaluable_weight_fraction": 0.8636363636363635,
+        "reason": null,
+        "value": 0.5
+      }
+    },
+    "M_TT": {
+      "delta_hl": {
+        "reason": null,
+        "value": -0.004126671615421296
+      },
+      "delta_hm": {
+        "reason": null,
+        "value": 0.06145842380835771
+      },
+      "delta_ml": {
+        "reason": null,
+        "value": -0.06558509542377901
+      },
+      "high": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.1327469477006758
+      },
+      "low": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.1368736193160971
+      },
+      "mid": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.07128852389231809
+      }
+    },
+    "R_eff": {
+      "delta_hl": {
+        "reason": null,
+        "value": 0.0019610736818521657
+      },
+      "delta_hm": {
+        "reason": null,
+        "value": -0.030383221718496944
+      },
+      "delta_ml": {
+        "reason": null,
+        "value": 0.03234429540034911
+      },
+      "high": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.9385149048720636
+      },
+      "low": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.9365538311902114
+      },
+      "mid": {
+        "evaluable_weight_fraction": 1.0,
+        "reason": null,
+        "value": 0.9688981265905605
+      }
+    }
+  },
+  "repository": "ioio2995/cosmobox",
+  "repository_commit": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0",
+  "schema_version": "level2-case-result-v1",
+  "solver_method": "dense",
+  "spin": 2,
+  "window_truncated": false
+}

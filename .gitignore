@@ -45,4 +45,8 @@ Thumbs.db
 
 # Project-generated output
 output/
-results/
+results/*
+!results/level2/
+results/level2/*
+!results/level2/level2-energy-regime-v1/
+!results/level2/level2-energy-regime-v1/**
