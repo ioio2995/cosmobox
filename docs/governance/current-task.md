@@ -4,7 +4,10 @@
 
 ```text
 ACTIVE_BRANCH = research/level2-energy-regime
+
 LEVEL3_Y_S6_NORMATIVE_CAMPAIGN_GOVERNANCE = 55ea89be3a744953ff677754ff2ca22dbf116428
+LEVEL3_Z_FROZEN_S6_REFERENCE_ARTIFACTS = 689a74dc9768f27843a4b9e8599947aa11c364b8
+LEVEL3_AA_S7_SCIENTIFIC_PREREGISTRATION = cc0ffdadbeb7d40fc443ab11150c9f47e3e12776
 ```
 
 ## État scientifique
@@ -13,10 +16,11 @@ LEVEL3_Y_S6_NORMATIVE_CAMPAIGN_GOVERNANCE = 55ea89be3a744953ff677754ff2ca22dbf11
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S6_CAMPAIGN_COMPLETE_PENDING_ARCHIVAL_FREEZE
+LEVEL3 = S7_PREREGISTERED_CAPABILITY_PREFLIGHT
 
 LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-Y-S6-NORMATIVE-CAMPAIGN
-LAST_FROZEN_REFERENCE_LOT = L3-S-FREEZE-S5-REFERENCE-ARTIFACTS
+LAST_FROZEN_REFERENCE_LOT = L3-Z-FREEZE-S6-REFERENCE-ARTIFACTS
+LAST_FROZEN_SCIENTIFIC_JALON = S7_FOURTH_EXTENSION_PREREGISTRATION
 
 S5_TO_S6_DIRECTIONAL_CONTINUITY = OBSERVED_4_OF_6
 S5_TO_S6_DELTA_STEP_REDUCTION = OBSERVED_2_OF_6
@@ -25,89 +29,145 @@ DETAILED_PROFILE_STABILIZATION = NOT_OBSERVED_THROUGH_S6
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 ```
 
-## Références gelées
+## Références scientifiques gelées
 
 ```text
 S2_S3_REFERENCE = results/level2/level2-energy-regime-v1/
 S4_REFERENCE = results/level3/level3-s4-truncation-extension-v1/
 S5_REFERENCE = results/level3/level3-s5-truncation-extension-v1/
-S2_S3_S4_S5_RECOMPUTATION = FORBIDDEN
+S6_REFERENCE = results/level3/level3-s6-truncation-extension-v1/
+S2_TO_S6_RECOMPUTATION = FORBIDDEN
 ```
 
-## Campagne S=6 complète
+Hashes normatifs S6 :
 
 ```text
-CAMPAIGN_ID = level3-s6-truncation-extension-v1
-MANIFEST_FINGERPRINT = 2e0f06b69139abeb0b225a3d2b715242d6a0c26d2d1067b789f26b4829f847ca
-REPOSITORY_COMMIT = 55ea89be3a744953ff677754ff2ca22dbf116428
-TRIANGLE_S6_DIMENSION = 248
-RING4_S6_DIMENSION = 852
-RING5_S6_DIMENSION = 3016
-CAMPAIGN_STATUS = COMPLETE
+manifest.json          = 45c01569c67b7386dc6c63be957a4f759158d5042ffc06c351f3e1982fc6599d
+campaign-summary.json  = 34fe0487006ece2a903fc4c4c9e733762aba0129d893849e30f7a53c2087810f
+cases/triangle-S6.json = 7b4f5aa82ddd1b84e8e1cf868d9b1a74027126f192b78facfd728ef72e686763
+cases/ring4-S6.json    = 79a38a3e9523cd119d7096ee3ac6003f4c48dc4978bdb25a3d2a5c3ea432eea1
+cases/ring5-S6.json    = 660797b62c3081cfa65320827101e9c27e1d42b73569bb49e8068b6db693fb5f
 ```
 
-Résultat primaire S5→S6 :
+## Contrat scientifique S=7 gelé
+
+Source normative :
 
 ```text
-TRIANGLE_M_TT = S6_DIRECTION_REVERSES
-TRIANGLE_R_EFF = S6_DIRECTION_REVERSES
-RING4_M_TT = S6_DIRECTION_PERSISTS
-RING4_R_EFF = S6_DIRECTION_PERSISTS
-RING5_M_TT = S6_DIRECTION_PERSISTS
-RING5_R_EFF = S6_DIRECTION_PERSISTS
+docs/levels/level3/s7-fourth-extension-preregistration.md
 ```
 
-## Lot courant — L3-Z
+```text
+LEVEL3_FOURTH_NEW_SPIN = 7
+LEVEL3_NEW_CASES = triangle:S7, ring4:S7, ring5:S7
+PRIMARY_PAIR = S6_TO_S7
+PRIMARY_SCIENTIFIC_OBJECTIVE = TEST_TRUNCATION_STRUCTURE
+
+PRIMARY_METRICS = M_TT, R_eff
+CONTROL_METRICS = A_QQ, M_QQ
+FULL_SPECTRUM = REQUIRED
+PRIMARY_CONTRAST = HIGH_MINUS_LOW
+INTER_S_BRANCH_MATCHING = FORBIDDEN
+
+PRIMARY_TAXONOMY =
+  S7_DIRECTION_PERSISTS |
+  S7_DIRECTION_REVERSES |
+  S7_CONTRAST_UNRESOLVED |
+  NOT_EVALUABLE
+
+SIX_SPIN_DIRECTIONAL_DESCRIPTOR = REVERSAL_COUNT_234567
+LAST_TWO_TRANSITIONS_DESCRIPTOR = LAST_TWO_TRANSITIONS_DIRECTIONALLY_CONTINUOUS_567
+PAIRWISE_BLOCK_DESCRIPTOR = PAIRWISE_BLOCK_RECURRENCE_23_45_67
+
+CONTINUOUS_DESCRIPTORS =
+  T_X_56,
+  T_X_67,
+  R_DELTA_X_67_56,
+  C_X_56,
+  D_X_56,
+  C_X_67,
+  D_X_67,
+  R_D_X_67_56
+
+S8_EXECUTION = FORBIDDEN
+AUTO_S8 = FORBIDDEN
+POST_S7_SCIENTIFIC_REVIEW_REQUIRED = YES
+S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
+```
+
+## Lot courant — L3-AA
 
 ```text
-LOT = L3-Z-FREEZE-S6-REFERENCE-ARTIFACTS
+LOT = L3-AA-S7-CAPABILITY-PREFLIGHT
 STATUS = OPEN
-TYPE = ARCHIVAL_IMPLEMENTATION
+TYPE = READ_ONLY_CAPABILITY_AUDIT
 
-CODE_CHANGE_AUTHORIZED = YES
-COMMIT_AUTHORIZED = YES
-PUSH_AUTHORIZED = YES
+CODE_CHANGE_AUTHORIZED = NO
+COMMIT_AUTHORIZED = NO
+PUSH_AUTHORIZED = NO
 
-S6_RECOMPUTATION_AUTHORIZED = NO
-S6_ARTIFACT_CONTENT_MUTATION_AUTHORIZED = NO
-S7_PREREGISTRATION_AUTHORIZED = NO
-S7_EXECUTION_AUTHORIZED = NO
+S7_BASIS_CAPABILITY_INSPECTION_AUTHORIZED = YES
+S7_ENCODING_CAPABILITY_INSPECTION_AUTHORIZED = YES
+SYNTHETIC_DENSE_SOLVER_BENCHMARK_AUTHORIZED = YES
+RESOURCE_INSPECTION_AUTHORIZED = YES
+
+REAL_S7_HAMILTONIAN_BUILD_AUTHORIZED = NO
+REAL_S7_DIAGONALIZATION_AUTHORIZED = NO
+S7_OBSERVABLES_AUTHORIZED = NO
+LEVEL3_S7_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
+S8_EXECUTION_AUTHORIZED = NO
 ```
 
-Objectif : versionner octet pour octet les artefacts existants de la campagne S=6 complète et ajouter `SHA256SUMS`, sans aucune recomputation, régénération, reformatage ni modification scientifique.
+Objectif : établir si les trois cas S=7 pré-enregistrés sont techniquement exécutables en full-spectrum, sans produire aucune donnée physique S=7.
 
-Périmètre attendu :
+Le préflight doit établir exactement :
 
 ```text
-.gitignore
-results/level3/level3-s6-truncation-extension-v1/manifest.json
-results/level3/level3-s6-truncation-extension-v1/campaign-summary.json
-results/level3/level3-s6-truncation-extension-v1/cases/triangle-S6.json
-results/level3/level3-s6-truncation-extension-v1/cases/ring4-S6.json
-results/level3/level3-s6-truncation-extension-v1/cases/ring5-S6.json
-results/level3/level3-s6-truncation-extension-v1/SHA256SUMS
+- dimensions Hilbert S7 triangle/ring4/ring5 par construction réelle de base ;
+- validate_spin(7) et flux_bits_per_edge(7) ;
+- bits requis par géométrie et comparaison à MAX_KEY_BITS ;
+- tailles D*D*16 des matrices complex128 denses ;
+- comparaison à LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3016 ;
+- ressources de l’environnement courant ;
+- benchmark Hermitien dense synthétique à la dimension S7 maximale seulement si celle-ci dépasse 3016 ;
+- verdict sur une éventuelle extension séparée de la capacité dense.
 ```
 
-## Invariants
+Aucune dimension S7 ne doit être établie par extrapolation normative.
+
+## Invariants L3-AA
 
 ```text
 LEVEL2_REFERENCE = FROZEN
 S4_REFERENCE = FROZEN_AND_VERSIONED
 S5_REFERENCE = FROZEN_AND_VERSIONED
-S6_CAMPAIGN = COMPLETE
-S6_RECOMPUTATION = FORBIDDEN
-S6_ARTIFACT_REGENERATION = FORBIDDEN
-S6_ARTIFACT_CONTENT_CHANGE = FORBIDDEN
-S7_PREREGISTRATION = NOT_YET_FROZEN
+S6_REFERENCE = FROZEN_AND_VERSIONED
+S2_TO_S6_RECOMPUTATION = FORBIDDEN
+
+S7_PREREGISTRATION = FROZEN
 S7_EXECUTION = FORBIDDEN
+S8_EXECUTION = FORBIDDEN
+
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 3016
+FULL_SPECTRUM = REQUIRED
+SPARSE_FALLBACK = FORBIDDEN
+INTER_S_BRANCH_MATCHING = FORBIDDEN
+
+PHYSICAL_MODEL_CHANGE = NO
+NEW_OBSERVABLE = NO
+NEW_PRIMARY_METRIC = NO
+NEW_SCIENTIFIC_THRESHOLD = NO
+COMPOSITE_SCORE = FORBIDDEN
+
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
+AUTO_S8 = FORBIDDEN
 ```
 
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_Z_FREEZE_S6_REFERENCE_ARTIFACTS
+NEXT_STEP = L3_AA_S7_CAPABILITY_PREFLIGHT
 S7_EXECUTION = FORBIDDEN
 ```
 
-Après livraison L3-Z, ChatGPT audite le commit distant et les hashes avant toute décision sur S=7.
+Après le rapport L3-AA, ChatGPT audite la capacité réelle. Si une dimension S7 dépasse 3016, toute extension de la garde dense doit faire l’objet d’un lot logiciel séparé après benchmark synthétique concluant.
