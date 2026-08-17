@@ -1,0 +1,55 @@
+{
+  "manifest_version": "level3-s6-reference-v1",
+  "campaign_id": "level3-s6-truncation-extension-v1",
+  "schema_version": "level3-s6-campaign-manifest-v1",
+  "branch": "research/level2-energy-regime",
+  "frozen_preregistration_commit": "1c19a01e051c3df6f547afe0816a795989fdac3b",
+  "cases": [
+    {"geometry": "triangle", "spin": 6},
+    {"geometry": "ring4", "spin": 6},
+    {"geometry": "ring5", "spin": 6}
+  ],
+  "physical_parameters": {
+    "n_flavors": 2,
+    "j": 1.0,
+    "h": 0.0,
+    "t": 1.0,
+    "g_e": 1.0,
+    "k": 1.0,
+    "external_charges": 0.0
+  },
+  "full_spectrum_required": true,
+  "primary_metrics": ["M_TT", "R_eff"],
+  "control_metrics": ["A_QQ", "M_QQ"],
+  "primary_contrast": "HIGH_MINUS_LOW",
+  "numerical_guard_reference": {
+    "guard_m_tt": 1e-16,
+    "guard_r_eff": 1e-15,
+    "guard_scope": "DELTA_HL_ONLY"
+  },
+  "level2_reference": {
+    "campaign_id": "level2-energy-regime-v1",
+    "manifest_fingerprint": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4",
+    "repository_commit": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0",
+    "frozen_preregistration_commit": "2d4c859db7939da51ee7d919889a18f4c7e229ed"
+  },
+  "level3_s4_reference": {
+    "campaign_id": "level3-s4-truncation-extension-v1",
+    "manifest_fingerprint": "3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba",
+    "repository_commit": "ffb49da84111f778e45aa95b6d9e80b45d68f34c",
+    "frozen_preregistration_commit": "1c1d71f07dd6a7399b3965b2bb0acfa5c665991e"
+  },
+  "level3_s5_reference": {
+    "campaign_id": "level3-s5-truncation-extension-v1",
+    "manifest_fingerprint": "3160a8e6e0f9ae4a21c027a865e4d56527303ad644e3f45137baa2120f0c5d04",
+    "repository_commit": "782f29eb9dcbc21ca2168e109997b0f59a12402f",
+    "frozen_preregistration_commit": "496ba9484a6d7df9beb738607a5ffe23a75219ad"
+  },
+  "expected_s6_dimensions": {
+    "triangle": 248,
+    "ring4": 852,
+    "ring5": 3016
+  },
+  "validated_dense_capability": 3016,
+  "forbidden_extensions": ["S7", "NEW_GEOMETRY", "NEW_PRIMARY_METRIC", "NEW_SCIENTIFIC_THRESHOLD", "NEW_PHYSICAL_PARAMETER", "COMPOSITE_SCORE"]
+}
