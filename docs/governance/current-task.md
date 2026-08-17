@@ -1,6 +1,6 @@
 # Contrat de continuité — état courant
 
-Ce document contient uniquement l'état actif du projet. La clôture scientifique de Level 2 est figée dans [`../levels/level2/synthesis-and-closure.md`](../levels/level2/synthesis-and-closure.md). Le contrat scientifique actif Level 3 est [`../levels/level3/s5-second-extension-preregistration.md`](../levels/level3/s5-second-extension-preregistration.md).
+Ce document contient uniquement l'état actif du projet. Le contrat scientifique actif Level 3 est [`../levels/level3/s5-second-extension-preregistration.md`](../levels/level3/s5-second-extension-preregistration.md).
 
 ## État Git
 
@@ -18,6 +18,7 @@ LEVEL3_K_S4_NORMATIVE_CAMPAIGN_GOVERNANCE = ffb49da84111f778e45aa95b6d9e80b45d68
 LEVEL3_L_FROZEN_S4_REFERENCE_ARTIFACTS = 9b946b36cd302b595f16ed734c62121afbad62ff
 LEVEL3_M_S5_SCIENTIFIC_PREREGISTRATION = 496ba9484a6d7df9beb738607a5ffe23a75219ad
 LEVEL3_N_S5_CAPABILITY_PREFLIGHT_GOVERNANCE = 7793bfcef52924561b3d4947a39fdb857b23c614
+LEVEL3_O_DENSE_CAPABILITY_2512 = 8f9c6e6a3d1b841ce862f81741cf8031693dc26f
 ```
 
 ## État scientifique
@@ -26,18 +27,16 @@ LEVEL3_N_S5_CAPABILITY_PREFLIGHT_GOVERNANCE = 7793bfcef52924561b3d4947a39fdb857b
 LEVEL0 = CLOSED
 LEVEL1 = CLOSED
 LEVEL2 = CLOSED
-LEVEL3 = S5_DENSE_CAPABILITY_EXTENSION
+LEVEL3 = S5_CAMPAIGN_INFRASTRUCTURE
 
 LAST_CLOSED_LEVEL = LEVEL2
-LAST_ACCEPTED_SOFTWARE_LOT = L3-I-S4-CAMPAIGN-INFRASTRUCTURE
+LAST_ACCEPTED_SOFTWARE_LOT = L3-O-EXTEND-DENSE-CAPABILITY-TO-2512
 LAST_ACCEPTED_EXECUTION_PREFLIGHT = L3-J-S4-CAMPAIGN-EXECUTION-PREFLIGHT
 LAST_COMPLETED_NORMATIVE_CAMPAIGN = L3-K-S4-NORMATIVE-CAMPAIGN
 LAST_FROZEN_REFERENCE_LOT = L3-L-FREEZE-S4-REFERENCE-ARTIFACTS
 LAST_FROZEN_SCIENTIFIC_JALON = L3-M-S5-SCIENTIFIC-PREREGISTRATION
 LAST_ACCEPTED_CAPABILITY_PREFLIGHT = L3-N-S5-CAPABILITY-PREFLIGHT
 
-LEVEL2_PRIMARY_TEST = POSITIVE
-CROSS_GEOMETRY_STATUS = CROSS_GEOMETRY_RECURRENT
 UNIFORM_TRUNCATION_STABILIZATION = NOT_OBSERVED_THROUGH_S4
 DETAILED_PROFILE_STABILIZATION = NOT_OBSERVED_THROUGH_S4
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
@@ -47,28 +46,20 @@ PHASE_GRAVITY = CLOSED
 
 ## Références scientifiques gelées
 
-### S=2 / S=3
-
 ```text
-CAMPAIGN_ID = level2-energy-regime-v1
-MANIFEST_FINGERPRINT = 82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4
-REPOSITORY_COMMIT = 1feb03f41f9e73078efbc760dd2cba2b667e2ed0
-CAMPAIGN_STATUS = COMPLETE
-REFERENCE_PATH = results/level2/level2-energy-regime-v1/
-LEVEL2_RECOMPUTATION = FORBIDDEN
-```
+S2_S3_REFERENCE = results/level2/level2-energy-regime-v1/
+S2_S3_CAMPAIGN_ID = level2-energy-regime-v1
+S2_S3_MANIFEST_FINGERPRINT = 82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4
+S2_S3_REPOSITORY_COMMIT = 1feb03f41f9e73078efbc760dd2cba2b667e2ed0
 
-### S=4
-
-```text
-CAMPAIGN_ID = level3-s4-truncation-extension-v1
-MANIFEST_FINGERPRINT = 3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba
-REPOSITORY_COMMIT = ffb49da84111f778e45aa95b6d9e80b45d68f34c
-CAMPAIGN_STATUS = COMPLETE
-REFERENCE_PATH = results/level3/level3-s4-truncation-extension-v1/
+S4_REFERENCE = results/level3/level3-s4-truncation-extension-v1/
+S4_CAMPAIGN_ID = level3-s4-truncation-extension-v1
+S4_MANIFEST_FINGERPRINT = 3498677a4addc9c62c5e9c220cedb0dca135c9b293eee205420dcbce346d7cba
+S4_REPOSITORY_COMMIT = ffb49da84111f778e45aa95b6d9e80b45d68f34c
 S4_REFERENCE_VERSIONED = YES
 S4_REFERENCE_SHA256_VERIFIED = YES
-S4_RECOMPUTATION = FORBIDDEN
+
+S2_S3_S4_RECOMPUTATION = FORBIDDEN
 ```
 
 ## Contrat scientifique S=5 gelé
@@ -79,14 +70,13 @@ Source normative :
 docs/levels/level3/s5-second-extension-preregistration.md
 ```
 
-Contrat principal :
-
 ```text
 LEVEL3_SECOND_NEW_SPIN = 5
 LEVEL3_NEW_CASES = triangle:S5, ring4:S5, ring5:S5
 PRIMARY_PAIR = S4_TO_S5
 PHYSICAL_PARAMETERS = IDENTICAL_TO_LEVEL2_AND_S4
 FULL_SPECTRUM = REQUIRED
+PROFILE_DOMAIN = q in [0,1]
 PRIMARY_METRICS = M_TT, R_eff
 CONTROL_METRICS = A_QQ, M_QQ
 PRIMARY_CONTRAST = HIGH_MINUS_LOW
@@ -96,51 +86,30 @@ NUMERICAL_GUARD_R_EFF = 1e-15
 PHYSICAL_EFFECT_THRESHOLD = NOT_APPLICABLE
 P_VALUE = NOT_APPLICABLE
 COMPOSITE_SCORE = FORBIDDEN
+PRIMARY_TAXONOMY = S5_DIRECTION_PERSISTS | S5_DIRECTION_REVERSES | S5_CONTRAST_UNRESOLVED | NOT_EVALUABLE
+CONTINUOUS_DESCRIPTORS = T_X_34,T_X_45,R_DELTA_X_45_34,C_X_34,D_X_34,C_X_45,D_X_45,R_D_X_45_34
+FOUR_SPIN_DIRECTIONAL_DESCRIPTOR = REVERSAL_COUNT_2345
 S_TO_INFINITY_CONVERGENCE = NOT_ESTABLISHED
 ```
 
-## Préflight capacité S=5 accepté — L3-N
+## Capacité S=5 acceptée
 
 ```text
-L3_N_S5_CAPABILITY_PREFLIGHT = PASS
-
 TRIANGLE_S5_DIMENSION = 208
 RING4_S5_DIMENSION = 712
 RING5_S5_DIMENSION = 2512
-MAX_S5_DIMENSION = 2512
-
 S5_ENCODING_SUPPORTED = YES
-TRIANGLE_S5_REQUIRED_KEY_BITS = 18
-RING4_S5_REQUIRED_KEY_BITS = 24
-RING5_S5_REQUIRED_KEY_BITS = 30
-
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
-TRIANGLE_S5_WITHIN_CURRENT_DENSE_LIMIT = YES
-RING4_S5_WITHIN_CURRENT_DENSE_LIMIT = YES
-RING5_S5_WITHIN_CURRENT_DENSE_LIMIT = NO
-
-DENSE_SYNTHETIC_BENCHMARK_PERFORMED = YES
-DENSE_SYNTHETIC_BENCHMARK_DIMENSION = 2512
-DENSE_SYNTHETIC_CAPABILITY = PASS
-DENSE_LIMIT_EXTENSION_REQUIRED = YES
-DENSE_LIMIT_EXTENSION_FEASIBLE = YES
-
-SYNTHETIC_D2512_EIGH_WALL_TIME_S = 15.571
-SYNTHETIC_D2512_PEAK_RSS_MIB = 728.3
-SYNTHETIC_D2512_ORTHONORMALITY_FRO = 2.710e-13
-SYNTHETIC_D2512_MAX_RESIDUAL_SAMPLE20 = 2.461e-13
-
-REAL_S5_HAMILTONIAN_BUILT = NO
-REAL_S5_DIAGONALIZATION = NO
-S5_OBSERVABLES_COMPUTED = NO
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2512
+D2512_ACCEPTED_BY_GUARD = YES
+D2513_REJECTED_BY_GUARD = YES
+FULL_SPECTRUM_POLICY_UNCHANGED = YES
+SPARSE_FALLBACK_POSSIBLE = NO
 ```
 
-Le préflight établit uniquement une capacité numérique opérationnelle à D=2512. Il ne constitue aucune donnée physique S=5 et aucune preuve de convergence.
-
-## Lot courant — L3-O
+## Lot courant — L3-P
 
 ```text
-LOT = L3-O-EXTEND-DENSE-CAPABILITY-TO-2512
+LOT = L3-P-S5-CAMPAIGN-INFRASTRUCTURE
 STATUS = OPEN
 TYPE = SOFTWARE_IMPLEMENTATION
 
@@ -148,26 +117,36 @@ CODE_CHANGE_AUTHORIZED = YES
 COMMIT_AUTHORIZED = YES
 PUSH_AUTHORIZED = YES
 
-TARGET_OPERATIONAL_DENSE_LIMIT = 2512
-
 REAL_S5_HAMILTONIAN_BUILD_AUTHORIZED = NO
 REAL_S5_DIAGONALIZATION_AUTHORIZED = NO
 S5_OBSERVABLES_AUTHORIZED = NO
 LEVEL3_S5_NORMATIVE_CAMPAIGN_AUTHORIZED = NO
 ```
 
-Objectif : mettre à jour uniquement la garde opérationnelle full-spectrum Level3 afin d'enregistrer la capacité dense synthétiquement validée à D=2512, sans modifier le modèle physique, le solveur Level0, le protocole scientifique, ni exécuter de cas physique S=5.
+Objectif : implémenter l'infrastructure de campagne S=5 conformément au pré-enregistrement gelé, sans produire aucune donnée physique S=5.
 
-La constante concernée est actuellement dans :
+La campagne S=5 doit être distincte de la campagne S=4 et utiliser exclusivement les références gelées antérieures : S2/S3 depuis Level2, S4 depuis la campagne Level3 S4 versionnée. Aucune recomputation normative S2/S3/S4 n'est autorisée.
+
+Le lot doit fournir une chaîne de campagne capable de :
 
 ```text
-src/cosmobox/level3/execution.py
-LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
+- charger un manifeste S5 distinct ;
+- vérifier son fingerprint et sa provenance ;
+- vérifier l'intégrité des références S2/S3 et S4 ;
+- planifier exactement triangle:S5, ring4:S5, ring5:S5 ;
+- reconstruire S4 depuis les artefacts gelés, sans recalcul physique ;
+- comparer S4→S5 après exécution future ;
+- sérialiser la taxonomie S5 pré-enregistrée ;
+- sérialiser T_X_34, T_X_45, R_DELTA_X_45_34 ;
+- sérialiser C_X_34, D_X_34, C_X_45, D_X_45, R_D_X_45_34 ;
+- sérialiser les quatre directions S2/S3/S4/S5 et REVERSAL_COUNT_2345 ;
+- imposer la complétude 3/3 et écrire campaign-summary.json en dernier ;
+- conserver NO_IMPLICIT_RESUME.
 ```
 
-Le lot doit la porter à 2512 et adapter uniquement la documentation locale/commentaires/tests directement liés à cette garde. Le comportement full-spectrum reste inchangé : dense complet ou échec explicite, jamais de fallback sparse.
+Toute implémentation/test de ce lot doit rester synthétique ou monkeypatchée pour S=5.
 
-## Invariants L3-O
+## Invariants L3-P
 
 ```text
 LEVEL2 = CLOSED
@@ -181,12 +160,12 @@ S5_PREREGISTRATION = FROZEN
 REAL_S5_EXECUTION = FORBIDDEN
 S6_EXECUTION = FORBIDDEN
 
-TARGET_OPERATIONAL_DENSE_LIMIT = 2512
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2512
 FULL_SPECTRUM = REQUIRED
 SPARSE_FALLBACK = FORBIDDEN
+INTER_S_BRANCH_MATCHING = FORBIDDEN
 
 PHYSICAL_MODEL_CHANGE = NO
-LEVEL0_SOLVER_CHANGE = NO
 NEW_OBSERVABLE = NO
 NEW_PRIMARY_METRIC = NO
 NEW_SCIENTIFIC_THRESHOLD = NO
@@ -200,23 +179,18 @@ PHASE_GRAVITY = CLOSED
 ## Étape suivante
 
 ```text
-NEXT_STEP = L3_O_EXTEND_DENSE_CAPABILITY_TO_2512
+NEXT_STEP = L3_P_S5_CAMPAIGN_INFRASTRUCTURE_IMPLEMENTATION
 S5_EXECUTION = FORBIDDEN
 ```
 
-Après livraison L3-O, ChatGPT audite le commit distant. Une nouvelle autorisation explicite sera nécessaire avant tout préflight d'exécution de campagne S=5 ou toute donnée physique S=5.
+Après livraison L3-P, ChatGPT audite le commit distant. Un préflight d'exécution S5 distinct sera ensuite nécessaire. Aucun PASS logiciel n'autorise automatiquement une campagne physique S5.
 
 ## Rôles de collaboration
 
 ```text
-ChatGPT:
-scientific lead / conceptual design / scientific documentation / interpretation / audit
-
-Claude:
-software implementation / repository operations / execution explicitly authorized by mandate
-
-Lionel:
-intuition / direction / final decision
+ChatGPT: scientific lead / conceptual design / scientific documentation / interpretation / audit
+Claude: software implementation / repository operations / execution explicitement autorisée
+Lionel: intuition / direction / final decision
 ```
 
 ## Règle de progression
