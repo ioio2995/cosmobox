@@ -17,9 +17,11 @@ import dataclasses
 import inspect
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 from cosmobox.level0.lattice import GEOMETRIES as LEVEL0_GEOMETRIES
+from cosmobox.level0.reports import SpectrumOptions
 from cosmobox.level2 import adapter, metrics, orchestration
 from cosmobox.level2.adapter import MultipletProfileEntry
 from cosmobox.level2.execution import REFERENCE_EXTERNAL_CHARGES, REFERENCE_N_FLAVORS
@@ -28,14 +30,24 @@ from cosmobox.level2.execution import compare_geometry
 from cosmobox.level2.execution import run_case as level2_run_case
 from cosmobox.level2.execution import CaseSpec as Level2CaseSpec
 from cosmobox.level3.execution import (
+    LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT,
     CaseExecutionResult,
     CaseSpec,
+    FullSpectrumCapabilityExceeded,
+    IncompleteSpectrumRejected,
     SpinPairComparison,
     SpinPairControlComparison,
     SpinPairPrimaryComparison,
+    _assert_full_eigensystem,
+    _check_dense_capability,
     compare_spin_pair,
+    full_spectrum_options,
     run_case,
 )
+
+
+def _fake_computed_report(*, dimension: int) -> SimpleNamespace:
+    return SimpleNamespace(spectrum=SimpleNamespace(status="computed", computed_eigenvalues=dimension))
 
 
 def _entry(
@@ -167,8 +179,8 @@ def test_run_case_wires_level0_and_d2_pipeline_with_frozen_parameters_only(monke
     fake_basis = SimpleNamespace(keys=(101, 102, 103))
     fake_key_index = {101: 0, 102: 1, 103: 2}
     fake_terms = SimpleNamespace(tag="fake-terms")
-    fake_report = SimpleNamespace(tag="fake-report")
-    fake_eigenvectors = "fake-eigenvectors"
+    fake_report = _fake_computed_report(dimension=3)
+    fake_eigenvectors = np.eye(3, dtype=complex)
     fake_charge_operators = ("charge-0", "charge-1", "charge-2")
     fake_flavor_generators = ("flavor-0", "flavor-1", "flavor-2")
     fake_entries = _synthetic_entries(3)
@@ -253,6 +265,9 @@ def test_run_case_wires_level0_and_d2_pipeline_with_frozen_parameters_only(monke
     assert report_call["n_flavors"] == REFERENCE_N_FLAVORS == 2
     assert report_call["external_charges"] == REFERENCE_EXTERNAL_CHARGES is None
     assert report_call["spectrum_options"].n_eigenvalues == 3
+    # full_spectrum_options(3): dense path guaranteed, sparse fallback impossible
+    assert report_call["spectrum_options"].max_dense_dimension == 3
+    assert report_call["spectrum_options"] == full_spectrum_options(3)
 
     assert calls["build_case_operators_count"] == 1
     assert calls["build_case_operators_args"] == (fake_lattice, REFERENCE_N_FLAVORS, 4, fake_basis.keys, fake_key_index)
@@ -442,3 +457,177 @@ def test_compare_spin_pair_matches_legacy_compare_geometry_for_s2_s3_triangle():
     assert level3_comparison.r_eff.taxonomy == legacy_comparison.r_eff.classification.taxonomy
     assert level3_comparison.a_qq.analysis_a == legacy_comparison.a_qq.analysis_s2
     assert level3_comparison.a_qq.analysis_b == legacy_comparison.a_qq.analysis_s3
+
+
+# ---------------------------------------------------------------------------
+# L3-E: full-spectrum execution policy -- dense-path guarantee, operational
+# capacity guard, post-diagonalization completeness assertion. No sparse
+# fallback is ever reachable from run_case's full-spectrum contract.
+# ---------------------------------------------------------------------------
+
+
+def test_full_spectrum_options_forces_dense_path_for_a_small_dimension():
+    options = full_spectrum_options(10)
+    assert options.n_eigenvalues == 10
+    assert options.max_dense_dimension >= 10
+    assert options.max_sparse_dimension >= options.max_dense_dimension
+
+
+def test_full_spectrum_options_forces_dense_path_beyond_the_default_sparse_ceiling():
+    # SpectrumOptions' own invariant (max_dense_dimension <= max_sparse_dimension)
+    # must never be violated even for a dimension above the default
+    # max_sparse_dimension=200_000 -- full_spectrum_options must raise both
+    # ceilings together, never construct an invalid SpectrumOptions.
+    huge = SpectrumOptions().max_sparse_dimension + 1
+    options = full_spectrum_options(huge)
+    assert options.n_eigenvalues == huge
+    assert options.max_dense_dimension == huge
+    assert options.max_sparse_dimension >= huge
+
+
+def test_full_spectrum_options_rejects_non_positive_dimension():
+    with pytest.raises(ValueError):
+        full_spectrum_options(0)
+
+
+def test_dense_capability_guard_accepts_the_validated_limit_exactly():
+    _check_dense_capability(LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT)  # must not raise
+
+
+def test_dense_capability_guard_rejects_one_past_the_validated_limit():
+    with pytest.raises(FullSpectrumCapabilityExceeded):
+        _check_dense_capability(LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT + 1)
+
+
+def test_dense_capability_guard_error_message_reports_both_values():
+    with pytest.raises(FullSpectrumCapabilityExceeded) as excinfo:
+        _check_dense_capability(LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT + 1)
+    message = str(excinfo.value)
+    assert str(LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT + 1) in message
+    assert str(LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT) in message
+
+
+def test_run_case_refuses_before_building_any_hamiltonian_when_capacity_exceeded(monkeypatch):
+    import cosmobox.level3.execution as level3_execution
+
+    over_limit = LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT + 1
+    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
+    fake_basis = SimpleNamespace(keys=tuple(range(over_limit)))
+
+    def fake_build_lattice(geometry):
+        return fake_lattice
+
+    def fake_build_basis(lattice, n_flavors, spin):
+        return fake_basis
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("build_hamiltonian_terms must not be called when capacity is exceeded")
+
+    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
+    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
+    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", forbidden)
+
+    with pytest.raises(FullSpectrumCapabilityExceeded):
+        run_case(CaseSpec(geometry="triangle", spin=2))
+
+
+def test_run_case_never_reaches_a_sparse_spectrum_options_for_any_dimension():
+    # For every dimension full_spectrum_options might plausibly be asked to
+    # build (including well past LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT,
+    # since the capability guard and full_spectrum_options are independent
+    # concerns), the SpectrumOptions it returns can never let Level0's own
+    # dispatcher fall onto the sparse path: max_dense_dimension always
+    # covers the requested dimension exactly.
+    for dimension in (1, 2, 10, 2008, 2009, 50_000, 300_000):
+        options = full_spectrum_options(dimension)
+        assert options.max_dense_dimension >= dimension
+
+
+def test_assert_full_eigensystem_accepts_a_genuinely_complete_spectrum():
+    report = _fake_computed_report(dimension=5)
+    eigenvectors = np.eye(5, dtype=complex)
+    _assert_full_eigensystem(report, eigenvectors, 5)  # must not raise
+
+
+def test_assert_full_eigensystem_rejects_non_computed_status():
+    report = SimpleNamespace(spectrum=SimpleNamespace(status="not_computed", computed_eigenvalues=0))
+    with pytest.raises(IncompleteSpectrumRejected):
+        _assert_full_eigensystem(report, np.eye(5, dtype=complex), 5)
+
+
+def test_assert_full_eigensystem_rejects_a_sparse_style_d_minus_one_result():
+    # The exact failure mode this policy exists to prevent: a report
+    # claiming "computed" but with only D-1 eigenvalues (the sparse
+    # eigsh ceiling) must never be accepted as a full spectrum.
+    report = _fake_computed_report(dimension=4)  # D - 1 = 4 for D = 5
+    with pytest.raises(IncompleteSpectrumRejected):
+        _assert_full_eigensystem(report, np.eye(4, dtype=complex), 5)
+
+
+def test_assert_full_eigensystem_rejects_missing_eigenvectors():
+    report = _fake_computed_report(dimension=5)
+    with pytest.raises(IncompleteSpectrumRejected):
+        _assert_full_eigensystem(report, None, 5)
+
+
+def test_assert_full_eigensystem_rejects_wrong_shaped_eigenvectors():
+    report = _fake_computed_report(dimension=5)
+    with pytest.raises(IncompleteSpectrumRejected):
+        _assert_full_eigensystem(report, np.eye(4, dtype=complex), 5)
+
+
+def test_run_case_rejects_an_incomplete_spectrum_before_any_observable(monkeypatch):
+    import cosmobox.level3.execution as level3_execution
+
+    fake_lattice = SimpleNamespace(nodes=(0, 1, 2))
+    fake_basis = SimpleNamespace(keys=(101, 102, 103))
+    fake_key_index = {101: 0, 102: 1, 103: 2}
+    fake_terms = SimpleNamespace(tag="fake-terms")
+    # Simulates exactly the sparse eigsh ceiling: computed_eigenvalues = D - 1
+    incomplete_report = _fake_computed_report(dimension=2)
+
+    def fake_build_lattice(geometry):
+        return fake_lattice
+
+    def fake_build_basis(lattice, n_flavors, spin):
+        return fake_basis
+
+    def fake_build_key_index(keys):
+        return fake_key_index
+
+    def fake_build_hamiltonian_terms(lattice, n_flavors, spin, keys, key_index, params):
+        return fake_terms
+
+    def fake_build_level0_report_with_eigenvectors(
+        lattice, n_flavors, spin, basis, terms, params, *, external_charges, spectrum_options
+    ):
+        return incomplete_report, np.eye(2, dtype=complex)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("no D2/D3 primitive may be reached from an incomplete spectrum")
+
+    monkeypatch.setattr(level3_execution, "build_lattice", fake_build_lattice)
+    monkeypatch.setattr(level3_execution, "build_basis", fake_build_basis)
+    monkeypatch.setattr(level3_execution, "build_key_index", fake_build_key_index)
+    monkeypatch.setattr(level3_execution, "build_hamiltonian_terms", fake_build_hamiltonian_terms)
+    monkeypatch.setattr(
+        level3_execution, "build_level0_report_with_eigenvectors", fake_build_level0_report_with_eigenvectors
+    )
+    monkeypatch.setattr(adapter, "build_case_operators", forbidden)
+    monkeypatch.setattr(adapter, "build_case_multiplet_profile", forbidden)
+
+    with pytest.raises(IncompleteSpectrumRejected):
+        run_case(CaseSpec(geometry="triangle", spin=2))
+
+
+def test_run_case_still_reproduces_l2_a1_reference_after_the_full_spectrum_policy():
+    # Non-regression for the already-accepted S=2/S=3 historical cases,
+    # now routed through full_spectrum_options/_check_dense_capability/
+    # _assert_full_eigensystem instead of the old bare SpectrumOptions call.
+    from cosmobox.level2.execution import L2_A1_PREFLIGHT_REFERENCE
+
+    for spin in (2, 3):
+        result = run_case(CaseSpec(geometry="triangle", spin=spin))
+        expected_dimension, expected_group_count = L2_A1_PREFLIGHT_REFERENCE[("triangle", spin)]
+        assert result.dimension == expected_dimension
+        assert result.group_count == expected_group_count

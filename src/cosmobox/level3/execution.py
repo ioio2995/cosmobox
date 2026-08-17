@@ -45,14 +45,30 @@ and out of scope for this lot).
 
 No new Hamiltonian term, no new metric, no new numerical tolerance, and no
 multiplet-by-multiplet inter-S matching is introduced anywhere in this
-module. run_case always requests the full spectrum
-(SpectrumOptions(n_eigenvalues=dimension), never overridable) and never
-catches adapter.PartialSubspaceCaseRejected -- a case with any
-partial_subspace spectral group is rejected exactly as it is in Level2.
-No real S>=4 case is ever executed by this module's own tests; run_case
-itself is production code intended for a future, separately authorized
-execution (real S>=4 diagonalization requires its own scientific
-pre-registration, not opened by this lot).
+module. No real S>=4 case is ever executed by this module's own tests;
+run_case itself is production code intended for a future, separately
+authorized execution (real S>=4 diagonalization requires its own
+scientific pre-registration, not opened by this lot).
+
+Full-spectrum execution policy (lot L3-B-D-E-CORRECTIVE /
+L3-E-FULL-SPECTRUM-EXECUTION-POLICY): Level0's own dispatcher
+(cosmobox.level0.reports._compute_spectrum) picks dense vs sparse purely
+from SpectrumOptions.max_dense_dimension against the case's dimension --
+it is never modified here. The sparse path (scipy.sparse.linalg.eigsh)
+caps at k = dimension - 1 by construction and can therefore never return
+a genuinely complete eigensystem; Level3's contract is full spectrum or
+an explicit failure, never a silent partial result. run_case therefore
+(a) builds full_spectrum_options(dimension) itself, forcing
+max_dense_dimension (and, to keep SpectrumOptions' own invariant, if
+needed max_sparse_dimension) up to at least `dimension` so Level0's
+dispatcher can only choose the dense path; (b) checks
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT *before* building the Hamiltonian,
+refusing outright (FullSpectrumCapabilityExceeded) rather than ever
+falling back to a partial sparse result; and (c) re-verifies, after
+build_level0_report_with_eigenvectors returns, that the eigensystem
+actually is complete (IncompleteSpectrumRejected otherwise) before any
+D2/D3 primitive is ever called -- no observable is computed from an
+incomplete spectrum under any circumstance.
 """
 
 from __future__ import annotations
@@ -63,7 +79,7 @@ from cosmobox.level0.basis import build_basis
 from cosmobox.level0.encoding import validate_spin
 from cosmobox.level0.hamiltonian import build_hamiltonian_terms, build_key_index
 from cosmobox.level0.lattice import GEOMETRIES, build_lattice
-from cosmobox.level0.reports import SpectrumOptions, build_level0_report_with_eigenvectors
+from cosmobox.level0.reports import Level0Report, SpectrumOptions, build_level0_report_with_eigenvectors
 from cosmobox.level2 import adapter, orchestration
 from cosmobox.level2.adapter import MultipletProfileEntry
 from cosmobox.level2.execution import (
@@ -73,6 +89,111 @@ from cosmobox.level2.execution import (
 )
 from cosmobox.level2.metrics import Available
 from cosmobox.level2.orchestration import CaseMetricAnalysis
+
+# ---------------------------------------------------------------------------
+# 0. Full-spectrum execution policy: dense-path guarantee, operational
+# capacity guard, post-diagonalization completeness assertion
+# ---------------------------------------------------------------------------
+
+LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT = 2008
+"""Operational capacity limit for Level3's dense full-spectrum execution
+path -- NOT a physical threshold, NOT a maximum spin, NOT a convergence
+criterion, NOT a property of the model. It records what the L3-D synthetic
+capability preflight actually demonstrated (SYNTHETIC_D2008_FULL_EIGENSYSTEM
+= COMPLETE: a D=2008 dense Hermitian eigh completed in ~8.18s wall time at
+~480 MiB peak RSS in the tested environment, with no OOM and no LAPACK
+failure). It happens to equal the ring5 S=4 basis dimension found by the
+L3-C capability preflight, but that is a coincidence of what was tested,
+not a rule keyed to any particular (geometry, spin) pair -- nothing in this
+module branches on 2008, 4, or any specific dimension/spin value. Raising
+this limit requires a new, separately-run and separately-authorized
+capability preflight, never an edit to this constant based on assumption
+or extrapolation."""
+
+
+class FullSpectrumCapabilityExceeded(RuntimeError):
+    """Raised by run_case, before any Hamiltonian is built, when a case's
+    Hilbert-space dimension exceeds LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT.
+
+    This is deliberately NOT a statement that the case or the underlying
+    model is invalid: it means the dense full-spectrum capability has not
+    yet been validated at this dimension by a capability preflight. No
+    sparse fallback is ever attempted to work around it -- Level3's
+    contract is full spectrum or explicit failure, never a silently
+    partial result."""
+
+
+class IncompleteSpectrumRejected(RuntimeError):
+    """Raised by run_case if, after calling
+    build_level0_report_with_eigenvectors with full_spectrum_options, the
+    returned report/eigenvectors do not actually constitute a complete
+    eigensystem (status != "computed", computed_eigenvalues != dimension,
+    eigenvectors missing, or eigenvectors of the wrong shape). No D2/D3
+    primitive -- no observable of any kind -- is ever reached from this
+    branch."""
+
+
+def full_spectrum_options(dimension: int) -> SpectrumOptions:
+    """SpectrumOptions guaranteed to make Level0's own dispatcher
+    (reports._compute_spectrum: `dimension <= max_dense_dimension` ->
+    dense) select the dense path and request exactly `dimension`
+    eigenvalues -- the only way to obtain a genuinely complete
+    eigensystem, since the sparse path caps at k = dimension - 1 by
+    construction and can never satisfy a full-spectrum contract.
+    max_sparse_dimension is raised alongside max_dense_dimension only when
+    needed to keep SpectrumOptions' own frozen invariant
+    (max_dense_dimension <= max_sparse_dimension) satisfied; it never
+    otherwise changes reports.py's default sparse-path behavior, since the
+    dense branch is always chosen first whenever it applies. Does not
+    modify cosmobox.level0.reports in any way: it only chooses values for
+    the SpectrumOptions dataclass reports.py already exposes."""
+    if dimension < 1:
+        raise ValueError(f"dimension must be >= 1, got {dimension}")
+    default_max_sparse_dimension = SpectrumOptions().max_sparse_dimension
+    return SpectrumOptions(
+        n_eigenvalues=dimension,
+        max_dense_dimension=dimension,
+        max_sparse_dimension=max(dimension, default_max_sparse_dimension),
+    )
+
+
+def _check_dense_capability(dimension: int) -> None:
+    """The operational capacity guard: refuses outright, before any
+    Hamiltonian is built, if `dimension` exceeds the validated dense
+    full-spectrum capability. Never a sparse fallback."""
+    if dimension > LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT:
+        raise FullSpectrumCapabilityExceeded(
+            f"requested dimension={dimension} exceeds "
+            f"LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT={LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT}, "
+            "the dense full-spectrum capability established by the L3-D synthetic capability "
+            "preflight. This is an operational capacity limit, not a physical or convergence "
+            "judgement about the case itself -- a new capability preflight is required before "
+            "Level3 can attempt a dense full-spectrum diagonalization at this dimension. No "
+            "sparse fallback is attempted."
+        )
+
+
+def _assert_full_eigensystem(report: Level0Report, eigenvectors, dimension: int) -> None:
+    """The post-diagonalization completeness assertion: no D2/D3
+    primitive is ever reached unless the returned spectrum genuinely is
+    the complete eigensystem for `dimension`."""
+    if report.spectrum.status != "computed":
+        raise IncompleteSpectrumRejected(
+            f"spectrum status is {report.spectrum.status!r}, expected 'computed' -- refusing to "
+            "build observables from an incomplete or failed spectrum"
+        )
+    if report.spectrum.computed_eigenvalues != dimension:
+        raise IncompleteSpectrumRejected(
+            f"computed_eigenvalues={report.spectrum.computed_eigenvalues} does not match the "
+            f"full Hilbert-space dimension={dimension} -- Level3 requires a complete eigensystem, "
+            "never a partial spectrum"
+        )
+    if eigenvectors is None:
+        raise IncompleteSpectrumRejected("eigenvectors is None -- Level3 requires the full eigenvector set")
+    if eigenvectors.shape != (dimension, dimension):
+        raise IncompleteSpectrumRejected(
+            f"eigenvectors.shape={eigenvectors.shape}, expected ({dimension}, {dimension})"
+        )
 
 # ---------------------------------------------------------------------------
 # 1. CaseSpec: geometry + generic spin
@@ -162,14 +283,24 @@ class CaseExecutionResult:
 
 
 def run_case(spec: CaseSpec) -> CaseExecutionResult:
-    """Build `spec`'s Level0 case (full spectrum, n_eigenvalues always
-    exactly the Hilbert-space dimension -- never a partial window), route
+    """Build `spec`'s Level0 case with a genuinely complete eigensystem --
+    never a partial window, never a silent sparse-path truncation -- route
     it through the same D2 adapter (which rejects the whole case, via its
     own PartialSubspaceCaseRejected, if any spectral group is
     partial_subspace -- never bypassed or caught here) and the same D3
     metric analyses Level2 uses. Conceptually identical to
     cosmobox.level2.execution.run_case's own wiring, generic in
     spec.spin.
+
+    Order of operations (L3-E mandate): basis -> dimension -> dense
+    capability guard (_check_dense_capability, raising
+    FullSpectrumCapabilityExceeded before any Hamiltonian is built if
+    `dimension` exceeds LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT) ->
+    Hamiltonian -> dense full eigensystem (full_spectrum_options(dimension)
+    forces Level0's own dispatcher onto the dense path, never sparse) ->
+    completeness assertion (_assert_full_eigensystem, raising
+    IncompleteSpectrumRejected if the returned spectrum is not actually
+    complete) -> only then D2/D3 observables.
 
     n_flavors, the Hamiltonian parameters, and external_charges are never
     read from `spec` (it does not carry them): they are always exactly
@@ -178,10 +309,12 @@ def run_case(spec: CaseSpec) -> CaseExecutionResult:
     imported unchanged, with no caller-reachable degree of freedom to
     diverge from it."""
     lattice = build_lattice(spec.geometry)
-    hamiltonian_params = build_reference_hamiltonian_parameters(len(lattice.nodes))
 
     basis = build_basis(lattice, REFERENCE_N_FLAVORS, spec.spin)
     dimension = len(basis.keys)
+    _check_dense_capability(dimension)
+
+    hamiltonian_params = build_reference_hamiltonian_parameters(len(lattice.nodes))
     key_index = build_key_index(basis.keys)
 
     terms = build_hamiltonian_terms(lattice, REFERENCE_N_FLAVORS, spec.spin, basis.keys, key_index, hamiltonian_params)
@@ -193,8 +326,9 @@ def run_case(spec: CaseSpec) -> CaseExecutionResult:
         terms,
         hamiltonian_params,
         external_charges=REFERENCE_EXTERNAL_CHARGES,
-        spectrum_options=SpectrumOptions(n_eigenvalues=dimension),
+        spectrum_options=full_spectrum_options(dimension),
     )
+    _assert_full_eigensystem(report, eigenvectors, dimension)
 
     charge_operators, flavor_generators = adapter.build_case_operators(
         lattice, REFERENCE_N_FLAVORS, spec.spin, basis.keys, key_index
