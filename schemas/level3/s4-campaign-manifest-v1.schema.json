@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level3-s4-campaign-manifest-v1.schema.json",
+  "title": "Cosmobox Level3 S4 campaign manifest (v1)",
+  "description": "Machine-readable transcription of the Level3 S4 first-campaign scientific contract (docs/levels/level3/s4-first-campaign-preregistration.md, frozen at commit 1c1d71f07dd6a7399b3965b2bb0acfa5c665991e). Fixes exactly the three new (geometry, S=4) cases, the reference-Hamiltonian/full-spectrum requirement, the primary/control metric split, and pins the frozen Level2 reference campaign identity that supplies the S=2/S=3 comparison data -- no scientific degree of freedom beyond what is already frozen.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "campaign_id",
+    "schema_version",
+    "branch",
+    "frozen_preregistration_commit",
+    "cases",
+    "physical_parameters",
+    "full_spectrum_required",
+    "primary_metrics",
+    "control_metrics",
+    "primary_contrast",
+    "numerical_guard_reference",
+    "level2_reference",
+    "expected_s4_dimensions",
+    "validated_dense_capability",
+    "forbidden_extensions"
+  ],
+  "properties": {
+    "manifest_version": {"const": "level3-s4-reference-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "schema_version": {"type": "string", "minLength": 1},
+    "branch": {"type": "string", "minLength": 1},
+    "frozen_preregistration_commit": {
+      "const": "1c1d71f07dd6a7399b3965b2bb0acfa5c665991e",
+      "description": "The exact commit that froze docs/levels/level3/s4-first-campaign-preregistration.md (L3_S4_SCIENTIFIC_PREREGISTRATION = FROZEN)."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["geometry", "spin"],
+        "properties": {
+          "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+          "spin": {"const": 4}
+        }
+      },
+      "description": "Exactly the three new Level3 S4 cases, geometry-major order -- never S=2/S=3 (those come from the frozen Level2 reference), never S=5."
+    },
+    "physical_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n_flavors", "j", "h", "t", "g_e", "k", "external_charges"],
+      "properties": {
+        "n_flavors": {"const": 2},
+        "j": {"const": 1.0},
+        "h": {"const": 0.0},
+        "t": {"const": 1.0},
+        "g_e": {"const": 1.0},
+        "k": {"const": 1.0},
+        "external_charges": {"const": 0.0}
+      },
+      "description": "Documentary only -- not consumed by execution; the enforced values live in cosmobox.level2.execution's own frozen constants, reused unchanged by cosmobox.level3.execution.run_case."
+    },
+    "full_spectrum_required": {"const": true},
+    "primary_metrics": {
+      "type": "array",
+      "items": {"enum": ["M_TT", "R_eff"]},
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true
+    },
+    "control_metrics": {
+      "type": "array",
+      "items": {"enum": ["A_QQ", "M_QQ"]},
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true
+    },
+    "primary_contrast": {"const": "HIGH_MINUS_LOW"},
+    "numerical_guard_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["guard_m_tt", "guard_r_eff", "guard_scope"],
+      "properties": {
+        "guard_m_tt": {"const": 1e-16},
+        "guard_r_eff": {"const": 1e-15},
+        "guard_scope": {"const": "DELTA_HL_ONLY"}
+      },
+      "description": "The frozen L2-C1 numerical zero-resolution guards, reused unchanged for the S3<->S4 taxonomy."
+    },
+    "level2_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level2-energy-regime-v1"},
+        "manifest_fingerprint": {"const": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4"},
+        "repository_commit": {"const": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0"},
+        "frozen_preregistration_commit": {"const": "2d4c859db7939da51ee7d919889a18f4c7e229ed"}
+      },
+      "description": "The frozen Level2 campaign identity Level3 pins as its exclusive S=2/S=3 source -- never a caller-configurable value."
+    },
+    "expected_s4_dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["triangle", "ring4", "ring5"],
+      "properties": {
+        "triangle": {"const": 168},
+        "ring4": {"const": 572},
+        "ring5": {"const": 2008}
+      },
+      "description": "Hilbert-space dimensions established by the L3-C capability preflight -- reference data, cross-checked by the campaign's gates against the real run_case(...).dimension."
+    },
+    "validated_dense_capability": {
+      "const": 2008,
+      "description": "Must equal cosmobox.level3.execution.LEVEL3_VALIDATED_DENSE_DIMENSION_LIMIT (L3-E) -- an operational capacity limit, never a physical or convergence threshold."
+    },
+    "forbidden_extensions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string"},
+      "description": "Documentary marker only -- the real enforcement is in code (planning.py's exact 3-case set, cosmobox.level0.encoding/cosmobox.level3.execution's own guards), never solely in this JSON field."
+    }
+  }
+}

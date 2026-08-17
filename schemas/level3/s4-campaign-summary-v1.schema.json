@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cosmobox.local/schemas/level3-s4-campaign-summary-v1.schema.json",
+  "title": "Cosmobox Level3 S4 campaign summary (v1)",
+  "description": "The Level3 S4 campaign-level finalization marker: for each of the three geometries (triangle, ring4, ring5), the S3<->S4 primary taxonomy and continuous descriptors for M_TT/R_eff, the three-spin (S2,S3,S4) sequence taxonomy, and a descriptive-only S2/S3/S4 comparison for the control metrics (A_QQ, M_QQ) -- structurally incapable of carrying a primary_s3_s4_taxonomy or three_spin_sequence_taxonomy for a control metric. delta_hl_s2/c_x_23/d_x_23 are the frozen Level2 values (pinned, never recomputed); delta_hl_s3 is likewise read from the frozen Level2 case/campaign-summary, never recomputed from a re-executed S3 case. This document is written ONLY when the campaign is fully complete (3/3 S4 cases, 3/3 geometry comparisons, same repository_commit/manifest_fingerprint/campaign_id, all cases full-spectrum with zero partial subspaces, frozen Level2 reference provenance verified): its mere existence on disk is the completeness marker -- an interrupted campaign never produces this file at all.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "manifest_fingerprint",
+    "repository",
+    "repository_commit",
+    "branch",
+    "frozen_preregistration_commit",
+    "campaign_status",
+    "level2_reference",
+    "geometries"
+  ],
+  "properties": {
+    "schema_version": {"const": "level3-s4-campaign-summary-v1"},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "manifest_fingerprint": {"type": "string", "minLength": 1},
+    "repository": {"const": "ioio2995/cosmobox"},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "branch": {"type": "string", "minLength": 1},
+    "frozen_preregistration_commit": {"const": "1c1d71f07dd6a7399b3965b2bb0acfa5c665991e"},
+    "campaign_status": {
+      "const": "COMPLETE",
+      "description": "Always COMPLETE: an incomplete or failed campaign never produces this document at all."
+    },
+    "level2_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "manifest_fingerprint", "repository_commit", "frozen_preregistration_commit"],
+      "properties": {
+        "campaign_id": {"const": "level2-energy-regime-v1"},
+        "manifest_fingerprint": {"const": "82dca9dee756f531375b31540b4f7d05c2c8ba1760150f2d9972f12a5da06fa4"},
+        "repository_commit": {"const": "1feb03f41f9e73078efbc760dd2cba2b667e2ed0"},
+        "frozen_preregistration_commit": {"const": "2d4c859db7939da51ee7d919889a18f4c7e229ed"}
+      },
+      "description": "Identifies without ambiguity which frozen Level2 campaign supplied the S=2/S=3 reference data used in this document."
+    },
+    "geometries": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/geometryS4Comparison"},
+      "description": "Exactly triangle, ring4, ring5 -- no more, no fewer."
+    }
+  },
+  "$defs": {
+    "available": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "reason"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "reason": {"type": ["string", "null"]}
+      },
+      "description": "value is None if and only if reason is set."
+    },
+    "primaryS3S4Comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "delta_hl_s2", "delta_hl_s3", "delta_hl_s4",
+        "direction_s2", "direction_s3", "direction_s4",
+        "primary_s3_s4_taxonomy",
+        "three_spin_sequence_taxonomy",
+        "t_x_23", "t_x_34", "r_delta_x",
+        "c_x_23", "d_x_23", "c_x_34", "d_x_34", "r_d_x"
+      ],
+      "properties": {
+        "metric": {"enum": ["M_TT", "R_eff"]},
+        "delta_hl_s2": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level2 campaign-summary -- never recomputed."},
+        "delta_hl_s3": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level2 campaign-summary -- never recomputed from a re-executed S3 case."},
+        "delta_hl_s4": {"$ref": "#/$defs/available"},
+        "direction_s2": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "direction_s3": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "direction_s4": {"enum": ["POSITIVE", "NEGATIVE", "NUMERICALLY_UNRESOLVED", null]},
+        "primary_s3_s4_taxonomy": {
+          "enum": ["S4_DIRECTION_PERSISTS", "S4_DIRECTION_REVERSES", "S4_CONTRAST_UNRESOLVED", "NOT_EVALUABLE"]
+        },
+        "three_spin_sequence_taxonomy": {
+          "enum": [
+            "THREE_SPIN_SAME_DIRECTION",
+            "S3_S4_PERSIST_AFTER_S2_S3_REVERSAL",
+            "SECOND_DIRECTION_REVERSAL_AT_S4",
+            "THREE_SPIN_DIRECTION_NOT_EVALUABLE"
+          ]
+        },
+        "t_x_23": {"$ref": "#/$defs/available", "description": "abs(delta_hl_s3 - delta_hl_s2)."},
+        "t_x_34": {"$ref": "#/$defs/available", "description": "abs(delta_hl_s4 - delta_hl_s3)."},
+        "r_delta_x": {"$ref": "#/$defs/available", "description": "t_x_34 / t_x_23, only when t_x_23 > 0. No threshold associated."},
+        "c_x_23": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level2 campaign-summary."},
+        "d_x_23": {"$ref": "#/$defs/available", "description": "Pinned from the frozen Level2 campaign-summary."},
+        "c_x_34": {"$ref": "#/$defs/available", "description": "Computed with the same profiles.cross_profile_correlation primitive as C_X_23, on the S3<->S4 pair."},
+        "d_x_34": {"$ref": "#/$defs/available", "description": "Computed with the same profiles.cross_profile_distance primitive as D_X_23, on the S3<->S4 pair."},
+        "r_d_x": {"$ref": "#/$defs/available", "description": "d_x_34 / d_x_23, only when d_x_23 > 0 and both available. No threshold associated."}
+      },
+      "description": "Mirrors the S3<->S4 primary comparison contract of docs/levels/level3/s4-first-campaign-preregistration.md sections 8-10 exactly."
+    },
+    "controlS3S4Comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "delta_hl_s2", "delta_hl_s3", "delta_hl_s4"],
+      "properties": {
+        "metric": {"enum": ["A_QQ", "M_QQ"]},
+        "delta_hl_s2": {"$ref": "#/$defs/available"},
+        "delta_hl_s3": {"$ref": "#/$defs/available"},
+        "delta_hl_s4": {"$ref": "#/$defs/available"}
+      },
+      "description": "Deliberately has NO primary_s3_s4_taxonomy/three_spin_sequence_taxonomy/shape-descriptor property -- additionalProperties:false makes it a schema error to include one, per docs/levels/level3/s4-first-campaign-preregistration.md section 14 (control channel never creates or overrides a primary result)."
+    },
+    "geometryS4Comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry", "m_tt", "r_eff", "a_qq", "m_qq"],
+      "properties": {
+        "geometry": {"enum": ["triangle", "ring4", "ring5"]},
+        "m_tt": {"allOf": [{"$ref": "#/$defs/primaryS3S4Comparison"}, {"properties": {"metric": {"const": "M_TT"}}}]},
+        "r_eff": {"allOf": [{"$ref": "#/$defs/primaryS3S4Comparison"}, {"properties": {"metric": {"const": "R_eff"}}}]},
+        "a_qq": {"allOf": [{"$ref": "#/$defs/controlS3S4Comparison"}, {"properties": {"metric": {"const": "A_QQ"}}}]},
+        "m_qq": {"allOf": [{"$ref": "#/$defs/controlS3S4Comparison"}, {"properties": {"metric": {"const": "M_QQ"}}}]}
+      }
+    }
+  }
+}
